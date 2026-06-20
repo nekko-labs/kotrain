@@ -60,8 +60,16 @@ export function ChatView() {
         case 'tool_result':
           setApproval(null);
           break;
-        case 'done':
         case 'error':
+          useStore.getState().pushToast('error', e.message || 'Something went wrong.');
+          setStreaming(false);
+          setLiveText('');
+          setLiveTools([]);
+          setMascotMood('idle');
+          if (activeSessionId) window.nekko.getSession(activeSessionId).then(setSession);
+          refreshSessions();
+          break;
+        case 'done':
           setStreaming(false);
           setLiveText('');
           setLiveTools([]);

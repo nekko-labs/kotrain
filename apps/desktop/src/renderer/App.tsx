@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
 import { Mascot } from './components/Mascot.js';
+import { Toasts } from './components/Toasts.js';
+import { CommandPalette } from './components/CommandPalette.js';
 import { ChatView } from './views/ChatView.js';
 import { ModelsView } from './views/ModelsView.js';
 import { ProjectsView } from './views/ProjectsView.js';
@@ -26,7 +28,7 @@ const NAV: Array<{ view: View; label: string; Icon: (p: { className?: string }) 
 ];
 
 export function App() {
-  const { view, setView, mascotMood, settings, refreshSettings, refreshProviders, refreshSessions } = useStore();
+  const { view, setView, mascotMood, settings, providers, refreshSettings, refreshProviders, refreshSessions } = useStore();
 
   useEffect(() => {
     refreshSettings();
@@ -35,7 +37,26 @@ export function App() {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => useStore.getState().applyTheme();
     mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+
+    // Global keyboard shortcuts.
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        useStore.getState().setPaletteOpen(!useStore.getState().paletteOpen);
+      } else if (mod && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        useStore.getState().newChat();
+      } else if (mod && e.key === '\\') {
+        e.preventDefault();
+        useStore.getState().toggleContextPanel();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      mq.removeEventListener('change', onChange);
+      window.removeEventListener('keydown', onKey);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -60,6 +81,15 @@ export function App() {
 
       {/* Main */}
       <main className="relative flex min-w-0 flex-1 flex-col">
+        {providers.length === 0 && view !== 'models' && view !== 'settings' && (
+          <button
+            className="flex items-center justify-center gap-2 border-b border-line py-2.5 text-[13px]"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            onClick={() => setView('models')}
+          >
+            <span className="font-medium">Get started:</span> connect your first model in Models →
+          </button>
+        )}
         {view === 'chat' && <ChatView />}
         {view === 'models' && <ModelsView />}
         {view === 'projects' && <ProjectsView />}
@@ -69,6 +99,8 @@ export function App() {
       </main>
 
       <Mascot mood={mascotMood} enabled={settings?.mascotEnabled ?? true} />
+      <CommandPalette />
+      <Toasts />
     </div>
   );
 }

@@ -75,6 +75,16 @@ list dirs, run shell commands).
   makes shows up as a card so you can see exactly what it did.
 - Streaming is live; hit **Stop** to abort a turn.
 
+**Keyboard shortcuts** — Nekko Paw has a command palette (think Cmd-K everywhere):
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd + K` | Open the command palette |
+| `Ctrl/Cmd + N` | New chat |
+| `Ctrl/Cmd + \` | Toggle the context panel |
+
+![Command palette](https://raw.githubusercontent.com/ermish/nekko-paw/main/docs/screenshots/command-palette.png)
+
 ---
 
 ## 4. The Context Inspector

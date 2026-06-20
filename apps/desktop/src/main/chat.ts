@@ -8,6 +8,7 @@ import {
   assembleContext,
   renderContextBlock,
   isGuidelineFile,
+  getConnector,
 } from '@nekko/core';
 import { getSettings } from './store.js';
 import { getSession, saveSession } from './sessions.js';
@@ -64,8 +65,38 @@ function collectAttached(paths: string[]): Array<{ path: string; content: string
     .filter((x): x is { path: string; content: string } => !!x);
 }
 
+/**
+ * Best-effort fetch of a few resources from each connected connector, mapped to
+ * context snippets. Bounded by an overall timeout so a slow/unreachable service
+ * never stalls a turn; failures are silently skipped.
+ */
+async function collectConnectorSnippets(
+  query?: string,
+  timeoutMs = 2500,
+): Promise<Array<{ label: string; origin: string; body: string }>> {
+  const connectors = getSettings().connectors.filter((c) => c.connected && c.token);
+  if (connectors.length === 0) return [];
+
+  const fetches = connectors.map(async (c) => {
+    try {
+      const resources = await getConnector(c.kind).fetch(c.token!, query, c.settings);
+      return resources.slice(0, 5).map((r) => ({
+        label: r.title,
+        origin: c.kind,
+        body: [r.subtitle, r.body].filter(Boolean).join(' — ') || r.title,
+      }));
+    } catch {
+      return [];
+    }
+  });
+
+  const timeout = new Promise<never[]>((resolve) => setTimeout(() => resolve([]), timeoutMs));
+  const settled = await Promise.race([Promise.all(fetches), timeout]);
+  return Array.isArray(settled) ? settled.flat() : [];
+}
+
 /** Build the context bundle for the Context Inspector preview (no model call). */
-export function previewContext(sessionId: string, attachedPaths: string[]): ContextBundle {
+export async function previewContext(sessionId: string, attachedPaths: string[]): Promise<ContextBundle> {
   const session = getSession(sessionId);
   return assembleContext({
     attached: collectAttached(attachedPaths),
@@ -74,7 +105,7 @@ export function previewContext(sessionId: string, attachedPaths: string[]): Cont
       ...listMemory('global'),
       ...(session?.workspaceId ? listMemory('workspace', session.workspaceId) : []),
     ],
-    connectorSnippets: [],
+    connectorSnippets: await collectConnectorSnippets(),
     indexSnippets: [],
   });
 }
@@ -101,7 +132,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
       ...listMemory('global'),
       ...(session.workspaceId ? listMemory('workspace', session.workspaceId) : []),
     ],
-    connectorSnippets: [],
+    connectorSnippets: await collectConnectorSnippets(opts.text),
     indexSnippets: [],
   });
   const contents = new Map<string, string>();

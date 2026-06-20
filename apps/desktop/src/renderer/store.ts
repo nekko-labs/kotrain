@@ -4,6 +4,12 @@ import type { MascotMood } from './components/Mascot.js';
 
 export type View = 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings';
 
+export interface Toast {
+  id: string;
+  kind: 'info' | 'error' | 'success';
+  message: string;
+}
+
 interface UiState {
   settings: AppSettings | null;
   view: View;
@@ -15,7 +21,13 @@ interface UiState {
   activeModelId: string | null;
   contextPanelOpen: boolean;
   mascotMood: MascotMood;
+  toasts: Toast[];
+  paletteOpen: boolean;
 
+  pushToast: (kind: Toast['kind'], message: string) => void;
+  dismissToast: (id: string) => void;
+  setPaletteOpen: (open: boolean) => void;
+  newChat: () => Promise<void>;
   setMascotMood: (m: MascotMood) => void;
   setView: (v: View) => void;
   refreshSettings: () => Promise<void>;
@@ -39,7 +51,21 @@ export const useStore = create<UiState>((set, get) => ({
   activeModelId: null,
   contextPanelOpen: true,
   mascotMood: 'waving',
+  toasts: [],
+  paletteOpen: false,
 
+  pushToast: (kind, message) => {
+    const id = `t_${Date.now().toString(36)}_${Math.floor(performance.now())}`;
+    set((s) => ({ toasts: [...s.toasts, { id, kind, message }] }));
+    setTimeout(() => get().dismissToast(id), 5000);
+  },
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  setPaletteOpen: (open) => set({ paletteOpen: open }),
+  newChat: async () => {
+    const s = await window.nekko.createSession();
+    await get().refreshSessions();
+    set({ activeSessionId: s.id, view: 'chat' });
+  },
   setMascotMood: (m) => set({ mascotMood: m }),
   setView: (v) => set({ view: v }),
 
