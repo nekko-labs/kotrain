@@ -26,6 +26,18 @@ npm run dev          # launch the desktop app (electron-vite)
 
 **Rule of thumb:** business logic goes in `packages/core` (so it's testable without Electron); the desktop app wires it to the filesystem, shell, and UI.
 
+## Publishing the `npx nekko-paw` package
+
+`npm run bundle:web` produces a self-contained package in `apps/server/cli-dist/`
+(server + engine bundled by esbuild, plus the built `web/` UI). To release it:
+
+```bash
+npm run bundle:web
+cd apps/server/cli-dist && npm publish
+```
+
+After that, anyone can run the web edition with `npx nekko-paw`.
+
 ## Before you open a PR
 
 Keep the build green and the suite passing:

@@ -22,8 +22,17 @@ const DATA_DIR = process.env.NEKKO_DATA_DIR ?? join(homedir(), '.nekko-paw');
 const TOKEN = process.env.NEKKO_TOKEN ?? '';
 const requireAuth = TOKEN !== '';
 
-const RENDERER_DIR =
-  process.env.NEKKO_RENDERER_DIR ?? resolve(__dirname, '../../desktop/out/renderer');
+// Find the built renderer: explicit override, then the bundled `web/` (published
+// npx package), then the in-repo desktop build (dev).
+function findRendererDir(): string {
+  const candidates = [
+    process.env.NEKKO_RENDERER_DIR,
+    resolve(__dirname, 'web'),
+    resolve(__dirname, '../../desktop/out/renderer'),
+  ].filter(Boolean) as string[];
+  return candidates.find((d) => existsSync(join(d, 'index.html'))) ?? candidates[candidates.length - 1];
+}
+const RENDERER_DIR = findRendererDir();
 
 async function main() {
   // Relay-agent mode: connect out to a relay instead of serving HTTP locally.
