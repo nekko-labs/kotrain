@@ -95,5 +95,37 @@ for await (const ev of runAgent({
 console.log(`\nfinal answer: ${finalText.trim()}`);
 const pass =
   toolsCalled.includes('read_file') && /biscuits/i.test(finalText);
-console.log(`\n${pass ? 'PASS ✅' : 'FAIL ❌'} — tool used: ${toolsCalled.join(',') || 'none'}; mentioned magic word: ${/biscuits/i.test(finalText)}`);
-process.exit(pass ? 0 : 1);
+console.log(`\nScenario 1 ${pass ? 'PASS ✅' : 'FAIL ❌'} — tool used: ${toolsCalled.join(',') || 'none'}; mentioned magic word: ${/biscuits/i.test(finalText)}`);
+
+console.log('\n== Scenario 2: multi-step (list_dir → read_file) ==');
+writeFileSync(join(dir, 'readme.txt'), 'nothing here', 'utf8');
+writeFileSync(join(dir, 'notes.txt'), 'just notes', 'utf8');
+writeFileSync(join(dir, 'config.txt'), 'PASSWORD=hunter2', 'utf8');
+
+const history2 = [
+  {
+    id: 'u1',
+    role: 'user',
+    content: `In the directory ${dir.replace(/\\/g, '/')}, find which file contains a PASSWORD and tell me the file name. Use list_dir first, then read_file.`,
+    createdAt: 0,
+  },
+];
+const tools2 = [];
+let final2 = '';
+let rounds = 0;
+for await (const ev of runAgent({
+  sessionId: 'itest2', provider, model,
+  system: 'You use tools to inspect the filesystem. List a directory before reading files.',
+  history: history2, tools: BUILTIN_TOOLS, executeTool, maxIterations: 8,
+})) {
+  if (ev.type === 'tool_call') { tools2.push(ev.call.name); rounds++; console.log(`  → ${ev.call.name}(${JSON.stringify(ev.call.input)})`); }
+  else if (ev.type === 'text') final2 += ev.delta;
+  else if (ev.type === 'error') console.log('  !! error:', ev.message);
+}
+console.log(`\nfinal: ${final2.trim().slice(0, 200)}`);
+const pass2 = tools2.includes('list_dir') && tools2.includes('read_file') && /config\.txt/i.test(final2);
+console.log(`Scenario 2 ${pass2 ? 'PASS ✅' : 'FAIL ❌'} — tools: ${tools2.join(',')}; named config.txt: ${/config\.txt/i.test(final2)}`);
+
+const allPass = pass && pass2;
+console.log(`\n${allPass ? 'ALL PASS ✅' : 'SOME FAILED ❌'}`);
+process.exit(allPass ? 0 : 1);

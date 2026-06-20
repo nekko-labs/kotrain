@@ -18,6 +18,11 @@ guardrails for risky commands, an out-of-the-box sandbox, multi-folder code
 indexing, memory management, connectors, and an 8-bit cat mascot that makes
 biscuits while the model thinks.
 
+> **Verified working** end-to-end against a live LM Studio server (`google/gemma-4-31b-qat`):
+> connect, model listing, streaming, **reasoning models**, and the full tool-calling
+> agent loop (single- and multi-step). Run `node scripts/itest-local.mjs <baseUrl> <model>`
+> to check your own server.
+
 ![Nekko Paw — unified chat with the Context Inspector](docs/screenshots/chat.png)
 
 <table>
