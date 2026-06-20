@@ -29,6 +29,7 @@
       <nav class="nav-links">
         <a href="#features">Features</a>
         <a href="#local">Local models</a>
+        <a href="#editions">Editions</a>
         <a href="#download">Download</a>
         <a href="https://github.com/ermish/nekko-paw" target="_blank" rel="noopener">GitHub</a>
       </nav>
@@ -122,6 +123,37 @@
           <div class="sc"><b>LM Studio</b><span class="ok">●&nbsp;connected</span><code>localhost:1234</code></div>
           <div class="sc"><b>vLLM</b><span class="muted">○&nbsp;not running</span><code>localhost:8000</code></div>
         </div>
+      </section>
+
+      <section id="why" class="features">
+        <h2>Why not just LM Studio or a terminal?</h2>
+        <div class="grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="feat">
+            <div class="fi">💬→🛠</div>
+            <h3>LM Studio runs models. Nekko runs with your work.</h3>
+            <p>Local model UIs are a chat box around a model — no awareness of your files. Nekko reads, edits, searches, and runs inside your real codebases: multi-folder index, inline editing, per-project memory, guardrails. Same one-click local setup — but the model actually does the work.</p>
+          </div>
+          <div class="feat">
+            <div class="fi">⌨️→👁</div>
+            <h3>The power of an agentic CLI, with eyes.</h3>
+            <p>Terminal agents are powerful but blind — you can't see what changed without <code>git diff</code>, and editing means leaving the tool. Nekko gives an IDE-like surface: browse the tree, view files and diffs, edit inline, with every action visible through the Context Inspector and approvals.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="editions" class="local" style="grid-template-columns: 1fr;">
+        <div class="local-copy" style="max-width: none;">
+          <span class="pill">Same app, anywhere</span>
+          <h2>Run it your way</h2>
+          <p>One engine and one UI across every runtime — pick what fits.</p>
+        </div>
+        <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="feat"><div class="fi">🖥</div><h3>Desktop</h3><p>Native app for macOS, Windows, Linux.</p><span class="ok">● Available</span></div>
+          <div class="feat"><div class="fi">🌐</div><h3>Self-hosted web</h3><p><code>npx nekko-paw</code> — the same UI in your browser, fully offline.</p><span class="muted">○ Planned</span></div>
+          <div class="feat"><div class="fi">🐳</div><h3>Docker</h3><p><code>docker compose up</code> — workspaces as volumes, local models via host network.</p><span class="muted">○ Planned</span></div>
+          <div class="feat"><div class="fi">☁️</div><h3>Nekko Cloud <span class="pill" style="margin:0; padding:2px 8px; font-size:11px;">Paid</span></h3><p>Hosted, with an always-on <b>Zero-Data-Retention</b> mode, cloud history + files, and your phone driving your <em>local</em> model via a secure E2E relay.</p><span class="muted">○ Planned</span></div>
+        </div>
+        <p class="muted small" style="text-align:center; margin-top:18px;">Nekko Cloud keeps inference and tools on your machine — the relay is an end-to-end-encrypted pipe to your own paired agent, so using your local model stays private by design.</p>
       </section>
 
       <section id="download" class="download">

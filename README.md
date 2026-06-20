@@ -34,6 +34,36 @@ biscuits while the model thinks.
 
 > A full picture-by-picture tour is in the **[walkthrough guide](docs/WALKTHROUGH.md)**.
 
+## Why Nekko Paw
+
+**LM Studio runs models. Nekko Paw runs *with your work*.** Local model UIs are
+essentially a chat box around a model — no awareness of your files or projects.
+Nekko reads, edits, searches, and runs inside your actual codebases: multi-folder
+index, file viewer with inline editing, a tool-using agent, per-project memory,
+and guardrails. Same one-click local-model setup — but the model can do the work,
+not just talk about it.
+
+**The power of an agentic CLI, with eyes.** Terminal agents (Claude Code, aider, …)
+are powerful but blind — you can't *see* what changed without `git diff`, and
+editing means leaving the tool. Nekko gives an IDE-like surface: browse the indexed
+tree, view files and diffs, edit inline, while the agent works alongside you — every
+action visible through the Context Inspector and approval prompts.
+
+## Editions
+
+Same engine, same UI, multiple runtimes (see the design in the project spec):
+
+| Edition | How | Status |
+| --- | --- | --- |
+| **Desktop** | Electron app / `npm run dev` | ✅ available |
+| **Self-hosted web** | `npx nekko-paw` or `npm run web` — offline, same UI in your browser | 🔜 planned |
+| **Docker** | `docker compose up` — workspaces as volumes, local models via `host.docker.internal` | 🔜 planned |
+| **Nekko Cloud** (paid) | managed hosting: subscriptions, always-available **Zero-Data-Retention** mode, cloud chat-history + file management, and **drive your local model from your phone** via a secure E2E relay | 🔜 planned |
+
+Cloud keeps inference and tools **on your machine** — the relay is an
+end-to-end-encrypted pipe to a paired local agent, so using your own model stays
+private by design.
+
 ## Features
 
 - **Unified chat / cowork / code** — one thread, no mode switching.
