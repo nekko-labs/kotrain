@@ -1,5 +1,5 @@
 import { createHost, createDispatcher } from '@nekko/host';
-import { IpcEvents } from '@nekko/shared';
+import { IpcEvents, deriveKey, seal, open } from '@nekko/shared';
 
 /**
  * Relay-agent mode: instead of serving HTTP locally, dial OUT to a relay and
@@ -7,43 +7,52 @@ import { IpcEvents } from '@nekko/shared';
  * model + tools running on this machine — no inbound ports. Uses the global
  * WebSocket (Node 21+). Reconnects on drop.
  */
-export function runRelayAgent(opts: { relayUrl: string; room: string; key: string; dataDir: string }): void {
+export async function runRelayAgent(opts: { relayUrl: string; room: string; key: string; dataDir: string }): Promise<void> {
   const host = createHost({ dataDir: opts.dataDir });
   const dispatch = createDispatcher(host);
+  // E2E key shared with paired clients; the relay only sees ciphertext.
+  const e2eKey = await deriveKey(opts.key, opts.room);
 
   const url =
     `${opts.relayUrl.replace(/\/$/, '')}/relay?role=agent` +
     `&room=${encodeURIComponent(opts.room)}&key=${encodeURIComponent(opts.key)}`;
   let ws: WebSocket | null = null;
 
-  const send = (obj: unknown) => {
+  const sendSealed = async (obj: unknown) => {
     try {
-      ws?.send(JSON.stringify(obj));
+      ws?.send(JSON.stringify({ enc: await seal(e2eKey, obj) }));
     } catch {
       /* closing */
     }
   };
 
-  // Stream host events to whoever is connected through the relay.
-  host.events.on('agentEvent', (e) => send({ type: 'event', channel: IpcEvents.agentEvent, payload: e }));
-  host.events.on('indexProgress', (s) => send({ type: 'event', channel: IpcEvents.indexProgress, payload: s }));
+  // Stream host events (encrypted) to whoever is connected through the relay.
+  host.events.on('agentEvent', (e) => sendSealed({ type: 'event', channel: IpcEvents.agentEvent, payload: e }));
+  host.events.on('indexProgress', (s) => sendSealed({ type: 'event', channel: IpcEvents.indexProgress, payload: s }));
 
   const connect = () => {
     ws = new WebSocket(url);
     ws.onopen = () => console.log(`[relay-agent] connected to room "${opts.room}"`);
     ws.onmessage = async (ev) => {
-      let frame: any;
+      let envelope: any;
       try {
-        frame = JSON.parse(typeof ev.data === 'string' ? ev.data : ev.data.toString());
+        envelope = JSON.parse(typeof ev.data === 'string' ? ev.data : ev.data.toString());
       } catch {
         return;
+      }
+      if (!envelope.enc) return; // ignore non-encrypted (relay control) frames
+      let frame: any;
+      try {
+        frame = await open(e2eKey, envelope.enc);
+      } catch {
+        return; // wrong key / tampered
       }
       if (frame.type !== 'req') return;
       try {
         const result = await dispatch(frame.channel, frame.args ?? []);
-        send({ type: 'res', id: frame.id, result: result ?? null });
+        await sendSealed({ type: 'res', id: frame.id, result: result ?? null });
       } catch (e) {
-        send({ type: 'res', id: frame.id, error: (e as Error).message });
+        await sendSealed({ type: 'res', id: frame.id, error: (e as Error).message });
       }
     };
     ws.onclose = () => {

@@ -1,4 +1,4 @@
-import { IpcChannels, IpcEvents } from '@nekko/shared';
+import { IpcChannels, IpcEvents, deriveKey, seal, open } from '@nekko/shared';
 import type { AppSettings, AgentEvent, IndexStatus, NekkoApi } from '@nekko/shared';
 
 /**
@@ -34,22 +34,34 @@ function makeWebClient(): NekkoApi {
     const pending = new Map<number, { resolve: (v: any) => void; reject: (e: any) => void }>();
     let nextId = 1;
     let relay: WebSocket | null = null;
+    // E2E key shared with the agent; the relay only carries ciphertext.
+    const keyP = deriveKey(key, room);
+    const handle = async (frame: any) => {
+      if (frame.type === 'res' && pending.has(frame.id)) {
+        const { resolve, reject } = pending.get(frame.id)!;
+        pending.delete(frame.id);
+        frame.error ? reject(new Error(frame.error)) : resolve(frame.result);
+      } else if (frame.type === 'event') {
+        dispatchEvent(frame.channel, frame.payload);
+      }
+    };
     const connect = () => {
       relay = new WebSocket(`${relayUrl.replace(/\/$/, '')}/relay?role=client&room=${encodeURIComponent(room)}&key=${encodeURIComponent(key)}`);
-      relay.onmessage = (ev) => {
-        let f: any;
+      relay.onmessage = async (ev) => {
+        let env: any;
         try {
-          f = JSON.parse(ev.data);
+          env = JSON.parse(ev.data);
         } catch {
           return;
         }
-        if (f.type === 'res' && pending.has(f.id)) {
-          const { resolve, reject } = pending.get(f.id)!;
-          pending.delete(f.id);
-          f.error ? reject(new Error(f.error)) : resolve(f.result);
-        } else if (f.type === 'event') {
-          dispatchEvent(f.channel, f.payload);
+        if (env.enc) {
+          try {
+            handle(await open(await keyP, env.enc));
+          } catch {
+            /* tampered / wrong key */
+          }
         }
+        // non-enc frames are relay control (agent-online/offline) — ignored
       };
       relay.onclose = () => setTimeout(connect, 1000);
     };
@@ -70,10 +82,11 @@ function makeWebClient(): NekkoApi {
       });
     call = async (channel, ...args) => {
       await ready();
+      const id = nextId++;
+      const enc = await seal(await keyP, { type: 'req', id, channel, args });
       return new Promise((resolve, reject) => {
-        const id = nextId++;
         pending.set(id, { resolve, reject });
-        relay!.send(JSON.stringify({ type: 'req', id, channel, args }));
+        relay!.send(JSON.stringify({ enc }));
         setTimeout(() => {
           if (pending.has(id)) {
             pending.delete(id);

@@ -12,3 +12,4 @@ export * from './workspace.js';
 export * from './connectors.js';
 export * from './ipc.js';
 export * from './settings.js';
+export * from './e2e.js';
