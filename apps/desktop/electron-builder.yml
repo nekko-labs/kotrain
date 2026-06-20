@@ -22,6 +22,10 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  installerSidebar: build/installerSidebar.bmp
+  installerHeader: build/installerHeader.bmp
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
 msi:
   oneClick: false
 mac:

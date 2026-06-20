@@ -396,10 +396,17 @@ function ReasoningBlock({ text, live }: { text: string; live: boolean }) {
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
+  const [copied, setCopied] = useState(false);
   if (message.role === 'tool') return null;
   const isUser = message.role === 'user';
+  const copy = () => {
+    navigator.clipboard?.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  };
   return (
-    <div className={`fade-in flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group fade-in flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`bubble ${isUser ? 'bubble-user' : 'bubble-ai'}`}>
         {isUser ? (
           <p className="whitespace-pre-wrap text-[14px]">{message.content}</p>
@@ -407,6 +414,15 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <Markdown text={message.content} />
         )}
         {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
+        {message.content && (
+          <button
+            onClick={copy}
+            title="Copy message"
+            className={`mt-1.5 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'text-white/80 hover:text-white' : 'text-ink-faint hover:text-ink'}`}
+          >
+            {copied ? '✓ copied' : 'Copy'}
+          </button>
+        )}
       </div>
     </div>
   );
