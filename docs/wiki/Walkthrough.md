@@ -59,6 +59,19 @@ model servers are first-class, not an afterthought.
 
 > Tip: set a default provider + model in Settings so new chats start ready to go.
 
+### Example: connect an LM Studio server
+
+1. In LM Studio, load a model and start its server (Developer → Start Server).
+2. In Nekko Paw: **Add provider → LM Studio**, set the **Base URL** to your server,
+   e.g. `http://10.5.0.2:1338` (you can paste just `host:port` — Nekko appends
+   `/v1` automatically). No API key needed.
+3. **Test connection** → the model dropdown fills with whatever LM Studio is serving.
+4. Pick the model in the chat header and go.
+
+**Reasoning models** (Gemma, DeepSeek-R1, Qwen-thinking, etc.) are first-class:
+their chain-of-thought streams into a collapsible **Thinking** block above the
+answer, so you see progress during long reasoning and the answer stays clean.
+
 ---
 
 ## 3. The unified chat
