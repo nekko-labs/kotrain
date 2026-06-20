@@ -50,11 +50,11 @@ export function SettingsView() {
               ))}
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-2 flex min-h-[40px] items-center justify-between">
             <span className="text-[13px]">Accent color</span>
-            <input type="color" value={settings.accent} onChange={(e) => update({ accent: e.target.value })} className="h-8 w-12 cursor-pointer rounded-lg border border-line bg-transparent" />
+            <input type="color" value={settings.accent} onChange={(e) => update({ accent: e.target.value })} className="h-7 w-12 rounded-lg" />
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="flex min-h-[40px] items-center justify-between">
             <span className="text-[13px]">Show Nekko mascot</span>
             <Toggle on={settings.mascotEnabled} onChange={(v) => update({ mascotEnabled: v })} />
           </div>
@@ -121,14 +121,19 @@ export function SettingsView() {
   );
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      role="switch"
+      aria-checked={on}
       onClick={() => onChange(!on)}
-      className="relative h-6 w-11 rounded-full transition-colors"
+      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
       style={{ background: on ? 'var(--accent)' : 'var(--line)' }}
     >
-      <span className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all" style={{ left: on ? 22 : 2 }} />
+      <span
+        className="inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+        style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
+      />
     </button>
   );
 }

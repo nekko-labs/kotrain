@@ -36,6 +36,24 @@ select.input option {
   color: var(--ink);
 }
 
+/* Color picker: make the chosen color fill the swatch edge-to-edge (browsers
+   otherwise leave native padding so the color floats inside a gray box). */
+input[type='color'] {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+}
+input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type='color']::-webkit-color-swatch {
+  border: none;
+  border-radius: 7px;
+}
+
 * {
   box-sizing: border-box;
 }
