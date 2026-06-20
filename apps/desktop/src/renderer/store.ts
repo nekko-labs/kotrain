@@ -51,7 +51,8 @@ export const useStore = create<UiState>((set, get) => ({
   models: [],
   activeProviderId: null,
   activeModelId: null,
-  contextPanelOpen: true,
+  // Default the context panel closed on small screens (phones).
+  contextPanelOpen: typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
   mascotMood: 'waving',
   toasts: [],
   paletteOpen: false,
