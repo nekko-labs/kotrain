@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { deriveKey, seal, open } from '@nekko/shared';
 
 const baseUrl = process.argv[2] || 'http://10.5.0.2:1338';
 const model = process.argv[3] || 'google/gemma-4-31b-qat';
@@ -59,20 +60,30 @@ const wrongKeyRejected = await new Promise((resolve) => {
 });
 console.log('wrong-key client rejected:', wrongKeyRejected);
 
-// 3b. remote client with the correct key
+// 3b. remote client with the correct key (E2E-encrypted through the relay)
+const e2eKey = await deriveKey(PAIR_KEY, ROOM);
 const ws = new WebSocket(`ws://127.0.0.1:${RELAY_PORT}/relay?role=client&room=${ROOM}&key=${PAIR_KEY}`);
 const pending = new Map();
 let nextId = 1;
-const call = (channel, ...args) =>
-  new Promise((resolve, reject) => {
-    const id = nextId++;
+const call = async (channel, ...args) => {
+  const id = nextId++;
+  const enc = await seal(e2eKey, { type: 'req', id, channel, args });
+  return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    ws.send(JSON.stringify({ type: 'req', id, channel, args }));
+    ws.send(JSON.stringify({ enc }));
     setTimeout(() => pending.has(id) && reject(new Error(`timeout: ${channel}`)), 20000);
   });
+};
 
-ws.onmessage = (ev) => {
-  const f = JSON.parse(typeof ev.data === 'string' ? ev.data : ev.data.toString());
+ws.onmessage = async (ev) => {
+  let env;
+  try {
+    env = JSON.parse(typeof ev.data === 'string' ? ev.data : ev.data.toString());
+  } catch {
+    return;
+  }
+  if (!env.enc) return;
+  const f = await open(e2eKey, env.enc);
   if (f.type === 'res' && pending.has(f.id)) {
     const { resolve, reject } = pending.get(f.id);
     pending.delete(f.id);

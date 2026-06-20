@@ -28,7 +28,7 @@ const RENDERER_DIR =
 async function main() {
   // Relay-agent mode: connect out to a relay instead of serving HTTP locally.
   if (process.env.NEKKO_RELAY_URL && process.env.NEKKO_ROOM) {
-    runRelayAgent({
+    await runRelayAgent({
       relayUrl: process.env.NEKKO_RELAY_URL,
       room: process.env.NEKKO_ROOM,
       key: process.env.NEKKO_PAIR_KEY || randomUUID().slice(0, 8),
