@@ -10,7 +10,8 @@
     "packages/core",
     "packages/host",
     "apps/desktop",
-    "apps/server"
+    "apps/server",
+    "apps/relay"
   ],
   "scripts": {
     "build": "npm run build:core && npm run build -w @nekko/host && npm run build -w @nekko/desktop",
@@ -19,7 +20,8 @@
     "dev": "npm run dev -w @nekko/desktop",
     "web": "npm run build:web && npm run start -w @nekko/server",
     "test": "npm run test -w @nekko/core",
-    "typecheck": "npm run typecheck -w @nekko/shared && npm run typecheck -w @nekko/core && npm run typecheck -w @nekko/host && npm run typecheck -w @nekko/desktop && npm run typecheck -w @nekko/server",
+    "typecheck": "npm run typecheck -w @nekko/shared && npm run typecheck -w @nekko/core && npm run typecheck -w @nekko/host && npm run typecheck -w @nekko/desktop && npm run typecheck -w @nekko/server && npm run typecheck -w @nekko/relay",
+    "relay": "npm run build -w @nekko/relay && npm run start -w @nekko/relay",
     "dist": "npm run build && npm run dist -w @nekko/desktop"
   },
   "engines": {

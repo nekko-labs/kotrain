@@ -1,0 +1,17 @@
+{
+  "name": "@nekko/relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nekko Paw relay — pairs a remote client with a local agent so a phone can drive your local model. Dumb, end-to-end pipe.",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.0.1",
+    "fastify": "^5.1.0"
+  }
+}

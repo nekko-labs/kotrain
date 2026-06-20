@@ -7,6 +7,7 @@ import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import { createHost, createDispatcher } from '@nekko/host';
 import { IpcEvents } from '@nekko/shared';
+import { runRelayAgent } from './relay-agent.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +25,16 @@ const RENDERER_DIR =
   process.env.NEKKO_RENDERER_DIR ?? resolve(__dirname, '../../desktop/out/renderer');
 
 async function main() {
+  // Relay-agent mode: connect out to a relay instead of serving HTTP locally.
+  if (process.env.NEKKO_RELAY_URL && process.env.NEKKO_ROOM) {
+    runRelayAgent({
+      relayUrl: process.env.NEKKO_RELAY_URL,
+      room: process.env.NEKKO_ROOM,
+      dataDir: DATA_DIR,
+    });
+    return;
+  }
+
   if (!existsSync(join(RENDERER_DIR, 'index.html'))) {
     console.error(
       `[nekko] Renderer not found at ${RENDERER_DIR}.\n` +
