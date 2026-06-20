@@ -38,6 +38,7 @@ export function ChatView() {
   const [liveReasoning, setLiveReasoning] = useState('');
   const [liveTools, setLiveTools] = useState<ToolCall[]>([]);
   const [approval, setApproval] = useState<PendingApproval | null>(null);
+  const [mobileNav, setMobileNav] = useState(false); // session drawer on phones
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load the active session's transcript; reflect its workspace in the header.
@@ -139,9 +140,16 @@ export function ChatView() {
   const hasProvider = providers.length > 0;
 
   return (
-    <div className="flex h-full">
-      {/* Session list */}
-      <aside className="flex w-60 flex-col border-r border-line">
+    <div className="flex h-full min-w-0 overflow-hidden">
+      {/* Backdrop for the mobile session drawer */}
+      {mobileNav && (
+        <div className="absolute inset-0 z-20 bg-black/40 md:hidden" onClick={() => setMobileNav(false)} />
+      )}
+      {/* Session list (static on desktop, slide-over drawer on phones) */}
+      <aside
+        className={`${mobileNav ? 'absolute inset-y-0 left-0 z-30 flex' : 'hidden'} w-60 flex-col border-r border-line md:relative md:z-auto md:flex`}
+        style={{ background: 'var(--paper)' }}
+      >
         <div className="flex items-center justify-between p-3">
           <span className="text-sm font-semibold">Chats</span>
           <button className="btn btn-ghost px-2 py-1.5" onClick={newChat} title="New chat">
@@ -153,7 +161,10 @@ export function ChatView() {
           {sessions.map((s) => (
             <button
               key={s.id}
-              onClick={() => setActiveSession(s.id)}
+              onClick={() => {
+                setActiveSession(s.id);
+                setMobileNav(false);
+              }}
               className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] ${
                 s.id === activeSessionId ? 'bg-surface-2 font-medium' : 'text-ink-soft hover:bg-surface-2'
               }`}
@@ -176,11 +187,19 @@ export function ChatView() {
       </aside>
 
       {/* Conversation */}
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
-          <div className="flex items-center gap-2">
+      <section className="flex min-w-0 w-full flex-1 flex-col overflow-x-hidden">
+        <header className="flex items-center justify-between gap-2 border-b border-line px-3 py-3 md:px-5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <button
+              className="btn btn-ghost shrink-0 px-2 py-1.5 md:hidden"
+              onClick={() => setMobileNav(true)}
+              title="Chats"
+              aria-label="Open chats"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+            </button>
             <select
-              className="input max-w-[150px] py-1.5"
+              className="input min-w-0 flex-1 py-1.5 md:flex-none md:max-w-[150px]"
               value={activeProviderId ?? ''}
               onChange={(e) => selectProvider(e.target.value)}
             >
@@ -192,7 +211,7 @@ export function ChatView() {
               ))}
             </select>
             <select
-              className="input max-w-[200px] py-1.5"
+              className="input min-w-0 flex-1 py-1.5 md:flex-none md:max-w-[200px]"
               value={activeModelId ?? ''}
               onChange={(e) => selectModel(e.target.value)}
             >
@@ -205,7 +224,7 @@ export function ChatView() {
             </select>
             {settings && settings.workspaces.length > 0 && (
               <select
-                className="input max-w-[170px] py-1.5"
+                className="input hidden max-w-[170px] py-1.5 md:block"
                 title="Project this chat works in (scopes the index + per-project memory)"
                 value={activeWorkspaceId ?? ''}
                 onChange={async (e) => {
@@ -227,13 +246,13 @@ export function ChatView() {
               </select>
             )}
           </div>
-          <button className={`btn btn-ghost ${contextPanelOpen ? 'text-accent' : ''}`} onClick={toggleContextPanel} title="Toggle context panel">
+          <button className={`btn btn-ghost hidden shrink-0 md:inline-flex ${contextPanelOpen ? 'text-accent' : ''}`} onClick={toggleContextPanel} title="Toggle context panel">
             <PanelIcon />
           </button>
         </header>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6">
-          <div className="mx-auto max-w-3xl space-y-5">
+        <div ref={scrollRef} className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 md:px-5">
+          <div className="mx-auto w-full max-w-3xl space-y-5">
             {!session?.messages.length && !liveText && !liveReasoning && <Welcome hasProvider={hasProvider} />}
             {session?.messages.map((m, i) => <MessageBubble key={m.id + i} message={m} />)}
             {liveReasoning && <ReasoningBlock text={liveReasoning} live={!liveText} />}
@@ -250,7 +269,7 @@ export function ChatView() {
         {approval && <ApprovalBar approval={approval} onDecide={approve} />}
 
         <div className="border-t border-line p-4">
-          <div className="mx-auto flex max-w-3xl items-end gap-2">
+          <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
             <textarea
               className="input max-h-40 min-h-[44px] resize-none"
               rows={1}
@@ -278,7 +297,17 @@ export function ChatView() {
         </div>
       </section>
 
-      {contextPanelOpen && <ContextInspector sessionId={activeSessionId} />}
+      {contextPanelOpen && (
+        <>
+          <div
+            className="absolute inset-0 z-20 bg-black/40 md:hidden"
+            onClick={toggleContextPanel}
+          />
+          <div className="absolute inset-y-0 right-0 z-30 md:relative md:z-auto" style={{ background: 'var(--paper)' }}>
+            <ContextInspector sessionId={activeSessionId} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
