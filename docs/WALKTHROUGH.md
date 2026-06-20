@@ -22,8 +22,8 @@ are from the running app.
 
 | Platform | Artifact |
 | --- | --- |
-| Windows | `Nekko Paw-<version>-x64.exe` (NSIS installer) |
-| macOS | `Nekko Paw-<version>-<arch>.dmg` (Apple Silicon & Intel) |
+| Windows | `Nekko-Paw-<version>-x64.msi` (or the `.exe`) |
+| macOS | `Nekko-Paw-<version>-arm64.dmg` (Apple Silicon) |
 | Linux | `.AppImage` or `.deb` |
 
 **Or run from source:**
