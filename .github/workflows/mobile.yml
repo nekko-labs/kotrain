@@ -1,0 +1,64 @@
+name: Mobile build
+
+# Verifies the Capacitor iOS/Android apps actually compile (they can't be built
+# locally on a Windows dev box). Run manually from the Actions tab.
+on:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @open-paw/desktop
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Build Android debug APK
+        working-directory: apps/mobile
+        run: |
+          npm install
+          npm run sync-web
+          npx cap add android
+          npx cap sync android
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-paw-android-debug
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-latest
+    # iOS simulator build without signing — best-effort while we finalize the
+    # native project; doesn't block the Android job.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @open-paw/desktop
+      - name: Build iOS (simulator, unsigned)
+        working-directory: apps/mobile
+        run: |
+          npm install
+          npm run sync-web
+          npx cap add ios
+          npx cap sync ios
+          cd ios/App
+          pod install
+          xcodebuild -workspace App.xcworkspace -scheme App \
+            -sdk iphonesimulator -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO build
