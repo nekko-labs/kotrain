@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, EffortLevel } from '@open-paw/shared';
+import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, EffortLevel, IndexedFile } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { Markdown } from '../components/Markdown.js';
 import { ContextInspector } from '../components/ContextInspector.js';
@@ -46,6 +46,7 @@ export function ChatView() {
   const [ctx, setCtx] = useState<ContextBundle | null>(null);
   const [tps, setTps] = useState(0);
   const [thinking, setThinking] = useState(false);
+  const [atFiles, setAtFiles] = useState<IndexedFile[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const turnStart = useRef(0);
@@ -215,6 +216,34 @@ export function ChatView() {
   const slashQuery = draft.startsWith('/') && !draft.includes('\n') ? draft.slice(1).toLowerCase() : null;
   const slashMatches =
     slashQuery !== null ? (settings?.prompts ?? []).filter((p) => p.name.toLowerCase().includes(slashQuery)) : [];
+
+  // @-mention file picker: the word being typed ends with `@query`.
+  const atQuery = (draft.match(/(?:^|\s)@([^\s@]*)$/) ?? [])[1] ?? null;
+  const atMatches =
+    atQuery !== null
+      ? atFiles.filter((f) => f.relPath.toLowerCase().includes(atQuery.toLowerCase())).slice(0, 8)
+      : [];
+
+  // Reset the file cache when the chat's workspace changes; (re)load on demand.
+  useEffect(() => { setAtFiles([]); }, [session?.workspaceId]);
+  useEffect(() => {
+    if (atQuery !== null && session?.workspaceId && atFiles.length === 0) {
+      window.nekko.listFiles(session.workspaceId).then(setAtFiles).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atQuery, session?.workspaceId]);
+
+  const pickFile = async (f: IndexedFile) => {
+    if (!session) return;
+    const next = Array.from(new Set([...(session.attachedPaths ?? []), f.path]));
+    await window.nekko.setSessionAttachments(session.id, next);
+    setDraft((d) => d.replace(/(?:^|\s)@([^\s@]*)$/, (full) => (/^\s/.test(full) ? ' ' : '') + '@' + f.relPath + ' '));
+    const s = await window.nekko.getSession(session.id);
+    setSession(s);
+    refreshCtx(session.id);
+    composerRef.current?.focus();
+  };
+
   const lastMsg = session?.messages[session.messages.length - 1];
   const canRegenerate = !streaming && !!session?.messages.some((m) => m.role === 'assistant') && lastMsg?.role !== 'user';
 
@@ -377,6 +406,26 @@ export function ChatView() {
 
         <div className="px-4 pb-4">
           <div className="relative mx-auto flex w-full max-w-3xl items-end gap-2">
+            {atQuery !== null && session?.workspaceId && (
+              <div className="card absolute bottom-full left-0 z-40 mb-2 w-full max-w-md overflow-hidden p-1.5 shadow-lg">
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint">Attach a file</div>
+                {atMatches.length === 0 ? (
+                  <div className="px-2.5 py-1.5 text-[11px] text-ink-faint">
+                    {atFiles.length === 0 ? 'Index this folder in Projects to mention files.' : 'No matching files.'}
+                  </div>
+                ) : (
+                  atMatches.map((f) => (
+                    <button
+                      key={f.path}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
+                      onClick={() => pickFile(f)}
+                    >
+                      <span className="font-mono text-[12px] text-accent">@{f.relPath}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
             {slashMatches.length > 0 && (
               <div className="card absolute bottom-full left-0 z-40 mb-2 w-full max-w-md overflow-hidden p-1.5 shadow-lg">
                 <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint">Slash commands</div>
@@ -396,7 +445,7 @@ export function ChatView() {
               ref={composerRef}
               className="input max-h-40 min-h-[44px] resize-none"
               rows={1}
-              placeholder={hasProvider ? 'Message Nekko…  (type / for prompts)' : 'Add a model provider in Models first'}
+              placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
