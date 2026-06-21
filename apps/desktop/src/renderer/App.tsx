@@ -5,6 +5,7 @@ import { Mascot } from './components/Mascot.js';
 import { Toasts } from './components/Toasts.js';
 import { CommandPalette } from './components/CommandPalette.js';
 import { UpdateBanner } from './components/UpdateBanner.js';
+import { RelayPairing } from './components/RelayPairing.js';
 import { ChatView } from './views/ChatView.js';
 import { CommandCenterView } from './views/CommandCenterView.js';
 import { ModelsView } from './views/ModelsView.js';
@@ -106,6 +107,7 @@ export function App() {
       </main>
 
       <UpdateBanner />
+      <RelayPairing />
       <Mascot mood={mascotMood} enabled={settings?.mascotEnabled ?? true} />
       <CommandPalette />
       <Toasts />

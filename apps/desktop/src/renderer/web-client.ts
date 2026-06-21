@@ -25,11 +25,25 @@ function makeWebClient(): NekkoApi {
 
   // Relay transport: when the page is opened with ?relay=&room=&key=, talk to a
   // paired local agent through the relay instead of a same-origin server. This
-  // is how a phone (or Nekko Cloud) drives your local model.
+  // is how a phone (or Nekko Cloud) drives your local model. The native mobile
+  // app has no URL query, so we also accept creds saved in localStorage by the
+  // pairing screen.
   const p = new URLSearchParams(location.search);
-  const relayUrl = p.get('relay');
-  const room = p.get('room');
-  const key = p.get('key');
+  let relayUrl = p.get('relay');
+  let room = p.get('room');
+  let key = p.get('key');
+  if (!(relayUrl && room && key)) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('op_relay') || 'null');
+      if (saved?.relay && saved?.room && saved?.key) {
+        relayUrl = saved.relay;
+        room = saved.room;
+        key = saved.key;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   let call: (channel: string, ...args: unknown[]) => Promise<any>;
 
   if (relayUrl && room && key) {

@@ -1,0 +1,26 @@
+{
+  "name": "@open-paw/mobile",
+  "version": "0.1.4",
+  "private": true,
+  "description": "Open Paw mobile (Capacitor) — drive your local model from your phone over the secure relay.",
+  "scripts": {
+    "sync-web": "node scripts/sync-web.mjs",
+    "cap": "cap",
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android",
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/preferences": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/ios": "^6.1.2"
+  }
+}

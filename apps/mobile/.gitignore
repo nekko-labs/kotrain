@@ -1,0 +1,5 @@
+# Generated native projects + synced web assets
+/ios/
+/android/
+/www/
+node_modules/
