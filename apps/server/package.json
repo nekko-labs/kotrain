@@ -1,6 +1,6 @@
 {
   "name": "@open-paw/server",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "description": "Open Paw self-hosted web server — same engine + UI as the desktop app.",
