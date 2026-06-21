@@ -44,6 +44,7 @@ export const IpcChannels = {
   specSetLinked: 'spec:setLinked',
   specPath: 'spec:path',
   sessionSetOptions: 'session:setOptions',
+  sessionTruncate: 'session:truncate',
   toolsList: 'tools:list',
 
   // Transport-local (handled by Electron main / web-client, not the host dispatcher)
@@ -132,6 +133,7 @@ export interface NekkoApi {
     id: string,
     patch: Partial<Pick<Session, 'mode' | 'disabledTools' | 'offline' | 'incognito'>>,
   ): Promise<Session | null>;
+  truncateSession(id: string, messageId: string): Promise<Session | null>;
   listTools(): Promise<Array<{ name: string; description: string }>>;
 
   /** Open a native file picker (desktop) → chosen paths; browser → prompt. */

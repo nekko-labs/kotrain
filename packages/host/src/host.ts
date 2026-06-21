@@ -89,6 +89,7 @@ export interface Host {
     id: string,
     patch: Partial<Pick<Session, 'mode' | 'disabledTools' | 'offline' | 'incognito'>>,
   ): Session | null;
+  truncateSession(id: string, messageId: string): Session | null;
   listTools(): Array<{ name: string; description: string }>;
 
   listMemory(scope: MemoryScope, workspaceId?: string): MemoryEntry[];
@@ -202,6 +203,7 @@ export function createHost(opts: { dataDir: string }): Host {
     setSpecLinked: sessions.setSpecLinked,
     specPath: specPathForSession,
     setSessionOptions: sessions.setSessionOptions,
+    truncateSession: sessions.truncateSession,
     listTools: () => BUILTIN_TOOLS.map((t) => ({ name: t.name, description: t.description })),
     sendChat: (o) => sendChat(o, (e) => events.emit('agentEvent', e)),
     abortChat,

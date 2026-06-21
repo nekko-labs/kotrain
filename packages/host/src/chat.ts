@@ -201,15 +201,22 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     platform: process.platform,
   });
 
-  // Append the user message.
-  const userMsg: ChatMessage = {
-    id: `msg_${Date.now().toString(36)}`,
-    role: 'user',
-    content: opts.text,
-    createdAt: Date.now(),
-  };
-  session.messages.push(userMsg);
-  if (session.title === 'New chat') session.title = opts.text.slice(0, 48) || 'New chat';
+  if (opts.regenerate) {
+    // Re-answer the last user turn: drop trailing assistant/tool messages.
+    while (session.messages.length && session.messages[session.messages.length - 1].role !== 'user') {
+      session.messages.pop();
+    }
+  } else {
+    // Append the user message.
+    const userMsg: ChatMessage = {
+      id: `msg_${Date.now().toString(36)}`,
+      role: 'user',
+      content: opts.text,
+      createdAt: Date.now(),
+    };
+    session.messages.push(userMsg);
+    if (session.title === 'New chat') session.title = opts.text.slice(0, 48) || 'New chat';
+  }
   session.providerId = opts.providerId;
   session.modelId = opts.modelId;
   persist();
