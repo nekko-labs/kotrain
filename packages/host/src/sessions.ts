@@ -67,6 +67,16 @@ export function setSpecLinked(id: string, linked: boolean): Session | null {
   return s;
 }
 
+/** Drop a message and everything after it (used by edit-and-resend). */
+export function truncateSession(id: string, messageId: string): Session | null {
+  const s = getSession(id);
+  if (!s) return null;
+  const idx = s.messages.findIndex((m) => m.id === messageId);
+  if (idx >= 0) s.messages = s.messages.slice(0, idx);
+  saveSession(s);
+  return s;
+}
+
 /** Patch per-chat options (mode, disabled tools, offline, incognito). */
 export function setSessionOptions(
   id: string,

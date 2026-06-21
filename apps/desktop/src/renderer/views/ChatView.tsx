@@ -5,7 +5,7 @@ import { Markdown } from '../components/Markdown.js';
 import { ContextInspector } from '../components/ContextInspector.js';
 import { ChatMetrics } from '../components/ChatMetrics.js';
 import { ChatControls } from '../components/ChatControls.js';
-import { SendIcon, PlusIcon, PanelIcon, ShieldIcon, TrashIcon } from '../icons.js';
+import { SendIcon, PlusIcon, PanelIcon, ShieldIcon, TrashIcon, DownloadIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 
@@ -127,6 +127,16 @@ export function ChatView() {
     setActiveSession(s.id);
   };
 
+  const beginTurn = () => {
+    setStreaming(true);
+    setLiveText('');
+    setLiveReasoning('');
+    setLiveTools([]);
+    setThinking(false);
+    turnStart.current = Date.now();
+    setMascotMood('thinking');
+  };
+
   const send = async () => {
     if (!draft.trim() || !activeProviderId || !activeModelId) return;
     let sid = activeSessionId;
@@ -138,13 +148,7 @@ export function ChatView() {
     }
     const text = draft;
     setDraft('');
-    setStreaming(true);
-    setLiveText('');
-    setLiveReasoning('');
-    setLiveTools([]);
-    setThinking(false);
-    turnStart.current = Date.now();
-    setMascotMood('thinking');
+    beginTurn();
     // Optimistically show the user's message.
     setSession((prev) =>
       prev
@@ -154,6 +158,51 @@ export function ChatView() {
     await window.nekko.sendChat({ sessionId: sid!, providerId: activeProviderId, modelId: activeModelId, text });
   };
 
+  // Re-answer the last user turn.
+  const regenerate = async () => {
+    if (streaming || !activeSessionId || !activeProviderId || !activeModelId || !session) return;
+    const lastUser = [...session.messages].reverse().find((m) => m.role === 'user');
+    if (!lastUser) return;
+    beginTurn();
+    // Optimistically drop trailing assistant/tool messages.
+    setSession((prev) => {
+      if (!prev) return prev;
+      const msgs = [...prev.messages];
+      while (msgs.length && msgs[msgs.length - 1].role !== 'user') msgs.pop();
+      return { ...prev, messages: msgs };
+    });
+    await window.nekko.sendChat({ sessionId: activeSessionId, providerId: activeProviderId, modelId: activeModelId, text: lastUser.content, regenerate: true });
+  };
+
+  // Edit a previous user message and re-run from there.
+  const editResend = async (messageId: string, newText: string) => {
+    if (!activeSessionId || !activeProviderId || !activeModelId || !newText.trim()) return;
+    await window.nekko.truncateSession(activeSessionId, messageId);
+    beginTurn();
+    setSession((prev) => {
+      if (!prev) return prev;
+      const idx = prev.messages.findIndex((m) => m.id === messageId);
+      const kept = idx >= 0 ? prev.messages.slice(0, idx) : prev.messages;
+      return { ...prev, messages: [...kept, { id: 'tmp', role: 'user', content: newText, createdAt: Date.now() }] };
+    });
+    await window.nekko.sendChat({ sessionId: activeSessionId, providerId: activeProviderId, modelId: activeModelId, text: newText });
+  };
+
+  const exportChat = () => {
+    if (!session) return;
+    const lines = session.messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => `## ${m.role === 'user' ? 'You' : 'Nekko'}\n\n${m.content}`);
+    const md = `# ${session.title}\n\n${lines.join('\n\n')}\n`;
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(session.title || 'chat').replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const approve = async (ok: boolean) => {
     if (!approval || !activeSessionId) return;
     await window.nekko.approveTool(activeSessionId, approval.call.id, ok);
@@ -161,6 +210,8 @@ export function ChatView() {
   };
 
   const hasProvider = providers.length > 0;
+  const lastMsg = session?.messages[session.messages.length - 1];
+  const canRegenerate = !streaming && !!session?.messages.some((m) => m.role === 'assistant') && lastMsg?.role !== 'user';
 
   return (
     <div className="flex h-full min-w-0 overflow-hidden">
@@ -269,21 +320,37 @@ export function ChatView() {
               </select>
             )}
           </div>
-          <button className={`btn btn-ghost hidden shrink-0 md:inline-flex ${contextPanelOpen ? 'text-accent' : ''}`} onClick={toggleContextPanel} title="Toggle context panel">
-            <PanelIcon />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {!!session?.messages.length && (
+              <button className="btn btn-ghost hidden md:inline-flex" onClick={exportChat} title="Export chat as Markdown">
+                <DownloadIcon />
+              </button>
+            )}
+            <button className={`btn btn-ghost hidden md:inline-flex ${contextPanelOpen ? 'text-accent' : ''}`} onClick={toggleContextPanel} title="Toggle context panel">
+              <PanelIcon />
+            </button>
+          </div>
         </header>
 
         <div ref={scrollRef} className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 md:px-5">
           <div className="mx-auto w-full max-w-3xl space-y-5">
             {!session?.messages.length && !liveText && !liveReasoning && <Welcome hasProvider={hasProvider} />}
-            {session?.messages.map((m, i) => <MessageBubble key={m.id + i} message={m} />)}
+            {session?.messages.map((m, i) => (
+              <MessageBubble key={m.id + i} message={m} onResend={!streaming && m.role === 'user' && m.id !== 'tmp' ? editResend : undefined} />
+            ))}
             {liveReasoning && <ReasoningBlock text={liveReasoning} live={!liveText} />}
             {liveTools.map((t) => <ToolCard key={t.id} call={t} />)}
             {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} />}
             {streaming && !liveText && !liveReasoning && !liveTools.length && (
               <div className="flex items-center gap-2 text-[13px] text-ink-faint">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-accent" /> Nekko is thinking…
+              </div>
+            )}
+            {canRegenerate && (
+              <div className="flex justify-center pt-1">
+                <button className="btn btn-outline py-1.5 text-[12px]" onClick={regenerate} title="Re-answer the last message">
+                  ↻ Regenerate
+                </button>
               </div>
             )}
           </div>
@@ -395,8 +462,10 @@ function ReasoningBlock({ text, live }: { text: string; live: boolean }) {
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, onResend }: { message: ChatMessage; onResend?: (id: string, text: string) => void }) {
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message.content);
   if (message.role === 'tool') return null;
   const isUser = message.role === 'user';
   const copy = () => {
@@ -405,6 +474,26 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       setTimeout(() => setCopied(false), 1200);
     });
   };
+
+  if (editing) {
+    return (
+      <div className="flex justify-end">
+        <div className="w-full max-w-[85%]">
+          <textarea
+            className="input max-h-48 min-h-[60px] resize-none text-[14px]"
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="mt-1.5 flex justify-end gap-2">
+            <button className="btn btn-ghost py-1 text-[12px]" onClick={() => { setEditing(false); setDraft(message.content); }}>Cancel</button>
+            <button className="btn btn-primary py-1 text-[12px]" onClick={() => { setEditing(false); onResend?.(message.id, draft); }}>Save &amp; send</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`group fade-in flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`bubble ${isUser ? 'bubble-user' : 'bubble-ai'}`}>
@@ -415,13 +504,16 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         )}
         {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
         {message.content && (
-          <button
-            onClick={copy}
-            title="Copy message"
-            className={`mt-1.5 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'text-white/80 hover:text-white' : 'text-ink-faint hover:text-ink'}`}
-          >
-            {copied ? '✓ copied' : 'Copy'}
-          </button>
+          <div className={`mt-1.5 flex gap-3 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end text-white/80' : 'text-ink-faint'}`}>
+            <button onClick={copy} title="Copy message" className={isUser ? 'hover:text-white' : 'hover:text-ink'}>
+              {copied ? '✓ copied' : 'Copy'}
+            </button>
+            {onResend && (
+              <button onClick={() => { setDraft(message.content); setEditing(true); }} title="Edit & resend" className="hover:text-white">
+                Edit
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

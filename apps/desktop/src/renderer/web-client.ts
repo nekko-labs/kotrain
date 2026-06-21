@@ -165,6 +165,7 @@ function makeWebClient(): NekkoApi {
     setSpecLinked: (sessionId, linked) => call(IpcChannels.specSetLinked, sessionId, linked),
     specPath: (sessionId) => call(IpcChannels.specPath, sessionId),
     setSessionOptions: (id, patch) => call(IpcChannels.sessionSetOptions, id, patch),
+    truncateSession: (id, messageId) => call(IpcChannels.sessionTruncate, id, messageId),
     listTools: () => call(IpcChannels.toolsList),
 
     // No native picker in the browser — ask for server-side path(s).

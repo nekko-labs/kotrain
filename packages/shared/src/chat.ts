@@ -83,4 +83,7 @@ export interface SendOptions {
   text: string;
   /** File paths the user explicitly attached as context. */
   attachedPaths?: string[];
+  /** Re-answer the last user turn: drop trailing assistant/tool messages and
+   *  don't append a new user message. */
+  regenerate?: boolean;
 }
