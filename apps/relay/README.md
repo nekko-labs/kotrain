@@ -26,8 +26,11 @@ the token the phone registered (`register-push` frame). Configure APNs:
 | `APNS_BUNDLE_ID` | App bundle id (default `dev.nekkolabs.openpaw`) |
 | `APNS_PRODUCTION` | `1` for the production APNs host (default: sandbox) |
 
+**Android (FCM)**: set `FCM_SERVICE_ACCOUNT` to the full service-account JSON
+(with `client_email`, `private_key`, `project_id`). The relay mints an OAuth
+token (RS256 assertion) and sends via FCM HTTP v1.
+
 Without these the relay runs normally and just logs that push is disabled.
-**Android (FCM)** delivery is a documented TODO (needs a Google service account).
 
 The privacy model holds: the push body is generic ("Your task finished"); the
 relay only learns *that* a run completed, never its contents.

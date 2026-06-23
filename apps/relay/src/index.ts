@@ -141,7 +141,7 @@ async function main() {
 
   await app.listen({ port: PORT, host: HOST });
   console.log(`\n🐾 Nekko relay listening on ws://${HOST}:${PORT}/relay`);
-  console.log(`   push: ${pushSender.enabled ? 'APNs configured' : 'disabled (set APNS_KEY_P8/APNS_KEY_ID/APNS_TEAM_ID)'}\n`);
+  console.log(`   push: ${pushSender.enabled ? 'configured (APNs/FCM)' : 'disabled (set APNS_* and/or FCM_SERVICE_ACCOUNT)'}\n`);
 }
 
 function safeSend(socket: any, obj: unknown) {

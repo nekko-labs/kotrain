@@ -1,5 +1,5 @@
 import http2 from 'node:http2';
-import { createPrivateKey, sign as cryptoSign, type KeyObject } from 'node:crypto';
+import { createPrivateKey, sign as cryptoSign, createSign, type KeyObject } from 'node:crypto';
 
 /**
  * Relay-side push sender. The relay is the one always-on piece, so it holds the
@@ -75,6 +75,74 @@ async function sendApns(
   });
 }
 
+interface ServiceAccount {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+}
+
+/**
+ * Build a Google OAuth2 JWT assertion (RS256) for the FCM messaging scope.
+ * Exported for unit testing; `nowSec` injectable.
+ */
+export function makeFcmAssertion(sa: ServiceAccount, nowSec: number = Math.floor(Date.now() / 1000)): string {
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claims = b64url(
+    JSON.stringify({
+      iss: sa.client_email,
+      scope: 'https://www.googleapis.com/auth/firebase.messaging',
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: nowSec,
+      exp: nowSec + 3600,
+    }),
+  );
+  const sig = createSign('RSA-SHA256').update(`${header}.${claims}`).sign(sa.private_key);
+  return `${header}.${claims}.${b64url(sig)}`;
+}
+
+/** Exchange the assertion for an access token (cached ~55 min). */
+function fcmTokenProvider(sa: ServiceAccount) {
+  let token = '';
+  let exp = 0;
+  return async (): Promise<string> => {
+    const now = Math.floor(Date.now() / 1000);
+    if (token && now < exp - 60) return token;
+    const body = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: makeFcmAssertion(sa, now),
+    });
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!res.ok) throw new Error(`FCM token ${res.status}: ${await res.text()}`);
+    const j = (await res.json()) as { access_token: string; expires_in: number };
+    token = j.access_token;
+    exp = now + (j.expires_in ?? 3600);
+    return token;
+  };
+}
+
+async function sendFcm(projectId: string, accessToken: string, token: string, payload: PushPayload): Promise<void> {
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body } } }),
+  });
+  if (!res.ok) throw new Error(`FCM ${res.status}: ${await res.text()}`);
+}
+
+function parseServiceAccount(raw?: string): ServiceAccount | null {
+  if (!raw) return null;
+  try {
+    const sa = JSON.parse(raw);
+    return sa.client_email && sa.private_key && sa.project_id ? sa : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createPushSender(env: NodeJS.ProcessEnv = process.env): PushSender {
   const keyP8 = env.APNS_KEY_P8;
   const keyId = env.APNS_KEY_ID;
@@ -84,8 +152,12 @@ export function createPushSender(env: NodeJS.ProcessEnv = process.env): PushSend
   const apnsReady = !!(keyP8 && keyId && teamId);
   const apnsJwt = apnsReady ? makeApnsJwt({ keyP8: keyP8!, keyId: keyId!, teamId: teamId! }) : null;
 
+  const serviceAccount = parseServiceAccount(env.FCM_SERVICE_ACCOUNT);
+  const fcmReady = !!serviceAccount;
+  const fcmToken = serviceAccount ? fcmTokenProvider(serviceAccount) : null;
+
   return {
-    enabled: apnsReady,
+    enabled: apnsReady || fcmReady,
     async send(token, platform, payload) {
       try {
         if (platform === 'ios') {
@@ -93,8 +165,9 @@ export function createPushSender(env: NodeJS.ProcessEnv = process.env): PushSend
           await sendApns(apnsHost, apnsJwt(), bundleId, token, payload);
           console.log('[push] APNs sent');
         } else {
-          // FCM HTTP v1 needs a Google service account (RS256 JWT → OAuth token).
-          console.log('[push] FCM not configured yet (Android remote push TODO)');
+          if (!fcmToken || !serviceAccount) return void console.log('[push] FCM not configured (set FCM_SERVICE_ACCOUNT)');
+          await sendFcm(serviceAccount.project_id, await fcmToken(), token, payload);
+          console.log('[push] FCM sent');
         }
       } catch (e) {
         console.warn(`[push] send failed: ${(e as Error).message}`);
