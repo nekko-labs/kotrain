@@ -7,7 +7,7 @@
   "bin": {
     "opaw": "./dist/index.js"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/run.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

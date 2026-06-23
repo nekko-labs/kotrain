@@ -9,6 +9,10 @@ import websocket from '@fastify/websocket';
 import { createHost, createDispatcher } from '@open-paw/host';
 import { IpcEvents } from '@open-paw/shared';
 import { runRelayAgent } from './relay-agent.js';
+import { runCli } from '@open-paw/cli';
+
+/** Subcommands handled by the embedded CLI (so `npx open-paw mcp|chat|…` works). */
+const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', 'help', 'version']);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +39,13 @@ function findRendererDir(): string {
 const RENDERER_DIR = findRendererDir();
 
 async function main() {
+  // Subcommand → embedded CLI (e.g. `npx open-paw mcp`, `open-paw status`).
+  const sub = process.argv[2];
+  if (sub && CLI_SUBCOMMANDS.has(sub)) {
+    await runCli(process.argv.slice(2));
+    return;
+  }
+
   // Relay-agent mode: connect out to a relay instead of serving HTTP locally.
   if (process.env.OPENPAW_RELAY_URL && process.env.OPENPAW_ROOM) {
     await runRelayAgent({

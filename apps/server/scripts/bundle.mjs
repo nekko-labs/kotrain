@@ -58,7 +58,7 @@ const pkg = {
 writeFileSync(join(out, 'package.json'), JSON.stringify(pkg, null, 2));
 writeFileSync(
   join(out, 'README.md'),
-  '# Open Paw (web edition)\n\nRun:\n\n```bash\nnpx open-paw\n```\n\nThen open http://localhost:4317. See https://github.com/nekko-labs/open-paw\n',
+  '# Open Paw (web edition + CLI/MCP)\n\nWeb server:\n\n```bash\nnpx open-paw\n```\n\nThen open http://localhost:4317.\n\nCLI / MCP (drive your local agent from the terminal or other tools):\n\n```bash\nnpx open-paw status\nnpx open-paw chat "summarize README.md"\nnpx open-paw mcp        # MCP server on stdio (e.g. claude mcp add open-paw -- npx open-paw mcp)\n```\n\nSee https://github.com/nekko-labs/open-paw\n',
 );
 
 console.log(`\n✓ Bundled publishable package → ${out}`);

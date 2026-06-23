@@ -8,7 +8,7 @@ import { getClient, resolveModel, runChat, type Client } from './lib.js';
  * status, all driving the local model.
  */
 
-const VERSION = '0.1.4';
+const VERSION = '0.1.5';
 
 const TOOLS = [
   {
