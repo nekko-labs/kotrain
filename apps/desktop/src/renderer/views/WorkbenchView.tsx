@@ -3,7 +3,7 @@ import type { AgentEvent, Session, TerminalInfo, WorkspaceFolder } from '@open-p
 import { useStore, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
-import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, RobotIcon, FolderIcon } from '../icons.js';
+import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FolderIcon } from '../icons.js';
 
 /**
  * The workbench: a Warp/Devin-style multi-pane surface. The left sidebar groups
@@ -172,16 +172,28 @@ function ChatRow({
 }) {
   const kids = childrenOf.get(session.id) ?? [];
   const isRunning = running.has(session.id);
+  const isActive = session.id === activeSessionId;
+  const nested = depth > 0;
   return (
     <>
       <button
         onClick={() => onOpen(session.id)}
-        className={`flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[12.5px] ${
-          session.id === activeSessionId ? 'bg-surface-2 font-medium' : 'text-ink-soft hover:bg-surface-2'
+        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[12.5px] ${
+          isActive ? 'bg-surface-2 font-medium' : 'text-ink-soft hover:bg-surface-2'
         }`}
-        style={{ paddingLeft: 12 + depth * 14 }}
+        style={{ paddingLeft: 12 + depth * 16 }}
       >
-        {depth > 0 ? <RobotIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" /> : <ChatIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />}
+        {/* Custom hierarchy bullet — filled for top-level chats, a hollow ring for
+            nested sub-agents — so nesting reads clearly without per-row icons. */}
+        <span
+          aria-hidden
+          className={`shrink-0 rounded-full transition-colors ${
+            nested
+              ? `bg-transparent ring-1 ${isActive ? 'ring-ink-soft' : 'ring-ink-faint'}`
+              : isActive ? 'bg-ink-soft' : 'bg-ink-faint'
+          }`}
+          style={{ width: nested ? 5 : 6, height: nested ? 5 : 6, marginLeft: nested ? 1 : 0 }}
+        />
         <span className="min-w-0 flex-1 truncate">{session.title}</span>
         {isRunning && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent" title="Running" />}
       </button>
