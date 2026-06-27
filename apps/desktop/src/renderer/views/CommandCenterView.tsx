@@ -98,10 +98,10 @@ export function CommandCenterView() {
     : 0;
   const liveTerminals = terminals.filter((t) => t.running).length;
   const stats = [
-    { label: 'Running agents', value: running.size },
-    { label: 'Live terminals', value: liveTerminals },
-    { label: 'Tokens today', value: tokensToday.toLocaleString() },
-    { label: 'Cost (est.)', value: formatUSD(totalCost) },
+    { label: 'Running agents', value: running.size, color: '#4ec98a' },
+    { label: 'Live terminals', value: liveTerminals, color: '#5b8def' },
+    { label: 'Tokens today', value: tokensToday.toLocaleString(), color: '#c08adb' },
+    { label: 'Cost (est.)', value: formatUSD(totalCost), color: '#e0a44a' },
   ];
 
   return (
@@ -109,8 +109,8 @@ export function CommandCenterView() {
       <div className="mx-auto max-w-6xl px-8 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Command Center</h1>
-            <p className="mt-1 text-[13px] text-ink-faint">Everything in flight, at a glance.</p>
+            <h1 className="text-gradient text-2xl font-semibold">Command Center</h1>
+            <p className="mt-1.5 text-[13px] text-ink-faint">Everything in flight, at a glance.</p>
           </div>
           <div className="flex gap-2">
             <button className="btn btn-outline" onClick={() => { newTerminal(); }}><TerminalIcon className="h-4 w-4" /> Terminal</button>
@@ -119,11 +119,15 @@ export function CommandCenterView() {
         </div>
 
         {/* Stats */}
-        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           {stats.map((s) => (
-            <div key={s.label} className="card p-4">
-              <div className="text-2xl font-semibold">{s.value}</div>
-              <div className="mt-0.5 text-[12px] text-ink-faint">{s.label}</div>
+            <div key={s.label} className="card relative overflow-hidden p-5">
+              <span className="absolute left-0 top-0 h-full w-1" style={{ background: s.color }} />
+              <div className="text-[26px] font-semibold leading-none tracking-tight">{s.value}</div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
+                {s.label}
+              </div>
             </div>
           ))}
         </div>
