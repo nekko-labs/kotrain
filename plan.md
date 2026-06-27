@@ -22,8 +22,9 @@
 ### 1 + 2. File / browser panes (and the dead-click fix)
 - **New pane kinds**: extend `WbPane.kind` to `'chat' | 'terminal' | 'file' | 'browser' | 'diff'`.
   - `WbPane.refId` holds the file path (file/diff) or URL (browser).
-- **Store openers**: `openFilePane(path)`, `openBrowserPane(url?)`, `openDiffPane(path)` —
-  mirror `openChatPane` (locate-or-create, focus).
+- **Store openers**: `openFilePane(path)`, `openBrowserPane(url?)`, `openDiffPane(sessionId)` —
+  mirror `openChatPane` (locate-or-create, focus). The diff pane is session-level (reviews
+  all of a session's changed files), opened from a `Δ N` button in the chat header.
 - **`FilePane` component**: reads the file via new IPC; `.md` → toggle between rendered
   (`Markdown.tsx`) and source; other text → editable `<textarea>` (mono). Save button +
   Ctrl/Cmd-S → `writeFile`. Dirty indicator. Binary/oversized files show a notice.
