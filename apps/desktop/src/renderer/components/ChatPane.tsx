@@ -263,8 +263,10 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const slashQuery = draft.startsWith('/') && !draft.includes('\n') ? draft.slice(1).toLowerCase() : null;
   const slashMatches =
     slashQuery !== null ? (settings?.prompts ?? []).filter((p) => p.name.toLowerCase().includes(slashQuery)) : [];
-  // Skills (standard agent skills) show in the `/` menu until the user types args.
-  const skillMatches = slashQuery !== null && !slashQuery.includes(' ') ? matchSkills(slashQuery) : [];
+  // Skills (standard agent skills + installed marketplace skills) show in the
+  // `/` menu until the user types args.
+  const installedSkillDefs = useStore((s) => s.installedSkillDefs);
+  const skillMatches = slashQuery !== null && !slashQuery.includes(' ') ? matchSkills(slashQuery, installedSkillDefs) : [];
   const slashMenuOpen = skillMatches.length > 0 || slashMatches.length > 0;
 
   const atQuery = (draft.match(/(?:^|\s)@([^\s@]*)$/) ?? [])[1] ?? null;

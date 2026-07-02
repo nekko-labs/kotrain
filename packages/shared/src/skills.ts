@@ -341,10 +341,16 @@ export const SKILLS: SkillDef[] = [
   },
 ];
 
-/** Match skills by a `/`-query (name substring), highlighted ones first. */
-export function matchSkills(query: string): SkillDef[] {
+/**
+ * Match skills by a `/`-query (name substring), highlighted ones first.
+ * `extra` lets callers merge in installed marketplace skills (built-ins win on
+ * a name collision).
+ */
+export function matchSkills(query: string, extra: SkillDef[] = []): SkillDef[] {
   const q = query.toLowerCase();
-  return SKILLS.filter((s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)).sort(
+  const names = new Set(SKILLS.map((s) => s.name));
+  const all = [...SKILLS, ...extra.filter((s) => !names.has(s.name))];
+  return all.filter((s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)).sort(
     (a, b) => Number(!!b.highlighted) - Number(!!a.highlighted),
   );
 }

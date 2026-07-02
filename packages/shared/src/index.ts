@@ -14,6 +14,7 @@ export * from './files.js';
 export * from './design.js';
 export * from './tasks.js';
 export * from './skills.js';
+export * from './skills-market.js';
 export * from './connectors.js';
 export * from './ipc.js';
 export * from './settings.js';

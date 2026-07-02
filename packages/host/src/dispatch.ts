@@ -98,6 +98,11 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.designAddNote]: ([wid, pid, text]) => host.addDesignNote(wid, pid, text),
     [C.designResolveNote]: ([wid, pid, nid]) => host.resolveDesignNote(wid, pid, nid),
 
+    [C.skillsInstalled]: () => host.listInstalledSkills(),
+    [C.skillsTargets]: () => host.skillTargets(),
+    [C.skillInstall]: ([id, target]) => host.installSkill(id, target),
+    [C.skillUninstall]: ([id, target]) => host.uninstallSkill(id, target),
+
     [C.tasksList]: () => host.listTasks(),
     [C.taskCreate]: ([task]) => host.createTask(task),
     [C.taskUpdate]: ([id, patch]) => host.updateTask(id, patch),

@@ -48,6 +48,7 @@ export function App() {
     refreshProviders();
     refreshSessions();
     refreshTerminals();
+    useStore.getState().refreshSkills();
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => useStore.getState().applyTheme();
     mq.addEventListener('change', onChange);

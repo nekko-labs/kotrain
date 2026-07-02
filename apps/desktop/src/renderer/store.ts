@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo } from '@open-paw/shared';
+import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef } from '@open-paw/shared';
+import { getMarketSkill, marketToSkillDef } from '@open-paw/shared';
 import type { MascotMood } from './components/Mascot.js';
 
 export type View = 'command' | 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings' | 'design' | 'skills';
@@ -63,6 +64,11 @@ interface UiState {
 
   /** Pending message to hand a chat's composer (set by editor comments / design notes). */
   composerInbox: ComposerInbox | null;
+
+  /** Marketplace installs (all targets) + the Open Paw ones as runnable skills. */
+  installedSkills: InstalledSkillRecord[];
+  installedSkillDefs: SkillDef[];
+  refreshSkills: () => Promise<void>;
 
   setActiveWorkspace: (id: string | null) => void;
   pushToast: (kind: Toast['kind'], message: string) => void;
@@ -176,6 +182,22 @@ export const useStore = create<UiState>((set, get) => ({
     const sessions = await window.nekko.listSessions();
     set({ sessions });
     if (!get().activeSessionId && sessions[0]) set({ activeSessionId: sessions[0].id });
+  },
+
+  installedSkills: [],
+  installedSkillDefs: [],
+  refreshSkills: async () => {
+    try {
+      const installedSkills = await window.nekko.listInstalledSkills();
+      const installedSkillDefs = installedSkills
+        .filter((r) => r.target === 'openpaw')
+        .map((r) => getMarketSkill(r.skillId))
+        .filter((m): m is NonNullable<typeof m> => !!m)
+        .map(marketToSkillDef);
+      set({ installedSkills, installedSkillDefs });
+    } catch {
+      /* older host without the marketplace channels */
+    }
   },
 
   setActiveSession: (id) => set({ activeSessionId: id }),

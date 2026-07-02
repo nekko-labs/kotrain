@@ -105,6 +105,11 @@ export const IpcChannels = {
   designAddNote: 'design:addNote',
   designResolveNote: 'design:resolveNote',
 
+  skillsInstalled: 'skills:installed',
+  skillsTargets: 'skills:targets',
+  skillInstall: 'skill:install',
+  skillUninstall: 'skill:uninstall',
+
   tasksList: 'tasks:list',
   taskCreate: 'task:create',
   taskUpdate: 'task:update',
@@ -266,6 +271,18 @@ export interface NekkoApi {
   removeDesignPage(workspaceId: string, pageId: string): Promise<DesignBoard>;
   addDesignNote(workspaceId: string, pageId: string, text: string): Promise<DesignBoard>;
   resolveDesignNote(workspaceId: string, pageId: string, noteId: string): Promise<DesignBoard>;
+
+  /** Skills marketplace: what's installed, where installs can go, install/remove. */
+  listInstalledSkills(): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
+  skillTargets(): Promise<import('./skills-market.js').InstallTargetInfo[]>;
+  installSkill(
+    skillId: string,
+    target: import('./skills-market.js').InstallTarget,
+  ): Promise<{ ok: boolean; message?: string; installed: import('./skills-market.js').InstalledSkillRecord[] }>;
+  uninstallSkill(
+    skillId: string,
+    target: import('./skills-market.js').InstallTarget,
+  ): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): Promise<AutomationTask[]>;

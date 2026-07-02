@@ -1,0 +1,111 @@
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
+import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord } from '@open-paw/shared';
+import { getMarketSkill, skillToMarkdown } from '@open-paw/shared';
+import { dataDir } from './store.js';
+
+/**
+ * Skills marketplace installs. Records live in skills.json under the data dir.
+ * The `openpaw` target is purely a record (installed skills join the `/` menu
+ * and the Skills tab); `claude`/`codex` write a SKILL.md folder into the app's
+ * user-level skills directory so other agents pick the skill up too.
+ */
+
+function file(): string {
+  const dir = dataDir();
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, 'skills.json');
+}
+
+function load(): InstalledSkillRecord[] {
+  try {
+    return JSON.parse(readFileSync(file(), 'utf8')) as InstalledSkillRecord[];
+  } catch {
+    return [];
+  }
+}
+
+function save(records: InstalledSkillRecord[]): void {
+  writeFileSync(file(), JSON.stringify(records, null, 2), 'utf8');
+}
+
+/** User-level skills directory for a file-based target. */
+function targetDir(target: InstallTarget): string | undefined {
+  if (target === 'claude') return join(homedir(), '.claude', 'skills');
+  if (target === 'codex') return join(homedir(), '.codex', 'skills');
+  return undefined;
+}
+
+export function listInstalledSkills(): InstalledSkillRecord[] {
+  // Self-heal: drop records whose file-based install was deleted out-of-band.
+  const records = load();
+  const alive = records.filter((r) => !r.path || existsSync(r.path));
+  if (alive.length !== records.length) save(alive);
+  return alive;
+}
+
+export function skillTargets(): InstallTargetInfo[] {
+  const claudeDir = join(homedir(), '.claude');
+  const codexDir = join(homedir(), '.codex');
+  return [
+    { id: 'openpaw', label: 'Open Paw', hint: 'joins the / menu and Skills tab', available: true },
+    {
+      id: 'claude',
+      label: 'Claude Code',
+      hint: '~/.claude/skills/<name>/SKILL.md',
+      available: existsSync(claudeDir),
+      dir: targetDir('claude'),
+    },
+    {
+      id: 'codex',
+      label: 'Codex',
+      hint: '~/.codex/skills/<name>/SKILL.md',
+      available: existsSync(codexDir),
+      dir: targetDir('codex'),
+    },
+  ];
+}
+
+export function installSkill(
+  skillId: string,
+  target: InstallTarget,
+): { ok: boolean; message?: string; installed: InstalledSkillRecord[] } {
+  const skill = getMarketSkill(skillId);
+  if (!skill) return { ok: false, message: 'Unknown skill.', installed: listInstalledSkills() };
+
+  const records = load();
+  if (records.some((r) => r.skillId === skillId && r.target === target)) {
+    return { ok: true, message: 'Already installed.', installed: listInstalledSkills() };
+  }
+
+  let path: string | undefined;
+  if (target !== 'openpaw') {
+    const base = targetDir(target)!;
+    path = join(base, skill.name);
+    // Never clobber a skill folder we didn't create (no record for it).
+    if (existsSync(path)) {
+      return { ok: false, message: `A skill named "${skill.name}" already exists there.`, installed: listInstalledSkills() };
+    }
+    mkdirSync(path, { recursive: true });
+    writeFileSync(join(path, 'SKILL.md'), skillToMarkdown(skill), 'utf8');
+  }
+
+  records.push({ skillId, target, path, installedAt: Date.now() });
+  save(records);
+  return { ok: true, installed: listInstalledSkills() };
+}
+
+export function uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[] {
+  const records = load();
+  const rec = records.find((r) => r.skillId === skillId && r.target === target);
+  if (rec?.path && existsSync(rec.path)) {
+    try {
+      rmSync(rec.path, { recursive: true });
+    } catch {
+      /* leave the folder; still drop the record */
+    }
+  }
+  save(records.filter((r) => !(r.skillId === skillId && r.target === target)));
+  return listInstalledSkills();
+}
