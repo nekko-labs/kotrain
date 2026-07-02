@@ -31,6 +31,35 @@ const KIND: Record<SkillNodeKind, { color: string; glyph: string; label: string 
   output: { color: '#34d399', glyph: '✓', label: 'Output' },
 };
 
+/** What each node kind means, teaching copy for the explainer panel. */
+const KIND_EXPLAIN: Record<SkillNodeKind, string> = {
+  trigger: 'Where the run starts: the /command you type (plus any arguments) kicks the skill off.',
+  context: 'Gathers what the agent needs before it reasons: files, diffs, search results, inputs.',
+  agent: 'A model reasoning step: the agent reads what it has, thinks, and decides or writes something.',
+  tool: 'A concrete action in the world: editing a file, running a command, calling git or an API.',
+  decision: 'A branch: the agent checks a condition and the run follows the matching labelled arrow.',
+  loop: 'A repeating step: work keeps cycling through here until a later check says it is done.',
+  output: 'The deliverable: what you get back when the run finishes.',
+};
+
+/** Human notes about a node's branches and loops ("yes → Done", "loops back…"). */
+function describeEdges(nodeId: string, workflow: SkillWorkflow): string[] {
+  const byId = new Map(workflow.nodes.map((n) => [n.id, n]));
+  const notes: string[] = [];
+  for (const e of workflow.edges) {
+    if (e.from === nodeId) {
+      const to = byId.get(e.to);
+      if (!to) continue;
+      if (e.back) notes.push(`${e.label ? `${e.label}: ` : ''}loops back to “${to.label}”`);
+      else if (e.label) notes.push(`${e.label} → “${to.label}”`);
+    } else if (e.to === nodeId && e.back) {
+      const from = byId.get(e.from);
+      if (from) notes.push(`repeats after “${from.label}”`);
+    }
+  }
+  return notes;
+}
+
 type Tab = 'library' | 'market';
 
 export function SkillsView() {
@@ -161,15 +190,7 @@ function LibraryTab() {
             </button>
           </header>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-line px-4 py-2">
-              <p className="text-[12px] font-medium text-ink-soft">Workflow</p>
-              <Legend />
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-6" style={{ background: 'var(--paper)' }}>
-              <WorkflowCanvas workflow={selected.workflow} />
-            </div>
-          </div>
+          <WorkflowExplainer workflow={selected.workflow} />
         </section>
       )}
     </div>
@@ -394,21 +415,107 @@ function MarketplaceTab() {
             </div>
           </header>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-line px-4 py-2">
-              <p className="text-[12px] font-medium text-ink-soft">Workflow</p>
-              <Legend />
+          <WorkflowExplainer workflow={marketWorkflow(selected)}>
+            <div className="card mt-6 max-w-2xl p-4">
+              <p className="text-[12px] font-medium">What it tells the agent</p>
+              <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-soft">{selected.instructions}</p>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-6" style={{ background: 'var(--paper)' }}>
-              <WorkflowCanvas workflow={marketWorkflow(selected)} />
-              <div className="card mt-6 max-w-2xl p-4">
-                <p className="text-[12px] font-medium">What it tells the agent</p>
-                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-soft">{selected.instructions}</p>
-              </div>
-            </div>
-          </div>
+          </WorkflowExplainer>
         </section>
       )}
+    </div>
+  );
+}
+
+/**
+ * The workflow area: the node canvas plus a side panel that explains the graph.
+ * With nothing selected the panel walks the steps in run order; clicking a node
+ * (on the canvas or in the list) explains that step, its kind, and its branches.
+ */
+function WorkflowExplainer({ workflow, children }: { workflow: SkillWorkflow; children?: React.ReactNode }) {
+  const [selId, setSelId] = useState<string | null>(null);
+  useEffect(() => setSelId(null), [workflow]);
+
+  const layout = useMemo(() => layoutWorkflow(workflow), [workflow]);
+  const ordered = useMemo(
+    () => [...layout.nodes].sort((a, b) => a.layer - b.layer || a.row - b.row),
+    [layout],
+  );
+  const selNode = ordered.find((n) => n.id === selId) ?? null;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-line px-4 py-2">
+        <p className="text-[12px] font-medium text-ink-soft">Workflow</p>
+        <Legend />
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-auto p-6" style={{ background: 'var(--paper)' }}>
+          <WorkflowCanvas workflow={workflow} selectedId={selId} onSelect={(id) => setSelId(id === selId ? null : id)} />
+          {children}
+        </div>
+
+        {/* Explainer panel */}
+        <aside className="w-72 shrink-0 overflow-y-auto border-l border-line p-4">
+          {selNode ? (
+            <div className="fade-in">
+              <button className="text-[11px] text-ink-faint hover:text-ink" onClick={() => setSelId(null)}>
+                ← All steps
+              </button>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-base" style={{ color: KIND[selNode.kind].color }}>{KIND[selNode.kind].glyph}</span>
+                <h3 className="text-[14px] font-semibold">{selNode.label}</h3>
+              </div>
+              <span
+                className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium"
+                style={{ background: 'var(--surface-2)', color: KIND[selNode.kind].color }}
+              >
+                {KIND[selNode.kind].label} step
+              </span>
+              {selNode.detail && <p className="mt-2 text-[12.5px] text-ink-soft">{selNode.detail}</p>}
+              <p className="mt-3 text-[12px] leading-relaxed text-ink-faint">{KIND_EXPLAIN[selNode.kind]}</p>
+              {describeEdges(selNode.id, workflow).length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-faint">Where it goes</p>
+                  <ul className="mt-1 space-y-1">
+                    {describeEdges(selNode.id, workflow).map((n, i) => (
+                      <li key={i} className="text-[12px] text-ink-soft">{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <h3 className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">How this skill runs</h3>
+              <p className="mt-1 text-[11.5px] text-ink-faint">Click any step, here or on the canvas, to see what it does.</p>
+              <ol className="mt-3 space-y-1.5">
+                {ordered.map((n, i) => (
+                  <li key={n.id}>
+                    <button
+                      className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface-2"
+                      onClick={() => setSelId(n.id)}
+                    >
+                      <span
+                        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                        style={{ background: KIND[n.kind].color }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[12.5px] font-medium">{n.label}</span>
+                        <span className="block text-[11px] text-ink-faint">
+                          {n.detail || KIND[n.kind].label}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
@@ -428,7 +535,15 @@ function Legend() {
 }
 
 /** n8n / Make-style node-graph rendering of a skill's workflow. */
-function WorkflowCanvas({ workflow }: { workflow: SkillWorkflow }) {
+function WorkflowCanvas({
+  workflow,
+  selectedId,
+  onSelect,
+}: {
+  workflow: SkillWorkflow;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+}) {
   const layout = useMemo(() => layoutWorkflow(workflow), [workflow]);
   const { nodes, edges, width, height, nodeW, nodeH } = layout;
   const pos = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
@@ -486,26 +601,39 @@ function WorkflowCanvas({ workflow }: { workflow: SkillWorkflow }) {
       </svg>
 
       {nodes.map((n) => (
-        <NodeCard key={n.id} node={n} w={nodeW} h={nodeH} />
+        <NodeCard key={n.id} node={n} w={nodeW} h={nodeH} selected={selectedId === n.id} onSelect={onSelect} />
       ))}
     </div>
   );
 }
 
-function NodeCard({ node, w, h }: { node: LaidOutNode; w: number; h: number }) {
+function NodeCard({
+  node, w, h, selected, onSelect,
+}: {
+  node: LaidOutNode; w: number; h: number; selected?: boolean; onSelect?: (id: string) => void;
+}) {
   const k = KIND[node.kind];
   return (
-    <div
-      className="card absolute flex flex-col justify-center overflow-hidden px-3 py-2 shadow-sm"
-      style={{ left: node.x, top: node.y, width: w, height: h, borderLeft: `3px solid ${k.color}` }}
+    <button
+      className="card absolute flex flex-col justify-center overflow-hidden px-3 py-2 text-left shadow-sm transition"
+      style={{
+        left: node.x,
+        top: node.y,
+        width: w,
+        height: h,
+        borderLeft: `3px solid ${k.color}`,
+        cursor: onSelect ? 'pointer' : 'default',
+        boxShadow: selected ? `0 0 0 2px ${k.color}` : undefined,
+      }}
       title={node.detail}
+      onClick={() => onSelect?.(node.id)}
     >
       <div className="flex items-center gap-1.5">
         <span style={{ color: k.color }}>{k.glyph}</span>
         <span className="truncate text-[12.5px] font-medium leading-tight">{node.label}</span>
       </div>
       {node.detail && <p className="mt-0.5 truncate text-[10.5px] text-ink-faint">{node.detail}</p>}
-    </div>
+    </button>
   );
 }
 
