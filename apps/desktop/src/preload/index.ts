@@ -108,6 +108,11 @@ const api: NekkoApi = {
   addDesignNote: (workspaceId, pageId, text) => inv(IpcChannels.designAddNote, workspaceId, pageId, text),
   resolveDesignNote: (workspaceId, pageId, noteId) => inv(IpcChannels.designResolveNote, workspaceId, pageId, noteId),
 
+  listInstalledSkills: () => inv(IpcChannels.skillsInstalled),
+  skillTargets: () => inv(IpcChannels.skillsTargets),
+  installSkill: (skillId, target) => inv(IpcChannels.skillInstall, skillId, target),
+  uninstallSkill: (skillId, target) => inv(IpcChannels.skillUninstall, skillId, target),
+
   listTasks: () => inv(IpcChannels.tasksList),
   createTask: (task) => inv(IpcChannels.taskCreate, task),
   updateTask: (id, patch) => inv(IpcChannels.taskUpdate, id, patch),

@@ -1,11 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   SKILLS,
   SKILL_CATEGORIES,
   layoutWorkflow,
+  NEKKO_SKILLS,
+  popularSkills,
+  getMarketSkill,
+  marketWorkflow,
+  marketToSkillDef,
   type SkillDef,
   type SkillNodeKind,
+  type SkillWorkflow,
   type LaidOutNode,
+  type MarketplaceSkill,
+  type InstalledSkillRecord,
+  type InstallTargetInfo,
+  type InstallTarget,
 } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { StarIcon, SendIcon } from '../icons.js';
@@ -21,23 +31,52 @@ const KIND: Record<SkillNodeKind, { color: string; glyph: string; label: string 
   output: { color: '#34d399', glyph: '✓', label: 'Output' },
 };
 
+type Tab = 'library' | 'market';
+
 export function SkillsView() {
-  const { sendToChat } = useStore();
+  const [tab, setTab] = useState<Tab>('library');
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center gap-1 border-b border-line px-4 pt-3">
+        {(['library', 'market'] as Tab[]).map((k) => (
+          <button
+            key={k}
+            className={`rounded-t-lg border-b-2 px-3.5 py-2 text-[13px] font-medium transition ${
+              tab === k ? 'border-accent text-ink' : 'border-transparent text-ink-faint hover:text-ink'
+            }`}
+            onClick={() => setTab(k)}
+          >
+            {k === 'library' ? 'Library' : 'Marketplace'}
+          </button>
+        ))}
+      </div>
+      {tab === 'library' ? <LibraryTab /> : <MarketplaceTab />}
+    </div>
+  );
+}
+
+/** Built-in skills + marketplace skills installed into Open Paw. */
+function LibraryTab() {
+  const { sendToChat, installedSkillDefs } = useStore();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string>(SKILLS[0]?.id ?? '');
 
+  const installedIds = useMemo(() => new Set(installedSkillDefs.map((s) => s.id)), [installedSkillDefs]);
+  const all = useMemo(() => {
+    const names = new Set(SKILLS.map((s) => s.name));
+    return [...SKILLS, ...installedSkillDefs.filter((s) => !names.has(s.name))];
+  }, [installedSkillDefs]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return SKILLS;
-    return SKILLS.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q),
-    );
-  }, [query]);
+    if (!q) return all;
+    return all.filter((s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q));
+  }, [query, all]);
 
-  const selected = SKILLS.find((s) => s.id === selectedId) ?? filtered[0] ?? SKILLS[0];
+  const selected = all.find((s) => s.id === selectedId) ?? filtered[0] ?? all[0];
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex min-h-0 flex-1">
       {/* Skill list */}
       <aside className="flex w-72 flex-col border-r border-line">
         <div className="p-4">
@@ -71,6 +110,7 @@ export function SkillsView() {
                       <div className="flex items-center gap-1.5">
                         {s.highlighted && <StarIcon className="h-3.5 w-3.5 text-accent" filled />}
                         <span className="font-mono text-[13px] font-medium">/{s.name}</span>
+                        {installedIds.has(s.id) && <span className="chip !px-1.5 !py-0 text-[9px]">installed</span>}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-[11.5px] text-ink-soft">{s.description}</p>
                     </button>
@@ -127,7 +167,244 @@ export function SkillsView() {
               <Legend />
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-6" style={{ background: 'var(--paper)' }}>
-              <WorkflowCanvas skill={selected} />
+              <WorkflowCanvas workflow={selected.workflow} />
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// --- Marketplace ---
+
+const SOURCE_META: Record<MarketplaceSkill['source'], { label: string; color: string }> = {
+  nekkolabs: { label: 'Nekko Labs', color: 'var(--accent)' },
+  community: { label: 'community', color: '#5b9dd9' },
+};
+
+function fmtMetric(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+}
+
+/** Browse + install skills: your installs, Nekko Labs' shelf, and popular online skills. */
+function MarketplaceTab() {
+  const { sendToChat, installedSkills, refreshSkills, pushToast } = useStore();
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string>(NEKKO_SKILLS[0]?.id ?? '');
+  const [targets, setTargets] = useState<InstallTargetInfo[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    window.nekko.skillTargets().then(setTargets).catch(() => setTargets([]));
+    refreshSkills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const popular = useMemo(() => popularSkills(), []);
+  const installedBySkill = useMemo(() => {
+    const m = new Map<string, InstalledSkillRecord[]>();
+    for (const r of installedSkills) m.set(r.skillId, [...(m.get(r.skillId) ?? []), r]);
+    return m;
+  }, [installedSkills]);
+
+  const matches = (s: MarketplaceSkill) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      s.author.toLowerCase().includes(q)
+    );
+  };
+
+  const shelves: Array<{ key: string; title: string; hint: string; items: MarketplaceSkill[] }> = [
+    {
+      key: 'installed',
+      title: 'Installed',
+      hint: 'Skills you added, and where they live',
+      items: [...installedBySkill.keys()].map(getMarketSkill).filter((s): s is MarketplaceSkill => !!s).filter(matches),
+    },
+    { key: 'nekko', title: 'Nekko Labs', hint: 'First-party skills we maintain', items: NEKKO_SKILLS.filter(matches) },
+    { key: 'popular', title: 'Popular online', hint: 'Ranked by public stars/installs', items: popular.filter(matches) },
+  ];
+
+  const selected = getMarketSkill(selectedId) ?? shelves.flatMap((s) => s.items)[0];
+  const selectedInstalls = selected ? installedBySkill.get(selected.id) ?? [] : [];
+
+  const install = async (target: InstallTarget) => {
+    if (!selected || busy) return;
+    setBusy(true);
+    try {
+      const res = await window.nekko.installSkill(selected.id, target);
+      if (res.ok) {
+        pushToast('success', `Installed /${selected.name} to ${targets.find((t) => t.id === target)?.label ?? target}.`);
+      } else {
+        pushToast('error', res.message ?? 'Install failed.');
+      }
+      await refreshSkills();
+    } catch (e) {
+      pushToast('error', `Install failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uninstall = async (target: InstallTarget) => {
+    if (!selected || busy) return;
+    setBusy(true);
+    try {
+      await window.nekko.uninstallSkill(selected.id, target);
+      pushToast('info', `Removed /${selected.name} from ${targets.find((t) => t.id === target)?.label ?? target}.`);
+      await refreshSkills();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      {/* Shelves */}
+      <aside className="flex w-80 flex-col border-r border-line">
+        <div className="p-4">
+          <h1 className="text-lg font-semibold text-gradient">Marketplace</h1>
+          <p className="mt-0.5 text-[12px] text-ink-faint">
+            Install skills into Open Paw, or export them to Claude Code / Codex.
+          </p>
+          <input
+            className="input mt-3"
+            placeholder="Search the marketplace…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
+          {shelves.map((shelf) => (
+            <div key={shelf.key} className="mb-4">
+              <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{shelf.title}</p>
+              <p className="px-2 pb-1 text-[10.5px] text-ink-faint">{shelf.hint}</p>
+              {shelf.items.length === 0 && (
+                <p className="px-2 py-1 text-[11.5px] text-ink-faint">
+                  {shelf.key === 'installed' ? 'Nothing installed yet, pick a skill below.' : 'No matches.'}
+                </p>
+              )}
+              <div className="space-y-1">
+                {shelf.items.map((s) => {
+                  const installs = installedBySkill.get(s.id) ?? [];
+                  return (
+                    <button
+                      key={`${shelf.key}:${s.id}`}
+                      className={`w-full rounded-lg border px-2.5 py-2 text-left transition ${
+                        selected?.id === s.id ? 'border-accent' : 'border-transparent hover:bg-surface-2'
+                      }`}
+                      onClick={() => setSelectedId(s.id)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="min-w-0 truncate font-mono text-[13px] font-medium">/{s.name}</span>
+                        <span className="shrink-0 rounded-full px-1.5 py-0 text-[9px]" style={{ background: 'var(--surface-2)', color: SOURCE_META[s.source].color }}>
+                          {SOURCE_META[s.source].label}
+                        </span>
+                        {installs.length > 0 && <span className="chip !px-1.5 !py-0 text-[9px]">✓ {installs.length}</span>}
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-[11.5px] text-ink-soft">{s.description}</p>
+                      <div className="mt-1 flex items-center gap-2 text-[10px] text-ink-faint">
+                        <span>{s.author}</span>
+                        {s.stars != null && <span>★ {fmtMetric(s.stars)}</span>}
+                        {s.installs != null && <span>⤓ {fmtMetric(s.installs)}</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Detail */}
+      {selected && (
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="border-b border-line p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate font-mono text-[16px] font-semibold">/{selected.name}</h2>
+                  <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: 'var(--surface-2)', color: 'var(--ink-soft)' }}>
+                    {selected.category}
+                  </span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: 'var(--surface-2)', color: SOURCE_META[selected.source].color }}>
+                    {SOURCE_META[selected.source].label}
+                  </span>
+                </div>
+                <p className="mt-1 text-[13px] text-ink-soft">{selected.description}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-faint">
+                  <span>by {selected.author}</span>
+                  {selected.stars != null && <span>★ {fmtMetric(selected.stars)} stars</span>}
+                  {selected.installs != null && <span>⤓ {fmtMetric(selected.installs)} installs</span>}
+                  {selected.url && (
+                    <button className="text-accent hover:underline" onClick={() => window.nekko.openPath(selected.url!)}>
+                      {selected.url.replace(/^https?:\/\//, '')} ↗
+                    </button>
+                  )}
+                </div>
+                {selected.tools && selected.tools.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-ink-faint">Tools:</span>
+                    {selected.tools.map((t) => (
+                      <span key={t} className="rounded px-1.5 py-0.5 font-mono text-[10.5px]" style={{ background: 'var(--surface-2)', color: 'var(--ink-soft)' }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedInstalls.some((r) => r.target === 'openpaw') && (
+                <button
+                  className="btn btn-primary shrink-0 gap-1.5"
+                  onClick={() => sendToChat(marketToSkillDef(selected).template, false)}
+                  title="Drop this skill into a chat composer"
+                >
+                  <SendIcon className="h-4 w-4" /> Use in chat
+                </button>
+              )}
+            </div>
+
+            {/* Install targets */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {targets.map((t) => {
+                const installed = selectedInstalls.some((r) => r.target === t.id);
+                return (
+                  <div key={t.id} className="flex items-center gap-1.5 rounded-xl border border-line px-2.5 py-1.5">
+                    <span className="text-[12px] font-medium">{t.label}</span>
+                    <span className="text-[10px] text-ink-faint" title={t.dir ?? ''}>{t.hint}</span>
+                    {installed ? (
+                      <button className="btn btn-ghost !px-2 !py-0.5 text-[11px] text-red-400" disabled={busy} onClick={() => uninstall(t.id)}>
+                        Remove
+                      </button>
+                    ) : t.available ? (
+                      <button className="btn btn-outline !px-2 !py-0.5 text-[11px]" disabled={busy} onClick={() => install(t.id)}>
+                        Install
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-ink-faint" title="App folder not found on this machine">not detected</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-line px-4 py-2">
+              <p className="text-[12px] font-medium text-ink-soft">Workflow</p>
+              <Legend />
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-6" style={{ background: 'var(--paper)' }}>
+              <WorkflowCanvas workflow={marketWorkflow(selected)} />
+              <div className="card mt-6 max-w-2xl p-4">
+                <p className="text-[12px] font-medium">What it tells the agent</p>
+                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-soft">{selected.instructions}</p>
+              </div>
             </div>
           </div>
         </section>
@@ -151,8 +428,8 @@ function Legend() {
 }
 
 /** n8n / Make-style node-graph rendering of a skill's workflow. */
-function WorkflowCanvas({ skill }: { skill: SkillDef }) {
-  const layout = useMemo(() => layoutWorkflow(skill.workflow), [skill]);
+function WorkflowCanvas({ workflow }: { workflow: SkillWorkflow }) {
+  const layout = useMemo(() => layoutWorkflow(workflow), [workflow]);
   const { nodes, edges, width, height, nodeW, nodeH } = layout;
   const pos = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 

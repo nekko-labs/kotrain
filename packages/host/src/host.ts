@@ -21,6 +21,9 @@ import type {
   DesignPage,
   AutomationTask,
   NewTask,
+  InstalledSkillRecord,
+  InstallTargetInfo,
+  InstallTarget,
   ConnectorConfig,
   ConnectorKind,
   ConnectorResource,
@@ -59,6 +62,7 @@ import {
   addDesignNote,
   resolveDesignNote,
 } from './design.js';
+import { listInstalledSkills, skillTargets, installSkill, uninstallSkill } from './skills.js';
 import {
   listTasks,
   createTask,
@@ -193,6 +197,12 @@ export interface Host {
   removeDesignPage(workspaceId: string, pageId: string): DesignBoard;
   addDesignNote(workspaceId: string, pageId: string, text: string): DesignBoard;
   resolveDesignNote(workspaceId: string, pageId: string, noteId: string): DesignBoard;
+
+  /** Skills marketplace installs. */
+  listInstalledSkills(): InstalledSkillRecord[];
+  skillTargets(): InstallTargetInfo[];
+  installSkill(skillId: string, target: InstallTarget): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
+  uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[];
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): AutomationTask[];
@@ -393,6 +403,11 @@ export function createHost(opts: { dataDir: string }): Host {
     removeDesignPage,
     addDesignNote,
     resolveDesignNote,
+    listInstalledSkills,
+    skillTargets,
+    installSkill,
+    uninstallSkill,
+
     listTasks,
     createTask,
     updateTask,
