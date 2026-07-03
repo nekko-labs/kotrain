@@ -35,6 +35,8 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.sessionSetWorkspace]: ([id, wid]) => host.setSessionWorkspace(id, wid),
     [C.chatSend]: ([opts]) => host.sendChat(opts),
     [C.chatAbort]: ([id]) => host.abortChat(id),
+    [C.chatQueue]: ([id, text]) => host.queuePrompt(id, text),
+    [C.chatDequeue]: ([id, idx]) => host.dequeuePrompt(id, idx),
     [C.toolApprove]: ([sid, tid, ok]) => host.approveTool(sid, tid, ok),
 
     [C.terminalsList]: () => host.listTerminals(),

@@ -129,6 +129,8 @@ export interface Host {
   setSessionAttachments(id: string, paths: string[]): Session | null;
   sendChat(opts: SendOptions): Promise<void>;
   abortChat(sessionId: string): void;
+  queuePrompt(sessionId: string, text: string): Session | null;
+  dequeuePrompt(sessionId: string, index: number): Session | null;
   approveTool(sessionId: string, toolCallId: string, approved: boolean): void;
 
   listTerminals(): TerminalInfo[];
@@ -337,6 +339,8 @@ export function createHost(opts: { dataDir: string }): Host {
     listTools: () => [...BUILTIN_TOOLS.map((t) => ({ name: t.name, description: t.description })), ...mcpToolList()],
     sendChat: (o) => sendChat(o, (e) => events.emit('agentEvent', e)),
     abortChat,
+    queuePrompt: sessions.queuePrompt,
+    dequeuePrompt: sessions.dequeuePrompt,
     approveTool: (_sessionId, toolCallId, approved) => resolveApproval(toolCallId, approved),
 
     listTerminals,

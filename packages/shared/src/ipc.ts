@@ -38,6 +38,8 @@ export const IpcChannels = {
   sessionSetWorkspace: 'session:setWorkspace',
   chatSend: 'chat:send',
   chatAbort: 'chat:abort',
+  chatQueue: 'chat:queue',
+  chatDequeue: 'chat:dequeue',
   toolApprove: 'tool:approve',
 
   terminalsList: 'terminals:list',
@@ -175,6 +177,10 @@ export interface NekkoApi {
   setSessionAttachments(sessionId: string, paths: string[]): Promise<Session | null>;
   sendChat(opts: SendOptions): Promise<void>;
   abortChat(sessionId: string): Promise<void>;
+  /** Append a prompt to a chat's run-queue (runs when the current turn ends). */
+  queuePrompt(sessionId: string, text: string): Promise<Session | null>;
+  /** Remove a queued prompt by index. */
+  dequeuePrompt(sessionId: string, index: number): Promise<Session | null>;
   approveTool(sessionId: string, toolCallId: string, approved: boolean): Promise<void>;
 
   /** Live terminal sessions (in-memory; they don't persist across restarts). */

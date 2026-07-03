@@ -229,8 +229,14 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     if (!allowSpawn) disabled.add('spawn_agent');
     tools = [...BUILTIN_TOOLS, ...mcpToolSpecs()].filter((t) => !disabled.has(t.name));
   }
-  // Persist only when not incognito.
-  const persist = () => { if (!incognito) saveSession(session); };
+  // Persist only when not incognito. Preserve any prompts queued mid-run (they
+  // land on disk via queuePrompt) so a normal save doesn't clobber them.
+  const persist = () => {
+    if (incognito) return;
+    const disk = getSession(session.id);
+    if (disk?.queue) session.queue = disk.queue;
+    saveSession(session);
+  };
 
   // Build context with provenance. Offline mode skips internet connectors.
   const bundle = assembleContext({
@@ -340,5 +346,17 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
   // Keep the linked spec.md in sync with the conversation (best-effort).
   if (session.specLinked && !incognito) {
     buildSpec(opts.sessionId).catch(() => {});
+  }
+
+  // Run the next queued prompt, if any (and we weren't aborted). Each turn
+  // dequeues exactly one item, so a chat works through its queue in order.
+  if (!abort.signal.aborted) {
+    const fresh = getSession(opts.sessionId);
+    const next = fresh?.queue?.[0];
+    if (fresh && next) {
+      fresh.queue = fresh.queue!.slice(1);
+      saveSession(fresh);
+      await sendChat({ sessionId: opts.sessionId, providerId: opts.providerId, modelId: opts.modelId, text: next }, send);
+    }
   }
 }

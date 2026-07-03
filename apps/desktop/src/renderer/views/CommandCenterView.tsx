@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AgentEvent, ProviderConfig, Session, TerminalInfo, UsageSummary, AutomationTask } from '@open-paw/shared';
 import type { RemoteStatus } from '@open-paw/shared';
-import { estimateCostUSD, formatUSD, optimizationTips, MODEL_PRICING, taskCadence } from '@open-paw/shared';
-import type { OptimizationTip } from '@open-paw/shared';
+import { estimateCostUSD, formatUSD, optimizationTips, MODEL_PRICING, taskCadence, classifySession, classifyAgent, agentSignals } from '@open-paw/shared';
+import type { OptimizationTip, AgentType } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { Markdown } from '../components/Markdown.js';
 import { ChatIcon, FolderIcon, ServerIcon, PlusIcon, CheckIcon, TerminalIcon, RobotIcon, TrashIcon } from '../icons.js';
@@ -30,6 +30,7 @@ export function CommandCenterView() {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [running, setRunning] = useState<Set<string>>(new Set());
+  const [tasks, setTasks] = useState<AutomationTask[]>([]);
   const [, setTick] = useState(0);
   const now = Date.now();
 
@@ -37,7 +38,18 @@ export function CommandCenterView() {
     window.nekko.getUsageSummary().then(setUsage);
     refreshSessions();
     refreshTerminals();
+    window.nekko.listTasks().then(setTasks).catch(() => setTasks([]));
+    const off = window.nekko.onTasksUpdated(setTasks);
+    return off;
   }, [refreshSessions, refreshTerminals]);
+
+  // Map a task-driven session back to its task, so those agents classify by
+  // their task (a recurring "monitor …" task → monitor, not a plain chat).
+  const taskBySession = useMemo(() => {
+    const m = new Map<string, AutomationTask>();
+    for (const t of tasks) if (t.lastSessionId) m.set(t.lastSessionId, t);
+    return m;
+  }, [tasks]);
 
   // Track running sessions live; surface freshly spawned sub-agents.
   useEffect(() => {
@@ -46,6 +58,7 @@ export function CommandCenterView() {
       if (e.type === 'done' || e.type === 'error') {
         setRunning((r) => { const n = new Set(r); n.delete(e.sessionId); return n; });
         window.nekko.getUsageSummary().then(setUsage);
+        refreshSessions(); // pick up the dequeued prompt + final message
       } else {
         setRunning((r) => (r.has(e.sessionId) ? r : new Set(r).add(e.sessionId)));
       }
@@ -85,6 +98,35 @@ export function CommandCenterView() {
       .sort((a, b) => (Number(b.isRunning) - Number(a.isRunning)) || b.s.updatedAt - a.s.updatedAt)
       .slice(0, 8);
   }, [topLevel, running, childrenOf, now]);
+
+  // Fleet: every agent currently in flight or standing (running/recent chats +
+  // active tasks), grouped by derived type, so a team can see what's out there.
+  const fleet = useMemo(() => {
+    type Member = { key: string; type: AgentType; label: string; running: boolean };
+    const members: Member[] = [];
+    for (const { s, isRunning } of board) {
+      members.push({ key: s.id, type: classifySession(s, taskBySession.get(s.id)), label: s.title, running: isRunning });
+    }
+    for (const t of tasks) {
+      if (t.status !== 'active') continue;
+      const live = !!t.lastSessionId && running.has(t.lastSessionId);
+      members.push({
+        key: `task:${t.id}`,
+        type: classifyAgent({ taskKind: t.kind, taskCondition: t.condition, prompt: t.prompt }),
+        label: t.title,
+        running: live,
+      });
+    }
+    const byRole = new Map<string, { type: AgentType; count: number; live: number }>();
+    for (const m of members) {
+      const e = byRole.get(m.type.role) ?? { type: m.type, count: 0, live: 0 };
+      e.count++;
+      if (m.running) e.live++;
+      byRole.set(m.type.role, e);
+    }
+    return { total: members.length, live: members.filter((m) => m.running).length, groups: [...byRole.values()].sort((a, b) => b.count - a.count) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, tasks, running, taskBySession]);
 
   const openChat = (id: string) => { openChatPane(id); setView('chat'); };
   const openTerminal = (id: string) => { openTerminalPane(id); setView('chat'); };
@@ -132,6 +174,31 @@ export function CommandCenterView() {
           ))}
         </div>
 
+        {/* Fleet: what kinds of agents are out there right now */}
+        {fleet.total > 0 && (
+          <section className="mt-7">
+            <div className="flex items-center gap-2">
+              <h2 className="text-[15px] font-semibold">Fleet</h2>
+              <span className="text-[12px] text-ink-faint">{fleet.total} agent{fleet.total === 1 ? '' : 's'}{fleet.live > 0 ? ` · ${fleet.live} live` : ''}</span>
+            </div>
+            <p className="mt-0.5 text-[12px] text-ink-faint">Everything running or scheduled, by type. What each is doing shows below.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {fleet.groups.map((g) => (
+                <div key={g.type.role} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2" style={{ background: 'var(--surface)' }}>
+                  <span className="grid h-7 w-7 place-items-center rounded-lg text-[15px]" style={{ background: 'var(--surface-2)' }}>{g.type.icon}</span>
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[12.5px] font-medium">
+                      {g.type.label}
+                      {g.live > 0 && <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: g.type.color }} />}
+                    </div>
+                    <div className="text-[11px] text-ink-faint">{g.count} agent{g.count === 1 ? '' : 's'}{g.live > 0 ? ` · ${g.live} working` : ''}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* THE BOARD, prominent live agent work */}
         <div className="mt-7 flex items-center gap-2">
           <h2 className="text-[15px] font-semibold">Active agent work</h2>
@@ -152,6 +219,7 @@ export function CommandCenterView() {
               <AgentCard
                 key={s.id}
                 session={s}
+                agentType={classifySession(s, taskBySession.get(s.id))}
                 provider={providers.find((p) => p.id === s.providerId)}
                 childrenOf={childrenOf}
                 running={running}
@@ -159,6 +227,7 @@ export function CommandCenterView() {
                 tokens={usage?.bySession[s.id]}
                 now={now}
                 onOpen={openChat}
+                onRefresh={refreshSessions}
               />
             ))}
           </div>
@@ -214,7 +283,7 @@ export function CommandCenterView() {
         </div>
 
         {/* Tasks & scheduled work */}
-        <TasksDashboard sessions={sessions} running={running} onOpen={openChat} />
+        <TasksDashboard tasks={tasks} running={running} onOpen={openChat} />
 
         {/* Cost */}
         <CostPanel usage={usage} sessions={sessions} providers={providers} />
@@ -278,11 +347,25 @@ function SubAgentTree({
   );
 }
 
+/** A small pill for an agent's derived type (code-review bot, monitor, …). */
+function AgentTypeBadge({ type }: { type: AgentType }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{ background: 'var(--surface-2)', color: type.color }}
+      title={`Agent type: ${type.label}`}
+    >
+      <span>{type.icon}</span>
+      {type.label}
+    </span>
+  );
+}
+
 function AgentCard({
-  session, provider, childrenOf, running, isRunning, tokens, now, onOpen,
+  session, agentType, provider, childrenOf, running, isRunning, tokens, now, onOpen, onRefresh,
 }: {
-  session: Session; provider?: ProviderConfig; childrenOf: Map<string, Session[]>; running: Set<string>;
-  isRunning: boolean; tokens?: { input: number; output: number }; now: number; onOpen: (id: string) => void;
+  session: Session; agentType: AgentType; provider?: ProviderConfig; childrenOf: Map<string, Session[]>; running: Set<string>;
+  isRunning: boolean; tokens?: { input: number; output: number }; now: number; onOpen: (id: string) => void; onRefresh: () => void;
 }) {
   const msgs = session.messages.filter((m) => m.role === 'user' || m.role === 'assistant');
   const lastAssistant = [...session.messages].reverse().find((m) => m.role === 'assistant' && m.content.trim());
@@ -301,6 +384,8 @@ function AgentCard({
         <span className="shrink-0 text-[11px] text-ink-faint">{isRunning ? 'working…' : relTime(now - session.updatedAt)}</span>
       </div>
 
+      <div className="mt-1.5"><AgentTypeBadge type={agentType} /></div>
+
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10.5px] text-ink-faint">
         <span className="chip">{provider?.label ?? 'no model'}</span>
         {session.modelId && <span className="chip max-w-[140px] truncate">{session.modelId}</span>}
@@ -312,6 +397,29 @@ function AgentCard({
 
       {lastAssistant && (
         <p className="mt-2 line-clamp-2 text-[12px] text-ink-soft">{lastAssistant.content.slice(0, 180)}</p>
+      )}
+
+      {(session.queue?.length ?? 0) > 0 && (
+        <div className="mt-2.5 border-t border-line pt-2">
+          <div className="mb-1 flex items-center gap-1.5 text-[10.5px] uppercase tracking-wide text-ink-faint">
+            📋 queue · {session.queue!.length} up next
+          </div>
+          <div className="space-y-1">
+            {session.queue!.map((q, i) => (
+              <div key={i} className="flex items-center gap-2 text-[12px]">
+                <span className="shrink-0 text-[10px] text-ink-faint">{i + 1}</span>
+                <span className="min-w-0 flex-1 truncate text-ink-soft" title={q}>{q}</span>
+                <button
+                  className="shrink-0 rounded p-0.5 text-ink-faint hover:text-red-400"
+                  title="Remove from queue"
+                  onClick={async () => { await window.nekko.dequeuePrompt(session.id, i); onRefresh(); }}
+                >
+                  <TrashIcon className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {swarmSize > 0 && (
@@ -726,14 +834,7 @@ const TASK_STATUS_COLOR: Record<AutomationTask['status'], string> = {
 };
 
 /** Scheduled / recurring / background automation tasks + long-running agents. */
-function TasksDashboard({ sessions, running, onOpen }: { sessions: Session[]; running: Set<string>; onOpen: (id: string) => void }) {
-  const [tasks, setTasks] = useState<AutomationTask[]>([]);
-  useEffect(() => {
-    window.nekko.listTasks().then(setTasks).catch(() => setTasks([]));
-    const off = window.nekko.onTasksUpdated(setTasks);
-    return off;
-  }, []);
-
+function TasksDashboard({ tasks, running, onOpen }: { tasks: AutomationTask[]; running: Set<string>; onOpen: (id: string) => void }) {
   const sorted = [...tasks].sort((a, b) => Number(b.status === 'active') - Number(a.status === 'active') || b.createdAt - a.createdAt);
 
   return (
@@ -767,6 +868,7 @@ function TasksDashboard({ sessions, running, onOpen }: { sessions: Session[]; ru
                   </span>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10.5px] text-ink-faint">
+                  <AgentTypeBadge type={classifyAgent({ taskKind: t.kind, taskCondition: t.condition, prompt: t.prompt })} />
                   <span className="chip">{meta.label}</span>
                   <span className="chip">{taskCadence(t)}</span>
                   {t.runCount > 0 && <span className="chip">{t.runCount} run{t.runCount === 1 ? '' : 's'}</span>}
