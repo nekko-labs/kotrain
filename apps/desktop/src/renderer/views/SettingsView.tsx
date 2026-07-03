@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, SandboxMode, ThemeMode, UpdateInfo } from '@open-paw/shared';
+import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
@@ -339,12 +339,27 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
   const servers = settings.mcpServers ?? [];
   const [status, setStatus] = useState<McpServerStatus[]>([]);
   const [busy, setBusy] = useState(false);
+  // A local NekkoMCP daemon (github.com/nekko-labs/nekko-mcp), if one is running.
+  const [nekko, setNekko] = useState<NekkoMcpInfo | null>(null);
+  useEffect(() => { void window.nekko.detectNekkoMcp().then(setNekko).catch(() => {}); }, []);
   const setServers = (next: typeof servers) => update({ mcpServers: next });
   const add = () =>
     setServers([
       ...servers,
       { id: `m_${Date.now().toString(36)}`, name: 'filesystem', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '.'], enabled: false },
     ]);
+  const addUrl = () =>
+    setServers([
+      ...servers,
+      { id: `m_${Date.now().toString(36)}`, name: 'http server', command: '', args: [], url: 'http://localhost:7777/mcp', token: '', enabled: false },
+    ]);
+  const connectNekko = async () => {
+    if (!nekko) return;
+    const existing = servers.find((s) => s.id === 'nekko-mcp');
+    const entry = { id: 'nekko-mcp', name: 'NekkoMCP gateway', command: '', args: [], url: nekko.url, token: nekko.token, enabled: true };
+    setServers(existing ? servers.map((s) => (s.id === 'nekko-mcp' ? { ...s, ...entry } : s)) : [...servers, entry]);
+    pushToast('success', 'NekkoMCP gateway added — its servers\' tools join every chat.');
+  };
   const edit = (id: string, patch: Partial<(typeof servers)[number]>) =>
     setServers(servers.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const remove = (id: string) => setServers(servers.filter((s) => s.id !== id));
@@ -371,11 +386,36 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
             {busy ? 'Connecting…' : 'Connect & refresh'}
           </button>
           <button className="btn btn-outline py-1 text-[12px]" onClick={add}>+ Add</button>
+          <button className="btn btn-outline py-1 text-[12px]" onClick={addUrl} title="A streamable-HTTP MCP endpoint (URL + optional bearer token)">+ Add URL</button>
         </div>
       </div>
       <p className="mt-1 text-[12px] text-ink-faint">
         Model Context Protocol servers extend the agent with extra tools. Enabled servers' tools are offered in every chat.
       </p>
+      {nekko && (
+        <div className="card mt-3 p-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
+          <div className="flex items-center gap-2">
+            <span className="text-[15px]">🐾</span>
+            <div>
+              <p className="text-[12.5px] font-semibold">NekkoMCP detected <span className="font-normal text-ink-faint">· v{nekko.version} · {nekko.servers} managed server(s)</span></p>
+              <p className="text-[11.5px] text-ink-faint">Run and supervise MCP servers locally, then reach them all here through one gateway endpoint.</p>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              {nekko.uiUrl && (
+                <button
+                  className="btn btn-outline py-1 text-[12px]"
+                  onClick={() => { useStore.getState().openBrowserPane(nekko.uiUrl); useStore.getState().setView('chat'); }}
+                >
+                  Open manager
+                </button>
+              )}
+              <button className="btn btn-primary py-1 text-[12px]" onClick={() => void connectNekko()}>
+                {servers.some((s) => s.id === 'nekko-mcp') ? 'Reconnect gateway' : 'Connect gateway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mt-3 space-y-2">
         {servers.length === 0 && <p className="text-[12px] text-ink-faint">No MCP servers. Add one (e.g. <code>npx -y @modelcontextprotocol/server-filesystem .</code>).</p>}
         {servers.map((s) => {
@@ -384,6 +424,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
             <div key={s.id} className={`card p-3 ${s.enabled ? '' : 'opacity-60'}`}>
               <div className="flex items-center gap-2">
                 <input className="input py-1 text-[12.5px]" style={{ maxWidth: 160 }} value={s.name} onChange={(e) => edit(s.id, { name: e.target.value })} />
+                <span className="chip">{s.url != null ? 'http' : 'stdio'}</span>
                 {st && (
                   <span className="chip !text-white" style={{ background: st.connected ? '#4ec98a' : '#e0574a' }} title={st.error}>
                     {st.connected ? `${st.tools.length} tools` : 'offline'}
@@ -394,10 +435,17 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
                   <button className="btn btn-ghost px-2 py-1" title="Remove" onClick={() => remove(s.id)}><TrashIcon className="h-4 w-4" /></button>
                 </div>
               </div>
-              <div className="mt-2 flex gap-2">
-                <input className="input py-1 font-mono text-[12px]" style={{ maxWidth: 110 }} value={s.command} onChange={(e) => edit(s.id, { command: e.target.value })} placeholder="npx" />
-                <input className="input py-1 font-mono text-[12px]" value={s.args.join(' ')} onChange={(e) => edit(s.id, { args: e.target.value.split(/\s+/).filter(Boolean) })} placeholder="-y @modelcontextprotocol/server-filesystem ." />
-              </div>
+              {s.url != null ? (
+                <div className="mt-2 flex gap-2">
+                  <input className="input py-1 font-mono text-[12px]" value={s.url} onChange={(e) => edit(s.id, { url: e.target.value })} placeholder="http://localhost:7777/mcp" />
+                  <input className="input py-1 font-mono text-[12px]" style={{ maxWidth: 200 }} type="password" value={s.token ?? ''} onChange={(e) => edit(s.id, { token: e.target.value })} placeholder="bearer token (optional)" />
+                </div>
+              ) : (
+                <div className="mt-2 flex gap-2">
+                  <input className="input py-1 font-mono text-[12px]" style={{ maxWidth: 110 }} value={s.command} onChange={(e) => edit(s.id, { command: e.target.value })} placeholder="npx" />
+                  <input className="input py-1 font-mono text-[12px]" value={s.args.join(' ')} onChange={(e) => edit(s.id, { args: e.target.value.split(/\s+/).filter(Boolean) })} placeholder="-y @modelcontextprotocol/server-filesystem ." />
+                </div>
+              )}
               {st?.error && <p className="mt-1 text-[11px]" style={{ color: '#e0574a' }}>{st.error}</p>}
             </div>
           );

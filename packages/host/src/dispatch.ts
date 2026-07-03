@@ -125,6 +125,7 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
 
     [C.appInfo]: () => host.appInfo(),
     [C.mcpStatus]: () => host.mcpStatus(),
+    [C.mcpNekko]: () => host.detectNekkoMcp(),
   };
 
   return (channel, args) => {

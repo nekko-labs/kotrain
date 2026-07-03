@@ -76,7 +76,7 @@ import {
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
-import { syncMcp, mcpStatus, mcpToolList } from './mcp.js';
+import { syncMcp, mcpStatus, mcpToolList, detectNekkoMcp } from './mcp.js';
 import {
   setTerminalSender,
   listTerminals,
@@ -228,6 +228,8 @@ export interface Host {
   appInfo(): AppInfo;
   /** Connect (or reconnect) configured MCP servers and return their status. */
   mcpStatus(): Promise<McpServerStatus[]>;
+  /** Probe for a local NekkoMCP daemon and return its gateway info. */
+  detectNekkoMcp(): Promise<import('@open-paw/shared').NekkoMcpInfo | null>;
 }
 
 export function createHost(opts: { dataDir: string }): Host {
@@ -459,6 +461,7 @@ export function createHost(opts: { dataDir: string }): Host {
       await syncMcp(configs);
       return mcpStatus(configs);
     },
+    detectNekkoMcp: () => detectNekkoMcp(),
   };
   return host;
 }
