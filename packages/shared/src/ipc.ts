@@ -133,6 +133,7 @@ export const IpcChannels = {
 
   appInfo: 'app:info',
   mcpStatus: 'mcp:status',
+  mcpNekko: 'mcp:nekko',
   // Transport-local update controls (desktop = electron-updater, web = refresh).
   updateCheck: 'update:check',
   updateDownload: 'update:download',
@@ -315,6 +316,8 @@ export interface NekkoApi {
   getAppInfo(): Promise<AppInfo>;
   /** Connect configured MCP servers and return their status + tools. */
   getMcpStatus(): Promise<import('./mcp.js').McpServerStatus[]>;
+  /** Probe for a local NekkoMCP daemon (nekko-mcpd) and return its gateway info. */
+  detectNekkoMcp(): Promise<import('./mcp.js').NekkoMcpInfo | null>;
   /** Register this device's push token with the relay (mobile/relay only; no-op elsewhere). */
   registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
   /** Check for a newer version (desktop: GitHub feed; web: server version). */

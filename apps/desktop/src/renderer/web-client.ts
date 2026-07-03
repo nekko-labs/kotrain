@@ -294,6 +294,7 @@ function makeWebClient(): NekkoApi {
     // loaded; we just suggest a refresh (no installer to run in the browser).
     getAppInfo: () => call(IpcChannels.appInfo) as Promise<AppInfo>,
     getMcpStatus: () => call(IpcChannels.mcpStatus),
+    detectNekkoMcp: () => call(IpcChannels.mcpNekko),
     registerPushToken: (token, platform) => registerPush(token, platform),
     checkForUpdates: async () => {
       const info = (await call(IpcChannels.appInfo)) as AppInfo;

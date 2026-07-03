@@ -1,31 +1,42 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { ToolSpec } from '@open-paw/core';
-import type { McpServerConfig, McpServerStatus, ToolResult, ToolCall } from '@open-paw/shared';
+import type { McpServerConfig, McpServerStatus, NekkoMcpInfo, ToolResult, ToolCall } from '@open-paw/shared';
 
 /**
- * Minimal MCP stdio client, hand-rolled JSON-RPC 2.0 over newline-delimited
- * stdio (the MCP stdio transport), so we add no dependency. One McpServer wraps
- * one spawned server process: handshake, list tools, call tools.
+ * Minimal MCP client, hand-rolled so we add no dependency. Two transports:
+ *   • stdio — JSON-RPC 2.0 over newline-delimited stdio of a spawned process.
+ *   • streamable HTTP — JSON-RPC POSTed to a URL (e.g. a NekkoMCP gateway),
+ *     used when the config carries `url`; handles JSON and SSE-framed replies
+ *     and echoes the server's `mcp-session-id` for stateful servers.
+ * One McpServer wraps one server: handshake, list tools, call tools.
  */
 class McpServer {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private buffer = '';
   private nextId = 1;
   private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
+  private url: string | undefined;
+  private token: string | undefined;
+  private sessionId: string | undefined;
   tools: Array<{ name: string; description?: string; inputSchema?: any }> = [];
   connected = false;
   error: string | undefined;
 
   async start(config: McpServerConfig): Promise<void> {
-    this.proc = spawn(config.command, config.args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      // npx and friends are .cmd shims on Windows → need a shell to resolve them.
-      shell: process.platform === 'win32',
-    }) as ChildProcessWithoutNullStreams;
-    this.proc.stdout.on('data', (d) => this.onData(d));
-    this.proc.stderr.on('data', () => {/* server logs, ignore */});
-    this.proc.on('error', (e) => { this.error = e.message; this.connected = false; });
-    this.proc.on('exit', () => { this.connected = false; });
+    if (config.url) {
+      this.url = config.url;
+      this.token = config.token;
+    } else {
+      this.proc = spawn(config.command, config.args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        // npx and friends are .cmd shims on Windows → need a shell to resolve them.
+        shell: process.platform === 'win32',
+      }) as ChildProcessWithoutNullStreams;
+      this.proc.stdout.on('data', (d) => this.onData(d));
+      this.proc.stderr.on('data', () => {/* server logs, ignore */});
+      this.proc.on('error', (e) => { this.error = e.message; this.connected = false; });
+      this.proc.on('exit', () => { this.connected = false; });
+    }
 
     await this.request('initialize', {
       protocolVersion: '2024-11-05',
@@ -36,6 +47,42 @@ class McpServer {
     const res = await this.request('tools/list', {});
     this.tools = res?.tools ?? [];
     this.connected = true;
+  }
+
+  /** POST one JSON-RPC message to the streamable-HTTP endpoint and parse the reply. */
+  private async httpSend(body: Record<string, unknown>, expectReply: boolean): Promise<any> {
+    const res = await fetch(this.url!, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
+        ...(this.sessionId ? { 'mcp-session-id': this.sessionId } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    const sid = res.headers.get('mcp-session-id');
+    if (sid) this.sessionId = sid;
+    if (!expectReply) return undefined; // notifications → 202 Accepted, no body
+    if (!res.ok) throw new Error(`MCP HTTP ${res.status}${res.status === 401 ? ' (check the bearer token)' : ''}`);
+    const ctype = res.headers.get('content-type') ?? '';
+    let msg: any;
+    if (ctype.includes('text/event-stream')) {
+      // SSE-framed: find the event whose data carries our response id.
+      const text = await res.text();
+      for (const line of text.split('\n')) {
+        if (!line.startsWith('data:')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(5).trim());
+          if (parsed.id === body.id) { msg = parsed; break; }
+        } catch { /* keep scanning */ }
+      }
+      if (!msg) throw new Error('MCP HTTP: no response in event stream');
+    } else {
+      msg = await res.json();
+    }
+    if (msg.error) throw new Error(msg.error.message ?? 'MCP error');
+    return msg.result;
   }
 
   private onData(d: Buffer): void {
@@ -60,6 +107,7 @@ class McpServer {
 
   private request(method: string, params: unknown): Promise<any> {
     const id = this.nextId++;
+    if (this.url) return this.httpSend({ jsonrpc: '2.0', id, method, params }, true);
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.send({ jsonrpc: '2.0', id, method, params });
@@ -73,6 +121,7 @@ class McpServer {
   }
 
   private notify(method: string, params?: unknown): void {
+    if (this.url) { void this.httpSend({ jsonrpc: '2.0', method, params }, false).catch(() => {}); return; }
     this.send({ jsonrpc: '2.0', method, params });
   }
 
@@ -90,6 +139,8 @@ class McpServer {
 
   stop(): void {
     try { this.proc?.kill(); } catch { /* already gone */ }
+    this.url = undefined;
+    this.sessionId = undefined;
     this.connected = false;
   }
 }
@@ -160,6 +211,25 @@ export async function callMcpTool(call: ToolCall): Promise<ToolResult> {
     return { toolCallId: call.id, output: text || '(no output)', isError: !!res?.isError };
   } catch (e) {
     return { toolCallId: call.id, output: `MCP call failed: ${(e as Error).message}`, isError: true };
+  }
+}
+
+/**
+ * Probe for a local NekkoMCP daemon (github.com/nekko-labs/nekko-mcp) — the
+ * companion MCP server runtime/manager. Host-side so it works in every edition
+ * (the browser can't always reach another localhost port).
+ */
+export async function detectNekkoMcp(
+  base: string = process.env.NEKKO_MCP_URL ?? 'http://localhost:7777',
+): Promise<NekkoMcpInfo | null> {
+  try {
+    const ctl = AbortSignal.timeout(1500);
+    const health = (await (await fetch(`${base}/health`, { signal: ctl })).json()) as { service?: string; version?: string; servers?: number };
+    if (health?.service !== 'nekko-mcpd') return null;
+    const gw = (await (await fetch(`${base}/api/gateway`, { signal: ctl })).json()) as { url: string; token?: string; uiUrl?: string };
+    return { url: gw.url, token: gw.token, uiUrl: gw.uiUrl, servers: health.servers ?? 0, version: health.version ?? '?' };
+  } catch {
+    return null;
   }
 }
 
