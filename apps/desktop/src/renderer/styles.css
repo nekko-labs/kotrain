@@ -3,18 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --paper: #fafaf8;
+  --paper: #fbfbfd;
   --surface: #ffffff;
-  --surface-2: #f3f2ef;
-  --ink: #1a1a1f;
-  --ink-soft: #54545e;
-  --ink-faint: #8c8c97;
-  --line: #e9e7e2;
-  --accent: #ff7a59;
-  /* A friendly cool secondary, paired with the warm accent for a bit of color
-     and a brand gradient. Derived soft/gradient tokens track --accent (which the
-     user can recolor in Settings). */
-  --accent-2: #5b8def;
+  --surface-2: #f2f2f7;
+  --ink: #17171d;
+  --ink-soft: #52525e;
+  --ink-faint: #8a8a97;
+  --line: #e8e8ef;
+  --accent: #6d5efc;
+  /* A cyan secondary paired with the indigo-violet accent into a violet→cyan
+     brand gradient (the modern developer-tool look). Derived soft/gradient
+     tokens track --accent (which the user can recolor in Settings). */
+  --accent-2: #06b6d4;
   --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
   --brand-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
   --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.04), 0 2px 8px rgba(20, 20, 30, 0.05);
@@ -26,15 +26,15 @@
 }
 
 [data-theme='dark'] {
-  --paper: #0d0d10;
-  --surface: #161619;
-  --surface-2: #202026;
-  --ink: #edebe7;
-  --ink-soft: #a6a29a;
-  --ink-faint: #6b6b76;
-  --line: #26262c;
-  --accent: #ff7a59;
-  --accent-2: #6f9bff;
+  --paper: #0c0c11;
+  --surface: #16161c;
+  --surface-2: #20202a;
+  --ink: #eceaf3;
+  --ink-soft: #a3a1b0;
+  --ink-faint: #6b6b78;
+  --line: #26262f;
+  --accent: #8b7dff;
+  --accent-2: #22d3ee;
   --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --brand-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.3);

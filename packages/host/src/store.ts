@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { AppSettings } from '@open-paw/shared';
-import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
+import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@open-paw/shared';
 import { DEFAULT_GUARDRAILS } from '@open-paw/core';
 import { dataDir } from './paths.js';
 
@@ -12,7 +12,7 @@ const SETTINGS_PATH = () => join(dataDir(), 'settings.json');
 function defaults(): AppSettings {
   return {
     theme: 'system',
-    accent: '#ff7a59',
+    accent: DEFAULT_ACCENT,
     sandboxMode: 'workspace-jail',
     providers: [],
     guardrails: DEFAULT_GUARDRAILS,
@@ -41,6 +41,11 @@ export function getSettings(): AppSettings {
       settings = { ...defaults(), ...parsed };
       // Ensure guardrails exist even if an old settings file lacked them.
       if (!settings.guardrails?.length) settings.guardrails = DEFAULT_GUARDRAILS;
+      // Migrate users off a prior default accent (e.g. the old orange) so the
+      // refreshed color applies unless they picked their own.
+      if (settings.accent && LEGACY_ACCENTS.includes(settings.accent.toLowerCase())) {
+        settings.accent = DEFAULT_ACCENT;
+      }
     } else {
       settings = defaults();
     }

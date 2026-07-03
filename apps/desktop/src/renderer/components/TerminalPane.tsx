@@ -19,14 +19,14 @@ const MONO = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberat
 function readTheme(): Record<string, string> {
   const cs = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => cs.getPropertyValue(name).trim() || fallback;
-  const ink = v('--ink', '#1a1a1f');
-  const accent = v('--accent', '#ff7a59');
+  const ink = v('--ink', '#17171d');
+  const accent = v('--accent', '#6d5efc');
   return {
-    background: v('--surface-2', '#f3f2ef'),
+    background: v('--surface-2', '#f2f2f7'),
     foreground: ink,
     cursor: accent,
     cursorAccent: v('--paper', '#fafaf8'),
-    selectionBackground: v('--ring', 'rgba(255,122,89,0.35)'),
+    selectionBackground: v('--ring', 'rgba(109,94,252,0.35)'),
   };
 }
 
