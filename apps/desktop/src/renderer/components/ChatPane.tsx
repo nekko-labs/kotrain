@@ -96,6 +96,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   useEffect(() => {
     const off = window.nekko.onAgentEvent((e: AgentEvent) => {
       if (e.sessionId !== sessionId) return;
+      // A turn may start host-side (a queued follow-up, or a task-driven run):
+      // reflect it as streaming even though this pane didn't call send().
+      if (e.type === 'text' || e.type === 'reasoning' || e.type === 'tool_call') {
+        setStreaming(true);
+        if (!turnStart.current) { turnStart.current = Date.now(); setMascotMood('thinking'); }
+      }
       switch (e.type) {
         case 'text': setLiveText((t) => t + e.delta); break;
         case 'reasoning': setLiveReasoning((t) => t + e.delta); setThinking(true); break;
@@ -130,6 +136,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     setLiveReasoning('');
     setLiveTools([]);
     setMascotMood('idle');
+    turnStart.current = 0;
     window.nekko.getSession(sessionId).then(setSession);
     refreshSessions();
   };
@@ -191,6 +198,23 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       prev ? { ...prev, messages: [...prev.messages, { id: 'tmp', role: 'user', content: text, createdAt: Date.now() }] } : prev,
     );
     await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text });
+  };
+
+  // Queue the draft to run after the current turn (and any earlier queued
+  // items). Useful for lining up follow-ups while an agent is working.
+  const queueDraft = async () => {
+    const text = draft.trim();
+    if (!text) return;
+    const updated = await window.nekko.queuePrompt(sessionId, text);
+    setDraft('');
+    if (updated) setSession(updated);
+    refreshSessions();
+  };
+
+  const removeQueued = async (index: number) => {
+    const updated = await window.nekko.dequeuePrompt(sessionId, index);
+    if (updated) setSession(updated);
+    refreshSessions();
   };
 
   // A comment/note routed here from the editor or design board: drop it into the
@@ -387,6 +411,22 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         </div>
 
         <div className="px-4 pb-4">
+          {(session?.queue?.length ?? 0) > 0 && (
+            <div className="mx-auto mb-2 w-full max-w-3xl rounded-xl border border-line bg-surface-2 px-3 py-2">
+              <div className="mb-1 flex items-center gap-1.5 text-[10.5px] uppercase tracking-wide text-ink-faint">
+                📋 Queued · {session!.queue!.length} to run after this
+              </div>
+              <div className="space-y-1">
+                {session!.queue!.map((q, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[12px]">
+                    <span className="shrink-0 text-[10px] text-ink-faint">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink-soft" title={q}>{q}</span>
+                    <button className="shrink-0 rounded px-1 text-ink-faint hover:text-red-400" title="Remove from queue" onClick={() => removeQueued(i)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <PromptAnalyzer text={draft} />
           <div className="relative mx-auto flex w-full max-w-3xl items-end gap-2">
             {atQuery !== null && session?.workspaceId && (
@@ -454,6 +494,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               }}
               disabled={!hasProvider}
             />
+            {draft.trim() && hasProvider && (
+              <button
+                className="btn btn-outline"
+                onClick={queueDraft}
+                title={streaming ? 'Queue this to run after the current turn' : 'Queue this to run after any queued items'}
+              >
+                Queue
+              </button>
+            )}
             {streaming ? (
               <button className="btn btn-outline" onClick={() => window.nekko.abortChat(sessionId)}>Stop</button>
             ) : (

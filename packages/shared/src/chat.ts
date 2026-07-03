@@ -78,6 +78,8 @@ export interface Session {
   pinned?: boolean;
   /** Free-form tags for organizing/filtering chats. */
   tags?: string[];
+  /** Queued prompts to run one after another when the current turn finishes. */
+  queue?: string[];
   /** Manual sidebar position within its project (set by drag-to-reorder). */
   order?: number;
   createdAt: number;

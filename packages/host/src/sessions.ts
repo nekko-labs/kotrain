@@ -108,6 +108,24 @@ export function setSessionOptions(
   return s;
 }
 
+/** Append a prompt to a chat's run-queue (executed when the current turn ends). */
+export function queuePrompt(id: string, text: string): Session | null {
+  const s = getSession(id);
+  if (!s || !text.trim()) return s;
+  s.queue = [...(s.queue ?? []), text.trim()];
+  saveSession(s);
+  return s;
+}
+
+/** Remove a queued prompt by index. */
+export function dequeuePrompt(id: string, index: number): Session | null {
+  const s = getSession(id);
+  if (!s?.queue) return s ?? null;
+  s.queue = s.queue.filter((_, i) => i !== index);
+  saveSession(s);
+  return s;
+}
+
 export function createSession(workspaceId?: string, parentSessionId?: string): Session {
   const now = Date.now();
   const s: Session = {

@@ -41,6 +41,8 @@ const api: NekkoApi = {
   setSessionAttachments: (sessionId, paths) => inv(IpcChannels.sessionSetAttachments, sessionId, paths),
   sendChat: (opts: SendOptions) => inv(IpcChannels.chatSend, opts),
   abortChat: (sessionId) => inv(IpcChannels.chatAbort, sessionId),
+  queuePrompt: (sessionId, text) => inv(IpcChannels.chatQueue, sessionId, text),
+  dequeuePrompt: (sessionId, index) => inv(IpcChannels.chatDequeue, sessionId, index),
   approveTool: (sessionId, toolCallId, approved) => inv(IpcChannels.toolApprove, sessionId, toolCallId, approved),
 
   listTerminals: () => inv(IpcChannels.terminalsList),
