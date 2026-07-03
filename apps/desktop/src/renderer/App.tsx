@@ -130,7 +130,7 @@ export function App() {
     <div className="flex h-full w-full" style={{ background: 'var(--paper)' }}>
       {/* Left rail */}
       <nav className="flex w-16 flex-col items-center gap-1 border-r border-line py-4">
-        <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl" style={{ background: 'var(--accent)' }}>
+        <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
           <span className="text-lg">🐾</span>
         </div>
         {NAV.map(({ view: v, labelKey, Icon }) => (

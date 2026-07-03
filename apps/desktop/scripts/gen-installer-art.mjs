@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const build = resolve(__dirname, '../build');
 const BG = Jimp.rgbaToInt(20, 20, 26, 255); // Open Paw dark #14141a
-const ACCENT = Jimp.rgbaToInt(255, 122, 89, 255); // #ff7a59
+const ACCENT = Jimp.rgbaToInt(109, 94, 252, 255); // #6d5efc
 
 const icon = await Jimp.read(resolve(build, 'icon.png'));
 const f32 = await Jimp.loadFont(Jimp.FONT_SANS_32_WHITE);
