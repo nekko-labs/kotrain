@@ -102,8 +102,10 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
 
     [C.skillsInstalled]: () => host.listInstalledSkills(),
     [C.skillsTargets]: () => host.skillTargets(),
-    [C.skillInstall]: ([id, target]) => host.installSkill(id, target),
+    [C.skillInstall]: ([id, target, payload]) => host.installSkill(id, target, payload),
     [C.skillUninstall]: ([id, target]) => host.uninstallSkill(id, target),
+    [C.dojoCatalog]: ([refresh]) => host.dojoCatalog(refresh),
+    [C.dojoSkillMd]: ([slug]) => host.dojoSkillMd(slug),
 
     [C.tasksList]: () => host.listTasks(),
     [C.taskCreate]: ([task]) => host.createTask(task),

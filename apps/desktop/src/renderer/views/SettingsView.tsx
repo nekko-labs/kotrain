@@ -340,8 +340,9 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
   const [status, setStatus] = useState<McpServerStatus[]>([]);
   const [busy, setBusy] = useState(false);
   // A local NekkoMCP daemon (github.com/nekko-labs/nekko-mcp), if one is running.
-  const [nekko, setNekko] = useState<NekkoMcpInfo | null>(null);
-  useEffect(() => { void window.nekko.detectNekkoMcp().then(setNekko).catch(() => {}); }, []);
+  // undefined = still probing, null = no daemon found.
+  const [nekko, setNekko] = useState<NekkoMcpInfo | null | undefined>(undefined);
+  useEffect(() => { void window.nekko.detectNekkoMcp().then(setNekko).catch(() => setNekko(null)); }, []);
   const setServers = (next: typeof servers) => update({ mcpServers: next });
   const add = () =>
     setServers([
@@ -414,6 +415,20 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {nekko === null && !servers.some((s) => s.id === 'nekko-mcp') && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-line px-3 py-2">
+          <span className="text-[15px] opacity-70">🐾</span>
+          <p className="text-[11.5px] text-ink-faint">
+            Optional: <span className="font-medium text-ink-soft">NekkoMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
+          </p>
+          <button
+            className="btn btn-ghost ml-auto shrink-0 !px-2 !py-0.5 text-[11px] text-accent"
+            onClick={() => window.nekko.openPath('https://github.com/nekko-labs/nekko-mcp')}
+          >
+            Get NekkoMCP ↗
+          </button>
         </div>
       )}
       <div className="mt-3 space-y-2">

@@ -261,8 +261,10 @@ function makeWebClient(): NekkoApi {
 
     listInstalledSkills: () => call(IpcChannels.skillsInstalled),
     skillTargets: () => call(IpcChannels.skillsTargets),
-    installSkill: (skillId, target) => call(IpcChannels.skillInstall, skillId, target),
+    installSkill: (skillId, target, payload) => call(IpcChannels.skillInstall, skillId, target, payload),
     uninstallSkill: (skillId, target) => call(IpcChannels.skillUninstall, skillId, target),
+    dojoCatalog: (refresh) => call(IpcChannels.dojoCatalog, refresh),
+    dojoSkillMd: (slug) => call(IpcChannels.dojoSkillMd, slug),
 
     listTasks: () => call(IpcChannels.tasksList),
     createTask: (task) => call(IpcChannels.taskCreate, task),
