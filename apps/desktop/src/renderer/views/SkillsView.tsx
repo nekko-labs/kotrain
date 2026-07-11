@@ -8,6 +8,10 @@ import {
   getMarketSkill,
   marketWorkflow,
   marketToSkillDef,
+  dojoToMarketSkill,
+  splitSkillMd,
+  DOJO_REPO_URL,
+  type DojoCatalog,
   type SkillDef,
   type SkillNodeKind,
   type SkillWorkflow,
@@ -202,7 +206,23 @@ function LibraryTab() {
 const SOURCE_META: Record<MarketplaceSkill['source'], { label: string; color: string }> = {
   nekkolabs: { label: 'Nekko Labs', color: 'var(--accent)' },
   community: { label: 'community', color: '#5b9dd9' },
+  dojo: { label: 'Nekko Dojo', color: '#a78bfa' },
 };
+
+/** Trust-tier chip for skills from the Dojo hub. */
+function TierChip({ tier }: { tier?: MarketplaceSkill['tier'] }) {
+  if (!tier) return null;
+  const official = tier === 'nekko-official';
+  return (
+    <span
+      className="shrink-0 rounded-full px-1.5 py-0 text-[9px]"
+      style={{ background: 'var(--surface-2)', color: official ? '#a78bfa' : '#4ec98a' }}
+      title={official ? 'Built and reviewed by Nekko Labs' : 'Community-submitted: audit before use, skills run with your permissions'}
+    >
+      {official ? '🟣 official' : '🟢 community'}
+    </span>
+  );
+}
 
 function fmtMetric(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
@@ -215,14 +235,34 @@ function MarketplaceTab() {
   const [selectedId, setSelectedId] = useState<string>(NEKKO_SKILLS[0]?.id ?? '');
   const [targets, setTargets] = useState<InstallTargetInfo[]>([]);
   const [busy, setBusy] = useState(false);
+  // Nekko Dojo hub (optional): renders from the offline snapshot/cache; the
+  // network is only touched when the user clicks Refresh.
+  const [dojo, setDojo] = useState<DojoCatalog | null>(null);
+  const [dojoBusy, setDojoBusy] = useState(false);
 
   useEffect(() => {
     window.nekko.skillTargets().then(setTargets).catch(() => setTargets([]));
+    window.nekko.dojoCatalog().then(setDojo).catch(() => {});
     refreshSkills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const refreshDojo = async () => {
+    setDojoBusy(true);
+    try {
+      const cat = await window.nekko.dojoCatalog(true);
+      setDojo(cat);
+      pushToast(
+        cat.source === 'live' ? 'success' : 'info',
+        cat.source === 'live' ? `Dojo catalog refreshed: ${cat.skills.length} skill(s).` : 'Dojo unreachable, showing the offline catalog.',
+      );
+    } finally {
+      setDojoBusy(false);
+    }
+  };
+
   const popular = useMemo(() => popularSkills(), []);
+  const dojoSkills = useMemo(() => (dojo?.skills ?? []).map((d) => dojoToMarketSkill(d)), [dojo]);
   const installedBySkill = useMemo(() => {
     const m = new Map<string, InstalledSkillRecord[]>();
     for (const r of installedSkills) m.set(r.skillId, [...(m.get(r.skillId) ?? []), r]);
@@ -239,25 +279,42 @@ function MarketplaceTab() {
     );
   };
 
+  // Every skill we can show, keyed by id: built-in catalog + the Dojo shelf +
+  // snapshots carried on installed records (Dojo installs survive offline).
+  const byId = useMemo(() => {
+    const m = new Map<string, MarketplaceSkill>();
+    for (const r of installedSkills) if (r.skill) m.set(r.skillId, r.skill);
+    for (const s of dojoSkills) m.set(s.id, s);
+    return m;
+  }, [installedSkills, dojoSkills]);
+  const resolve = (id: string): MarketplaceSkill | undefined => getMarketSkill(id) ?? byId.get(id);
+
   const shelves: Array<{ key: string; title: string; hint: string; items: MarketplaceSkill[] }> = [
     {
       key: 'installed',
       title: 'Installed',
       hint: 'Skills you added, and where they live',
-      items: [...installedBySkill.keys()].map(getMarketSkill).filter((s): s is MarketplaceSkill => !!s).filter(matches),
+      items: [...installedBySkill.keys()].map(resolve).filter((s): s is MarketplaceSkill => !!s).filter(matches),
     },
     { key: 'nekko', title: 'Nekko Labs', hint: 'First-party skills we maintain', items: NEKKO_SKILLS.filter(matches) },
+    { key: 'dojo', title: 'Nekko Dojo', hint: 'The public skills hub, official + community', items: dojoSkills.filter(matches) },
     { key: 'popular', title: 'Popular online', hint: 'Ranked by public stars/installs', items: popular.filter(matches) },
   ];
 
-  const selected = getMarketSkill(selectedId) ?? shelves.flatMap((s) => s.items)[0];
+  const selected = resolve(selectedId) ?? shelves.flatMap((s) => s.items)[0];
   const selectedInstalls = selected ? installedBySkill.get(selected.id) ?? [] : [];
 
   const install = async (target: InstallTarget) => {
     if (!selected || busy) return;
     setBusy(true);
     try {
-      const res = await window.nekko.installSkill(selected.id, target);
+      // Dojo skills install their real, current SKILL.md when reachable.
+      let payload: MarketplaceSkill | undefined;
+      if (selected.source === 'dojo') {
+        const md = await window.nekko.dojoSkillMd(selected.name).catch(() => null);
+        payload = md ? { ...selected, instructions: splitSkillMd(md).body, markdown: md } : selected;
+      }
+      const res = await window.nekko.installSkill(selected.id, target, payload);
       if (res.ok) {
         pushToast('success', `Installed /${selected.name} to ${targets.find((t) => t.id === target)?.label ?? target}.`);
       } else {
@@ -302,8 +359,34 @@ function MarketplaceTab() {
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           {shelves.map((shelf) => (
             <div key={shelf.key} className="mb-4">
-              <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{shelf.title}</p>
-              <p className="px-2 pb-1 text-[10.5px] text-ink-faint">{shelf.hint}</p>
+              <div className="flex items-center justify-between px-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{shelf.title}</p>
+                {shelf.key === 'dojo' && (
+                  <span className="flex items-center gap-2">
+                    <button
+                      className="text-[10px] text-accent hover:underline disabled:opacity-50"
+                      disabled={dojoBusy}
+                      onClick={() => void refreshDojo()}
+                      title="Fetch the latest catalog from the Dojo (network)"
+                    >
+                      {dojoBusy ? 'Refreshing…' : '↻ Refresh'}
+                    </button>
+                    <button
+                      className="text-[10px] text-accent hover:underline"
+                      onClick={() => window.nekko.openPath(DOJO_REPO_URL)}
+                      title="Browse the Nekko Dojo skills hub"
+                    >
+                      Browse ↗
+                    </button>
+                  </span>
+                )}
+              </div>
+              <p className="px-2 pb-1 text-[10.5px] text-ink-faint">
+                {shelf.hint}
+                {shelf.key === 'dojo' && dojo && (
+                  <span> · {dojo.source === 'live' ? 'live' : dojo.source === 'cached' ? 'cached' : 'offline snapshot'}</span>
+                )}
+              </p>
               {shelf.items.length === 0 && (
                 <p className="px-2 py-1 text-[11.5px] text-ink-faint">
                   {shelf.key === 'installed' ? 'Nothing installed yet, pick a skill below.' : 'No matches.'}
@@ -325,6 +408,7 @@ function MarketplaceTab() {
                         <span className="shrink-0 rounded-full px-1.5 py-0 text-[9px]" style={{ background: 'var(--surface-2)', color: SOURCE_META[s.source].color }}>
                           {SOURCE_META[s.source].label}
                         </span>
+                        <TierChip tier={s.tier} />
                         {installs.length > 0 && <span className="chip !px-1.5 !py-0 text-[9px]">✓ {installs.length}</span>}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-[11.5px] text-ink-soft">{s.description}</p>
@@ -356,8 +440,14 @@ function MarketplaceTab() {
                   <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: 'var(--surface-2)', color: SOURCE_META[selected.source].color }}>
                     {SOURCE_META[selected.source].label}
                   </span>
+                  <TierChip tier={selected.tier} />
                 </div>
                 <p className="mt-1 text-[13px] text-ink-soft">{selected.description}</p>
+                {selected.source === 'dojo' && selected.tier === 'community' && (
+                  <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px]" style={{ background: 'color-mix(in srgb, #f59e0b 12%, transparent)', color: '#b45309' }}>
+                    Community skill: it runs with your machine's permissions. Read its instructions before installing.
+                  </p>
+                )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-faint">
                   <span>by {selected.author}</span>
                   {selected.stars != null && <span>★ {fmtMetric(selected.stars)} stars</span>}

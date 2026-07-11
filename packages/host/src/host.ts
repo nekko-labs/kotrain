@@ -63,6 +63,7 @@ import {
   resolveDesignNote,
 } from './design.js';
 import { listInstalledSkills, skillTargets, installSkill, uninstallSkill } from './skills.js';
+import { getDojoCatalog, getDojoSkillMd } from './dojo.js';
 import {
   listTasks,
   createTask,
@@ -203,8 +204,15 @@ export interface Host {
   /** Skills marketplace installs. */
   listInstalledSkills(): InstalledSkillRecord[];
   skillTargets(): InstallTargetInfo[];
-  installSkill(skillId: string, target: InstallTarget): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
+  installSkill(
+    skillId: string,
+    target: InstallTarget,
+    payload?: import('@open-paw/shared').MarketplaceSkill,
+  ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
   uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[];
+  /** Nekko Dojo skills hub (optional): catalog + a skill's SKILL.md. */
+  dojoCatalog(refresh?: boolean): Promise<import('@open-paw/shared').DojoCatalog>;
+  dojoSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): AutomationTask[];
@@ -413,6 +421,8 @@ export function createHost(opts: { dataDir: string }): Host {
     skillTargets,
     installSkill,
     uninstallSkill,
+    dojoCatalog: (refresh?: boolean) => getDojoCatalog(refresh),
+    dojoSkillMd: (slug: string) => getDojoSkillMd(slug),
 
     listTasks,
     createTask,

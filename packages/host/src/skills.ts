@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord } from '@open-paw/shared';
+import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord, MarketplaceSkill } from '@open-paw/shared';
 import { getMarketSkill, skillToMarkdown } from '@open-paw/shared';
 import { dataDir } from './store.js';
 
@@ -70,9 +70,16 @@ export function skillTargets(): InstallTargetInfo[] {
 export function installSkill(
   skillId: string,
   target: InstallTarget,
+  payload?: MarketplaceSkill,
 ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] } {
-  const skill = getMarketSkill(skillId);
+  // Skills outside the built-in catalog (e.g. Nekko Dojo) arrive as a payload
+  // snapshot; built-in ones resolve from the catalog.
+  const builtIn = getMarketSkill(skillId);
+  const skill = builtIn ?? (payload?.id === skillId ? payload : undefined);
   if (!skill) return { ok: false, message: 'Unknown skill.', installed: listInstalledSkills() };
+  if (!/^[a-z0-9._-]+$/i.test(skill.name)) {
+    return { ok: false, message: 'Invalid skill name.', installed: listInstalledSkills() };
+  }
 
   const records = load();
   if (records.some((r) => r.skillId === skillId && r.target === target)) {
@@ -91,7 +98,8 @@ export function installSkill(
     writeFileSync(join(path, 'SKILL.md'), skillToMarkdown(skill), 'utf8');
   }
 
-  records.push({ skillId, target, path, installedAt: Date.now() });
+  // Persist the snapshot for non-catalog skills so they stay resolvable.
+  records.push({ skillId, target, path, installedAt: Date.now(), skill: builtIn ? undefined : skill });
   save(records);
   return { ok: true, installed: listInstalledSkills() };
 }

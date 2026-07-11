@@ -16,7 +16,7 @@
 
 import type { SkillCategory, SkillDef, SkillWorkflow } from './skills.js';
 
-export type SkillSource = 'nekkolabs' | 'community';
+export type SkillSource = 'nekkolabs' | 'community' | 'dojo';
 
 /** Where a skill can be installed. */
 export type InstallTarget = 'openpaw' | 'claude' | 'codex';
@@ -52,6 +52,13 @@ export interface MarketplaceSkill {
   instructions: string;
   /** Optional bespoke workflow graph; `marketWorkflow` derives one otherwise. */
   workflow?: SkillWorkflow;
+  /** Trust tier for skills from the Nekko Dojo hub. */
+  tier?: 'nekko-official' | 'community';
+  /**
+   * Verbatim SKILL.md for skills sourced outside the built-in catalog (the
+   * Dojo). File-based installs write this instead of a generated summary.
+   */
+  markdown?: string;
 }
 
 /** One installed copy of a skill (a skill can be installed to several targets). */
@@ -61,6 +68,11 @@ export interface InstalledSkillRecord {
   /** Directory written for file-based targets (claude/codex). */
   path?: string;
   installedAt: number;
+  /**
+   * Snapshot of the skill for installs that aren't in the built-in catalog
+   * (e.g. Nekko Dojo skills), so they stay runnable after install.
+   */
+  skill?: MarketplaceSkill;
 }
 
 /** First-party skills by Nekko Labs. */
@@ -339,6 +351,8 @@ export function marketToSkillDef(m: MarketplaceSkill): SkillDef {
 
 /** SKILL.md content for file-based installs (Claude Code / Codex convention). */
 export function skillToMarkdown(m: MarketplaceSkill): string {
+  // Skills that came with a verbatim SKILL.md (the Dojo) install it as-is.
+  if (m.markdown) return m.markdown.endsWith('\n') ? m.markdown : `${m.markdown}\n`;
   return [
     '---',
     `name: ${m.name}`,

@@ -191,7 +191,8 @@ export const useStore = create<UiState>((set, get) => ({
       const installedSkills = await window.nekko.listInstalledSkills();
       const installedSkillDefs = installedSkills
         .filter((r) => r.target === 'openpaw')
-        .map((r) => getMarketSkill(r.skillId))
+        // Dojo (non-catalog) installs carry their own snapshot on the record.
+        .map((r) => r.skill ?? getMarketSkill(r.skillId))
         .filter((m): m is NonNullable<typeof m> => !!m)
         .map(marketToSkillDef);
       set({ installedSkills, installedSkillDefs });

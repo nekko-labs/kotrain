@@ -112,8 +112,10 @@ const api: NekkoApi = {
 
   listInstalledSkills: () => inv(IpcChannels.skillsInstalled),
   skillTargets: () => inv(IpcChannels.skillsTargets),
-  installSkill: (skillId, target) => inv(IpcChannels.skillInstall, skillId, target),
+  installSkill: (skillId, target, payload) => inv(IpcChannels.skillInstall, skillId, target, payload),
   uninstallSkill: (skillId, target) => inv(IpcChannels.skillUninstall, skillId, target),
+  dojoCatalog: (refresh) => inv(IpcChannels.dojoCatalog, refresh),
+  dojoSkillMd: (slug) => inv(IpcChannels.dojoSkillMd, slug),
 
   listTasks: () => inv(IpcChannels.tasksList),
   createTask: (task) => inv(IpcChannels.taskCreate, task),
