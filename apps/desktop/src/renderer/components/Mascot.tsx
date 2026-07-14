@@ -2,6 +2,53 @@ import React, { useEffect, useState } from 'react';
 
 export type MascotMood = 'idle' | 'waving' | 'thinking';
 
+const NEKKO = {
+  body: '#f6a45c',
+  dark: '#d97b38',
+  cream: '#ffe2c0',
+  ink: '#2a2018',
+  blush: '#ff8f8f',
+};
+
+/**
+ * A tiny inline Nekko that kneads its paws while the agent works, sized to sit
+ * on a single text line next to a status label (a la Claude Code's spinner).
+ */
+export function MiniNekko({ size = 18 }: { size?: number }) {
+  const px = (x: number, y: number, w: number, h: number, fill: string) => (
+    <rect key={`${x}-${y}-${fill}`} x={x} y={y} width={w} height={h} fill={fill} />
+  );
+  return (
+    <span className="nekko-bob inline-block shrink-0 align-middle" style={{ lineHeight: 0 }}>
+      <svg viewBox="0 0 32 28" width={size} height={(size * 28) / 32} shapeRendering="crispEdges">
+        {/* ears */}
+        {px(6, 0, 4, 4, NEKKO.body)}
+        {px(18, 0, 4, 4, NEKKO.body)}
+        {px(7, 1, 2, 2, NEKKO.dark)}
+        {px(19, 1, 2, 2, NEKKO.dark)}
+        {/* head */}
+        {px(5, 3, 18, 12, NEKKO.body)}
+        {px(5, 3, 18, 2, NEKKO.dark)}
+        {/* eyes */}
+        {px(9, 7, 2, 3, NEKKO.ink)}
+        {px(17, 7, 2, 3, NEKKO.ink)}
+        {/* blush */}
+        {px(7, 10, 2, 2, NEKKO.blush)}
+        {px(19, 10, 2, 2, NEKKO.blush)}
+        {/* muzzle */}
+        {px(13, 10, 2, 2, NEKKO.cream)}
+        {px(13, 10, 2, 1, NEKKO.blush)}
+        {/* body */}
+        {px(8, 15, 12, 9, NEKKO.body)}
+        {px(11, 18, 6, 6, NEKKO.cream)}
+        {/* kneading paws */}
+        <g className="nekko-knead-l" style={{ transformBox: 'fill-box' }}>{px(4, 16, 4, 5, NEKKO.body)}</g>
+        <g className="nekko-knead-r" style={{ transformBox: 'fill-box' }}>{px(20, 16, 4, 5, NEKKO.body)}</g>
+      </svg>
+    </span>
+  );
+}
+
 /**
  * Nekko, an 8-bit pixel cat that peeks in from the right edge of the window.
  * It waves on idle/greeting and "makes cat biscuits" (kneads its paws) while
