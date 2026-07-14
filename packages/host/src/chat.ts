@@ -132,9 +132,32 @@ async function collectConnectorSnippets(
   return Array.isArray(settled) ? settled.flat() : [];
 }
 
+/**
+ * Best-effort context window for the headroom bar, from the model id (no network
+ * call). Falls back to a safe 128k when the family is unknown.
+ */
+function modelContextWindow(modelId?: string): number {
+  const id = (modelId ?? '').toLowerCase();
+  if (!id) return 128_000;
+  if (id.includes('claude')) return 200_000;
+  if (id.includes('gemini')) return 1_000_000;
+  if (id.includes('gpt-4.1') || id.includes('o3') || id.includes('o4')) return 200_000;
+  if (id.includes('gpt-4o') || id.includes('gpt-4') || id.includes('gpt-3.5')) return 128_000;
+  if (id.includes('llama') || id.includes('qwen') || id.includes('mistral')) return 128_000;
+  return 128_000;
+}
+
 /** Build the context bundle for the Context Inspector preview (no model call). */
 export async function previewContext(sessionId: string, attachedPaths: string[]): Promise<ContextBundle> {
   const session = getSession(sessionId);
+  const settings = getSettings();
+  // The base system prompt (no per-turn context block — those items are counted
+  // individually below) so the inspector reflects true window usage.
+  const systemText = buildSystemPrompt({
+    workspaces: settings.workspaces,
+    contextBlock: '',
+    platform: process.platform,
+  });
   return assembleContext({
     attached: collectAttached([...(session?.attachedPaths ?? []), ...attachedPaths]),
     guidelines: collectGuidelines(),
@@ -144,6 +167,9 @@ export async function previewContext(sessionId: string, attachedPaths: string[])
     ],
     connectorSnippets: await collectConnectorSnippets(),
     indexSnippets: [],
+    history: (session?.messages ?? []).map((m) => ({ role: m.role, content: m.content })),
+    systemText,
+    contextWindow: modelContextWindow(session?.modelId),
     excluded: new Set(session?.contextPrefs?.excluded ?? []),
     pinned: new Set(session?.contextPrefs?.pinned ?? []),
   });

@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import type { ContextBundle, ContextItem } from '@open-paw/shared';
-import { getSessionWorkspaceIds } from '@open-paw/shared';
-import { PinIcon, FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
+import { getSessionWorkspaceIds, estimateTokens } from '@open-paw/shared';
+import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
 
 const SOURCE_LABEL: Record<ContextItem['source'], string> = {
-  'attached-file': 'File',
-  guideline: 'Guideline',
+  'attached-file': 'Files',
+  guideline: 'Guidelines',
   memory: 'Memory',
-  connector: 'Connector',
-  'index-snippet': 'Index',
-  system: 'System',
+  connector: 'Connectors',
+  'index-snippet': 'Code index',
+  system: 'System prompt',
+  conversation: 'Conversation',
+  skill: 'Skill',
 };
 
 const SOURCE_COLOR: Record<ContextItem['source'], string> = {
@@ -21,6 +23,8 @@ const SOURCE_COLOR: Record<ContextItem['source'], string> = {
   connector: '#4ec98a',
   'index-snippet': '#8a8f98',
   system: '#8a8f98',
+  conversation: '#6d5efc',
+  skill: '#e0574a',
 };
 
 /** Plain-language explanation of each context source, shown on hover. */
@@ -31,6 +35,8 @@ const SOURCE_EXPLAIN: Record<ContextItem['source'], string> = {
   'attached-file': 'Files you attached to this chat. Included in full on every turn.',
   connector: 'Content pulled from your connected tools and integrations that is relevant to this prompt.',
   'index-snippet': "Code snippets retrieved from your workspace index that match this turn's prompt.",
+  conversation: 'The running back-and-forth of this chat. Grows every turn — the biggest driver of context as a chat gets long.',
+  skill: 'The skill armed in the composer. Its instructions are added to your message when you send.',
 };
 
 /** A small "i" badge that reveals an explanation on hover. */
@@ -74,6 +80,9 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   const session = sessions.find((s) => s.id === sessionId) ?? null;
   const workspaces = settings?.workspaces ?? [];
   const attached = session?.attachedPaths ?? [];
+  // The skill armed in this chat's composer (renderer-only until sent), so we can
+  // show it in the window and count its tokens live.
+  const activeSkill = useStore((s) => (sessionId ? s.activeSkillBySession[sessionId] ?? null : null));
 
   const refreshBundle = () => {
     if (!sessionId) return;
@@ -91,7 +100,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     }
     refreshBundle();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, attached.length, session?.workspaceId, session?.supportingWorkspaceIds?.length]);
+  }, [sessionId, attached.length, session?.workspaceId, session?.supportingWorkspaceIds?.length, session?.messages.length]);
 
   if (!sessionId) return <Empty />;
 
@@ -197,12 +206,25 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     included: !excluded.has(i.id),
     pinned: pinned.has(i.id),
   }));
-  const total = visible.filter((i) => i.included).reduce((s, i) => s + i.tokens, 0);
+  const skillTokens = activeSkill ? estimateTokens(activeSkill.template) : 0;
+  const total = visible.filter((i) => i.included).reduce((s, i) => s + i.tokens, 0) + skillTokens;
   const windowTokens = bundle?.contextWindow ?? 128000;
   const pct = Math.min(100, (total / windowTokens) * 100);
-  const groups = groupBy(visible, (i) => i.source);
   const guidelineItems = visible.filter((i) => i.source === 'guideline');
   const memoryItems = visible.filter((i) => i.source === 'memory');
+
+  // Compact "where the tokens go" summary: sum included items per source, then
+  // fold in the armed skill so its weight is visible before it's even sent.
+  const bySource = visible
+    .filter((i) => i.included)
+    .reduce<Record<string, number>>((acc, i) => {
+      acc[i.source] = (acc[i.source] ?? 0) + i.tokens;
+      return acc;
+    }, {});
+  if (skillTokens) bySource.skill = (bySource.skill ?? 0) + skillTokens;
+  const breakdown = Object.entries(bySource)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="flex h-full w-80 flex-col border-l border-line">
@@ -212,14 +234,47 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
           <span className="chip">{total.toLocaleString()} tok</span>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? '#e0574a' : 'var(--accent)' }} />
         </div>
         <p className="mt-1.5 text-[11px] text-ink-faint">
-          {Math.round(pct)}% of the model's window · what enters the prompt this turn.
+          {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · updates every turn.
         </p>
       </div>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4">
+        {/* Armed skill: highlighted, with its token weight (Claude-Code style). */}
+        {activeSkill && (
+          <div className="rounded-xl border border-accent/40 p-3" style={{ background: 'var(--accent-soft)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="skill-pill text-[12px]">
+                <span className="skill-pill-slash">/</span>{activeSkill.name}
+              </span>
+              <span className="shrink-0 text-[11px] font-medium text-accent">{skillTokens.toLocaleString()} tok</span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-snug text-ink-soft">{activeSkill.description}</p>
+            <p className="mt-1 text-[10.5px] text-ink-faint">Added to your message when you send. Not typed into the box.</p>
+          </div>
+        )}
+
+        {/* Where the tokens go — a compact, always-accurate breakdown. */}
+        {breakdown.length > 0 && (
+          <Section title="In the window" info="Everything that enters the model's prompt this turn, by source. The conversation grows every turn, which is what makes a long chat fill the window.">
+            <div className="space-y-1">
+              {breakdown.map(([src, n]) => (
+                <div key={src} className="flex items-center gap-2 text-[12px]">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SOURCE_COLOR[src as ContextItem['source']] ?? '#8a8f98' }} />
+                  <span className="min-w-0 flex-1 truncate text-ink-soft">{SOURCE_LABEL[src as ContextItem['source']] ?? src}</span>
+                  <span className="shrink-0 text-ink-faint">{n.toLocaleString()} tok</span>
+                </div>
+              ))}
+              <div className="mt-1 flex items-center gap-2 border-t border-line pt-1.5 text-[12px] font-medium">
+                <span className="min-w-0 flex-1 text-ink">Total</span>
+                <span className="shrink-0 text-ink">{total.toLocaleString()} tok</span>
+              </div>
+            </div>
+          </Section>
+        )}
+
         {/* Sources: folders */}
         <Section title="Folders" info="Project folders grounding this chat. The active folder's files can be read and searched by the agent, and set the working directory for terminals and tools." onAdd={addFolder} addLabel="Add folder">
           {workspaces.length === 0 && <Hint>No folder yet. Add one to ground the chat in your code.</Hint>}
@@ -289,59 +344,6 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
         {/* Spec-driven development */}
         <SpecPanel sessionId={sessionId} session={session} />
 
-        {/* Breakdown */}
-        {visible.length > 0 && (
-          <div>
-            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-              Breakdown
-              <InfoHint text="Everything entering the model's prompt this turn, grouped by where it came from. Click an item to include/exclude it; pin to always keep it." />
-            </div>
-            <div className="space-y-4">
-              {Object.entries(groups).map(([source, items]) => (
-                <div key={source}>
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ background: SOURCE_COLOR[source as ContextItem['source']] }}
-                    />
-                    <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                      {SOURCE_LABEL[source as ContextItem['source']]}
-                      <InfoHint text={SOURCE_EXPLAIN[source as ContextItem['source']]} />
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`card cursor-pointer p-2.5 transition-opacity ${item.included ? '' : 'opacity-40'}`}
-                        onClick={() => toggle(item.id)}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[12.5px] font-medium">{item.label}</span>
-                          <span className="shrink-0 text-[10px] text-ink-faint">{item.tokens} tok</span>
-                        </div>
-                        <p className="mt-0.5 truncate text-[11px] text-ink-faint">{item.preview}</p>
-                        <div className="mt-1 flex items-center justify-between">
-                          <span className="text-[10px] text-ink-faint">{item.included ? 'included' : 'excluded'}</span>
-                          <button
-                            title={item.pinned ? 'Unpin' : 'Pin (always include)'}
-                            className={item.pinned ? 'text-accent' : 'text-ink-faint hover:text-ink'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePin(item.id);
-                            }}
-                          >
-                            <PinIcon className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

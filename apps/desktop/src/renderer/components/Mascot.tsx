@@ -50,7 +50,7 @@ export function MiniNekko({ size = 18 }: { size?: number }) {
 }
 
 /**
- * Nekko, an 8-bit pixel cat that peeks in from the right edge of the window.
+ * Nekko, an 8-bit pixel cat that sits in the bottom of the left nav rail.
  * It waves on idle/greeting and "makes cat biscuits" (kneads its paws) while
  * the model is thinking. Rendered as crisp pixel art via an SVG rect grid.
  */
@@ -76,11 +76,10 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
   return (
     <div
-      className={`pointer-events-none fixed bottom-6 right-0 z-40 select-none ${peek ? 'nekko-peek' : ''}`}
-      style={{ width: 92 }}
+      className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'nekko-peek' : ''}`}
       title="Nekko"
     >
-      <svg viewBox="0 0 32 40" width="92" height="115" shapeRendering="crispEdges" className="drop-shadow-lg">
+      <svg viewBox="0 0 32 40" width="52" height="65" shapeRendering="crispEdges">
         {/* ears */}
         {px(6, 2, 4, 4, C.body)}
         {px(18, 2, 4, 4, C.body)}
@@ -121,14 +120,6 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
         {px(9, 31, 4, 3, C.dark)}
         {px(15, 31, 4, 3, C.dark)}
       </svg>
-      {mood === 'thinking' && (
-        <div
-          className="absolute -top-2 left-1 text-[10px] font-mono"
-          style={{ color: 'var(--ink-faint)' }}
-        >
-          knead… knead…
-        </div>
-      )}
     </div>
   );
 }

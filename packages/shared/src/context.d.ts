@@ -1,5 +1,5 @@
 /** Context assembly + provenance (powers the Context Inspector panel). */
-export type ContextSource = 'attached-file' | 'guideline' | 'memory' | 'connector' | 'index-snippet' | 'system';
+export type ContextSource = 'attached-file' | 'guideline' | 'memory' | 'connector' | 'index-snippet' | 'system' | 'conversation' | 'skill';
 export interface ContextItem {
     id: string;
     source: ContextSource;

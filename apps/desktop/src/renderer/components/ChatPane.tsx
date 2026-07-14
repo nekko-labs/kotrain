@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@open-paw/shared';
-import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills } from '@open-paw/shared';
+import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
@@ -52,10 +52,14 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
-  const [activeSkill, setActiveSkill] = useState<SkillDef | null>(null);
+  // The armed skill lives in the store (per session) so the Context Inspector on
+  // the right can show it and count its tokens while it's active.
+  const activeSkill = useStore((s) => s.activeSkillBySession[sessionId] ?? null);
+  const setActiveSkill = (skill: SkillDef | null) => useStore.getState().setActiveSkill(sessionId, skill);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [reasoningDuration, setReasoningDuration] = useState<number | null>(null);
   const [changeCount, setChangeCount] = useState(0);
+  const [doneSummary, setDoneSummary] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -187,6 +191,25 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   const endTurn = () => {
     setStreaming(false);
+
+    // Build a short completion summary from the tools used this turn.
+    if (liveTools.length > 0) {
+      const names = liveTools.map((t) => t.name);
+      const unique = Array.from(new Set(names));
+      const hasEdit = unique.some((n) => n === 'edit_file' || n === 'write_file');
+      const hasRead = unique.some((n) => n === 'read_file' || n === 'list_dir' || n === 'grep' || n === 'glob');
+      const hasBash = unique.includes('bash');
+      let summary = '';
+      if (hasEdit) summary = 'Done updating those files.';
+      else if (hasRead) summary = 'Done looking into that.';
+      else if (hasBash) summary = 'Done running those commands.';
+      else if (liveText.trim()) summary = 'Done.';
+      if (summary) {
+        setDoneSummary(summary);
+        setTimeout(() => setDoneSummary(null), 4000);
+      }
+    }
+
     setLiveText('');
     setLiveReasoning('');
     setLiveTools([]);
@@ -217,6 +240,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     setLiveTools([]);
     setThinking(false);
     setReasoningDuration(null);
+    setDoneSummary(null);
     reasoningStart.current = 0;
     turnStart.current = Date.now();
     setMascotMood('thinking');
@@ -516,11 +540,23 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 message={m}
                 onResend={!streaming && m.role === 'user' && m.id !== 'tmp' ? editResend : undefined}
                 onImageClick={setLightbox}
+                chronological
               />
             ))}
             {liveReasoning && <ReasoningBlock text={liveReasoning} live={streaming && !liveText} duration={reasoningDuration} />}
             {liveTools.map((t) => <ToolCard key={t.id} call={t} />)}
-            {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} onImageClick={setLightbox} />}
+            {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} onImageClick={setLightbox} chronological />}
+            {/* Visible indicator while the model is thinking (reasoning) */}
+            {liveReasoning && (
+              <div className="flex items-center gap-2 text-[13px] text-ink-faint">
+                <MiniNekko size={18} /> Thinking<span className="dots" />
+              </div>
+            )}
+            {doneSummary && (
+              <div className="fade-in flex items-center gap-2 text-[12px] text-green-400">
+                <span>✓</span> {doneSummary}
+              </div>
+            )}
             {streaming && !liveText && !liveReasoning && !liveTools.length && (
               <div className="flex items-center gap-2 text-[13px] text-ink-faint">
                 <MiniNekko size={18} /> Nekko is working<span className="dots" />
@@ -536,7 +572,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
         {approval && <ApprovalBar approval={approval} onDecide={approve} />}
 
-        <ChatMetrics bundle={ctx} tps={tps} thinking={thinking} streaming={streaming} cost={cost} controls={modelControls} />
+        <ChatMetrics
+          bundle={ctx}
+          tps={tps}
+          thinking={thinking}
+          streaming={streaming}
+          cost={cost}
+          controls={modelControls}
+          skill={activeSkill ? { name: activeSkill.name, tokens: estimateTokens(activeSkill.template) } : null}
+        />
 
         <div className="border-t border-line px-4 pb-1 pt-3">
           <ChatControls session={session} isCloudModel={isCloudModel} onChange={setSession} />
@@ -680,16 +724,19 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             )}
             <div className="min-w-0 flex-1">
               {activeSkill && (
-                <div className="mb-1 flex items-center gap-1.5">
-                  <span className="chip border-accent/40 text-[11px] text-accent">
-                    /{activeSkill.name}
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="skill-pill text-[12px]" title={activeSkill.description}>
+                    <span className="skill-pill-slash">/</span>{activeSkill.name}
                     <button
-                      className="ml-1 text-ink-faint hover:text-ink"
+                      className="ml-1 opacity-60 hover:opacity-100"
                       onClick={() => setActiveSkill(null)}
                       title="Remove skill"
                     >
                       ×
                     </button>
+                  </span>
+                  <span className="truncate text-[11px] text-ink-faint">
+                    Runs on send · shown in context →
                   </span>
                 </div>
               )}
@@ -772,23 +819,17 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   );
 }
 
-/** Claude-Code-style thinking box: quiet, left-accent rule, collapsible. */
+/** Compact thinking indicator — matches tool card style. */
 function ReasoningBlock({ text, live, duration }: { text: string; live: boolean; duration: number | null }) {
   const [open, setOpen] = useState(false);
   useEffect(() => { if (!live) setOpen(false); }, [live]);
   return (
-    <div className="fade-in thinking-box overflow-hidden">
-      <button className="flex w-full items-center gap-2 px-3 py-2 text-[12px] font-medium text-ink-soft hover:text-ink" onClick={() => setOpen((o) => !o)}>
-        <span className={live ? 'h-2 w-2 animate-pulse rounded-full' : 'h-2 w-2 rounded-full'} style={{ background: live ? 'var(--accent)' : 'var(--ink-faint)' }} />
-        {live ? 'Thinking…' : duration != null ? `Thought for ${duration}s` : 'Thought process'}
-        <span className="ml-auto text-[10px] text-ink-faint">{open ? '▾' : '▸'}</span>
+    <div className="fade-in mt-1">
+      <button className="flex w-full items-center gap-1.5 py-0.5 text-left text-[12px] font-mono text-ink-faint hover:text-ink-soft" onClick={() => setOpen((o) => !o)}>
+        <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
+        <span>💭 {live ? 'Thinking…' : duration != null ? `Thought for ${duration}s` : 'Thought process'}</span>
       </button>
-      {open && (
-        <div className="max-h-60 overflow-y-auto whitespace-pre-wrap border-t border-line px-3 py-2 font-mono text-[12px] leading-relaxed text-ink-faint">
-          {text}
-          {live && <span className="ml-0.5 inline-block h-3 w-1 animate-pulse align-middle" style={{ background: 'var(--accent)' }} />}
-        </div>
-      )}
+      {open && <pre className="ml-[18px] mt-0.5 max-h-60 overflow-y-auto whitespace-pre-wrap border-l border-line pl-2 text-[12px] font-mono leading-relaxed text-ink-faint">{text}</pre>}
     </div>
   );
 }
@@ -797,10 +838,12 @@ function MessageBubble({
   message,
   onResend,
   onImageClick,
+  chronological,
 }: {
   message: ChatMessage;
   onResend?: (id: string, text: string) => void;
   onImageClick?: (src: string) => void;
+  chronological?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -826,12 +869,39 @@ function MessageBubble({
     );
   }
 
+  // In chronological mode, render reasoning, tools, and text as separate
+  // interleaved blocks so the layout is consistent with the live streaming view.
+  if (chronological && !isUser) {
+    const parts: React.ReactNode[] = [];
+    if (message.reasoning) {
+      parts.push(<ReasoningBlock key="reasoning" text={message.reasoning} live={false} duration={message.reasoningSeconds ?? null} />);
+    }
+    if (displayText) {
+      parts.push(
+        <div key="text" className="group fade-in flex justify-start">
+          <div className="msg-ai">
+            <Markdown text={message.content} />
+            {displayText && message.content && (
+              <div className="mt-1 flex gap-3 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 text-ink-faint">
+                <button onClick={copy} title="Copy message" className="hover:text-ink">{copied ? '✓ copied' : 'Copy'}</button>
+              </div>
+            )}
+          </div>
+        </div>,
+      );
+    }
+    if (message.toolCalls?.length) {
+      message.toolCalls.forEach((c) => parts.push(<ToolCard key={c.id} call={c} />));
+    }
+    return <>{parts}</>;
+  }
+
   return (
     <div className={`group fade-in flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`bubble ${isUser ? 'bubble-user' : 'bubble-ai'}`}>
+      <div className={isUser ? 'msg-user' : 'msg-ai'}>
         {isUser && message.skill && (
-          <span className="chip mb-2 inline-flex border-accent/40 text-[11px] text-accent">
-            /{message.skill.name}
+          <span className="skill-pill mb-2 inline-flex text-[11px]">
+            <span className="skill-pill-slash">/</span>{message.skill.name}
           </span>
         )}
         {isUser && message.images?.length ? (
@@ -853,9 +923,9 @@ function MessageBubble({
         {displayText && (isUser ? <p className="whitespace-pre-wrap text-[14px]">{displayText}</p> : <Markdown text={message.content} />)}
         {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
         {displayText && message.content && (
-          <div className={`mt-1.5 flex gap-3 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end text-white/80' : 'text-ink-faint'}`}>
-            <button onClick={copy} title="Copy message" className={isUser ? 'hover:text-white' : 'hover:text-ink'}>{copied ? '✓ copied' : 'Copy'}</button>
-            {onResend && <button onClick={() => { setDraft(displayText); setEditing(true); }} title="Edit & resend" className="hover:text-white">Edit</button>}
+          <div className={`mt-1.5 flex gap-3 text-[10.5px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end' : ''}`}>
+            <button onClick={copy} title="Copy message" className="hover:text-ink">{copied ? '✓ copied' : 'Copy'}</button>
+            {onResend && <button onClick={() => { setDraft(displayText); setEditing(true); }} title="Edit & resend" className="hover:text-ink">Edit</button>}
           </div>
         )}
       </div>
@@ -866,11 +936,12 @@ function MessageBubble({
 function ToolCard({ call }: { call: ToolCall }) {
   const isSpawn = call.name === 'spawn_agent';
   const [open, setOpen] = useState(false);
+  const isScript = call.name === 'bash';
   return (
     <div className="mt-1 font-mono text-[12px]">
-      <button className="flex w-full items-center gap-1.5 py-0.5 text-left text-ink-faint" onClick={() => setOpen((value) => !value)}>
+      <button className={`flex w-full items-center gap-1.5 py-0.5 text-left ${isScript ? 'text-red-400' : 'text-green-400'} hover:text-ink-soft`} onClick={() => setOpen((value) => !value)}>
         <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
-        <span className="font-medium text-ink-soft">{isSpawn ? '🤖 ' : ''}Used <span className="font-mono">{call.name}</span> tool</span>
+        <span className="font-medium">{isSpawn ? '🤖 ' : ''}Used <span className="font-mono">{call.name}</span> tool</span>
       </button>
       {open && <pre className="ml-[18px] mt-0.5 overflow-x-auto whitespace-pre-wrap border-l border-line pl-2 text-ink-faint">{JSON.stringify(call.input, null, 2)}</pre>}
     </div>

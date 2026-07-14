@@ -6,7 +6,9 @@ export type ContextSource =
   | 'memory'
   | 'connector'
   | 'index-snippet'
-  | 'system';
+  | 'system'
+  | 'conversation'
+  | 'skill';
 
 export interface ContextItem {
   id: string;
