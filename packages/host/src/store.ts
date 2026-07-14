@@ -20,6 +20,8 @@ function defaults(): AppSettings {
     connectors: [],
     mascotEnabled: true,
     prompts: DEFAULT_PROMPTS,
+    favoriteModels: [],
+    mcpServers: [],
     specMethodology: DEFAULT_SPEC_METHODOLOGY,
     orchestration: DEFAULT_ORCHESTRATION,
   };
@@ -39,8 +41,14 @@ export function getSettings(): AppSettings {
     if (existsSync(SETTINGS_PATH())) {
       const parsed = JSON.parse(readFileSync(SETTINGS_PATH(), 'utf8'));
       settings = { ...defaults(), ...parsed };
-      // Ensure guardrails exist even if an old settings file lacked them.
-      if (!settings.guardrails?.length) settings.guardrails = DEFAULT_GUARDRAILS;
+      // Normalize array fields from older or partially-written settings files.
+      if (!Array.isArray(settings.providers)) settings.providers = [];
+      if (!Array.isArray(settings.guardrails) || settings.guardrails.length === 0) settings.guardrails = DEFAULT_GUARDRAILS;
+      if (!Array.isArray(settings.workspaces)) settings.workspaces = [];
+      if (!Array.isArray(settings.connectors)) settings.connectors = [];
+      if (!Array.isArray(settings.prompts)) settings.prompts = DEFAULT_PROMPTS;
+      if (!Array.isArray(settings.favoriteModels)) settings.favoriteModels = [];
+      if (!Array.isArray(settings.mcpServers)) settings.mcpServers = [];
       // Migrate users off a prior default accent (e.g. the old orange) so the
       // refreshed color applies unless they picked their own.
       if (settings.accent && LEGACY_ACCENTS.includes(settings.accent.toLowerCase())) {

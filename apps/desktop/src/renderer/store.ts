@@ -216,7 +216,7 @@ export const useStore = create<UiState>((set, get) => ({
     if (!get().activeProviderId && settings.defaultProviderId) {
       set({ activeProviderId: settings.defaultProviderId, activeModelId: settings.defaultModelId ?? null });
     }
-    if (!get().activeWorkspaceId && settings.workspaces[0]) {
+    if (!get().activeWorkspaceId && settings.workspaces?.[0]) {
       set({ activeWorkspaceId: settings.workspaces[0].id });
     }
   },

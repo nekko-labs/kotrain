@@ -242,7 +242,7 @@ export function CommandCenterView() {
             <h2 className="text-[15px] font-semibold">Terminals</h2>
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
               {terminals.map((t) => (
-                <TerminalCard key={t.id} term={t} workspaceName={settings?.workspaces.find((w) => w.id === t.workspaceId)?.name} onOpen={openTerminal} />
+                <TerminalCard key={t.id} term={t} workspaceName={settings?.workspaces?.find((w) => w.id === t.workspaceId)?.name} onOpen={openTerminal} />
               ))}
             </div>
           </section>

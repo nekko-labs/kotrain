@@ -479,9 +479,9 @@ function FilesSidePane({
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {settings?.workspaces.length ? (
+        {(settings?.workspaces ?? []).length ? (
           <div className="space-y-2">
-            {settings.workspaces.map((workspace) => (
+            {(settings?.workspaces ?? []).map((workspace) => (
               <ProjectFiles
                 key={workspace.id}
                 root={workspace.path}
