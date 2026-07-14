@@ -5,6 +5,7 @@ import { ConnectorIcon } from '../connectorIcons.js';
 
 /** Where to get each connector's token, with a link to open. */
 const HELP: Record<ConnectorKind, { hint: string; url: string }> = {
+  github: { hint: 'Personal access token (fine-grained or classic) with repo read access, GitHub → Settings → Developer settings → Personal access tokens.', url: 'https://github.com/settings/tokens' },
   linear: { hint: 'Personal API key, Linear → Settings → Security & access → New API key.', url: 'https://linear.app/settings/api' },
   slack: { hint: 'Bot/User OAuth token (xoxb-/xoxp-) with channels:read + search:read scopes.', url: 'https://api.slack.com/apps' },
   discord: { hint: 'Bot token, Discord Developer Portal → your app → Bot → Reset Token.', url: 'https://discord.com/developers/applications' },
