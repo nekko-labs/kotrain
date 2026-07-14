@@ -133,7 +133,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
               {workspaceIds.map((id) => (
                 <option key={id} value={id}>
                   {session?.workspaceId === id ? 'Primary · ' : 'Supporting · '}
-                  {baseName(settings?.workspaces.find((w) => w.id === id)?.path ?? id)}
+                  {baseName(settings?.workspaces?.find((w) => w.id === id)?.path ?? id)}
                 </option>
               ))}
             </select>
