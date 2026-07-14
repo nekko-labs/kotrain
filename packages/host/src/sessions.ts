@@ -47,6 +47,19 @@ export function setSessionWorkspace(id: string, workspaceId?: string): Session |
   const s = getSession(id);
   if (!s) return null;
   s.workspaceId = workspaceId;
+  if (s.supportingWorkspaceIds?.length) {
+    s.supportingWorkspaceIds = s.supportingWorkspaceIds.filter((wid) => wid !== workspaceId);
+    if (s.supportingWorkspaceIds.length === 0) s.supportingWorkspaceIds = undefined;
+  }
+  saveSession(s);
+  return s;
+}
+
+export function setSessionSupportingWorkspaces(id: string, workspaceIds: string[]): Session | null {
+  const s = getSession(id);
+  if (!s) return null;
+  const next = Array.from(new Set(workspaceIds.filter((wid) => wid && wid !== s.workspaceId)));
+  s.supportingWorkspaceIds = next.length ? next : undefined;
   saveSession(s);
   return s;
 }
@@ -126,12 +139,13 @@ export function dequeuePrompt(id: string, index: number): Session | null {
   return s;
 }
 
-export function createSession(workspaceId?: string, parentSessionId?: string): Session {
+export function createSession(workspaceId?: string, parentSessionId?: string, supportingWorkspaceIds?: string[]): Session {
   const now = Date.now();
   const s: Session = {
     id: `s_${now.toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`,
     title: parentSessionId ? 'Sub-agent' : 'New chat',
     workspaceId,
+    supportingWorkspaceIds: supportingWorkspaceIds?.length ? supportingWorkspaceIds : undefined,
     parentSessionId,
     messages: [],
     createdAt: now,

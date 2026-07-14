@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { createProvider } from '@open-paw/core';
 import type { SpecDocDef, SpecDocRole, SpecDocStatus } from '@open-paw/shared';
-import { getMethodology, toggleTaskLine } from '@open-paw/shared';
+import { getMethodology, getSessionWorkspaceIds, toggleTaskLine } from '@open-paw/shared';
 import { getSettings } from './store.js';
 import { getSession, saveSession } from './sessions.js';
 
@@ -13,10 +13,13 @@ function methodologyForSession(sessionId: string) {
 }
 
 /** Absolute path of a workspace file for a session, or null if no workspace. */
-function workspacePath(sessionId: string, filename: string): string | null {
+function workspacePath(sessionId: string, filename: string, workspaceId?: string): string | null {
   const session = getSession(sessionId);
-  if (!session?.workspaceId) return null;
-  const folder = getSettings().workspaces.find((w) => w.id === session.workspaceId);
+  const targetId = workspaceId && session && getSessionWorkspaceIds(session).includes(workspaceId)
+    ? workspaceId
+    : session?.workspaceId;
+  if (!targetId) return null;
+  const folder = getSettings().workspaces.find((w) => w.id === targetId);
   return folder ? join(folder.path, filename) : null;
 }
 
@@ -33,11 +36,12 @@ export function specPathForSession(sessionId: string): string | null {
 /** Live status of every artifact in the session's methodology, for the UI. */
 export function readSpecDocs(
   sessionId: string,
+  workspaceId?: string,
 ): { methodologyId: string; docs: SpecDocStatus[] } {
   const m = methodologyForSession(sessionId);
   const docs: SpecDocStatus[] = m.docs.map((d) => {
-    const path = workspacePath(sessionId, d.filename) ?? d.filename;
-    const exists = !!workspacePath(sessionId, d.filename) && existsSync(path);
+    const path = workspacePath(sessionId, d.filename, workspaceId) ?? d.filename;
+    const exists = !!workspacePath(sessionId, d.filename, workspaceId) && existsSync(path);
     let content = '';
     if (exists) {
       try {
@@ -69,7 +73,7 @@ Ground it in the spec (provided below). Do not restate the spec; reference it.`,
   tasks: `Write an implementation task list as a markdown checklist.
 Break the work into small, independently reviewable, testable items, each on its own line as "- [ ] <task>".
 Group related items under \`##\` headings. Order them so dependencies come first. Be concrete and concise.
-Derive the tasks from the spec and plan provided below.`,
+Derive the tasks from the spec (and plan, if present) provided below.`,
 };
 
 /**
@@ -80,11 +84,15 @@ Derive the tasks from the spec and plan provided below.`,
 export async function buildSpecDoc(
   sessionId: string,
   docId?: string,
+  workspaceId?: string,
 ): Promise<{ ok: boolean; path?: string; docId?: string; message?: string }> {
   const session = getSession(sessionId);
   if (!session) return { ok: false, message: 'Session not found.' };
-  if (!session.workspaceId) return { ok: false, message: 'Add a project folder to this chat first.' };
-  const folder = getSettings().workspaces.find((w) => w.id === session.workspaceId);
+  const targetId = workspaceId && getSessionWorkspaceIds(session).includes(workspaceId)
+    ? workspaceId
+    : session.workspaceId;
+  if (!targetId) return { ok: false, message: 'Add a project folder to this chat first.' };
+  const folder = getSettings().workspaces.find((w) => w.id === targetId);
   if (!folder) return { ok: false, message: 'Workspace not found.' };
 
   const provider = getSettings().providers.find((p) => p.id === session.providerId);
@@ -162,11 +170,12 @@ export function buildSpec(sessionId: string): Promise<{ ok: boolean; path?: stri
 export function toggleSpecTask(
   sessionId: string,
   lineIndex: number,
+  workspaceId?: string,
 ): { ok: boolean; message?: string } {
   const m = methodologyForSession(sessionId);
   const tasksDoc = m.docs.find((d) => d.role === 'tasks');
   if (!tasksDoc) return { ok: false, message: 'This methodology has no tasks document.' };
-  const path = workspacePath(sessionId, tasksDoc.filename);
+  const path = workspacePath(sessionId, tasksDoc.filename, workspaceId);
   if (!path || !existsSync(path)) return { ok: false, message: 'Build the tasks document first.' };
   try {
     const next = toggleTaskLine(readFileSync(path, 'utf8'), lineIndex);

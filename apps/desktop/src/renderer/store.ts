@@ -37,10 +37,38 @@ export interface WbGroup {
   activeId: string | null;
 }
 
+export type FilesPaneSide = 'left' | 'right';
+
 const MAX_GROUPS = 3;
+const FILES_PANE_STORAGE_KEY = 'openpaw.filesPane';
 let paneSeq = 0;
 const newPaneId = () => `pane_${(++paneSeq).toString(36)}`;
 const newGroupId = () => `grp_${(++paneSeq).toString(36)}`;
+
+function readFilesPaneState(): { open: boolean; side: FilesPaneSide; width: number } {
+  const fallback = { open: false, side: 'left' as FilesPaneSide, width: 256 };
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FILES_PANE_STORAGE_KEY) ?? 'null');
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    return {
+      open: parsed.open === true,
+      side: parsed.side === 'right' ? 'right' : 'left',
+      width: typeof parsed.width === 'number' ? Math.min(480, Math.max(200, parsed.width)) : fallback.width,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function persistFilesPaneState(state: { open: boolean; side: FilesPaneSide; width: number }) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(FILES_PANE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Persistence is best-effort in restricted/browser transports.
+  }
+}
 
 interface UiState {
   settings: AppSettings | null;
@@ -61,6 +89,9 @@ interface UiState {
   terminals: TerminalInfo[];
   groups: WbGroup[];
   activeGroupId: string | null;
+  filesPaneOpen: boolean;
+  filesPaneSide: FilesPaneSide;
+  filesPaneWidth: number;
 
   /** Pending message to hand a chat's composer (set by editor comments / design notes). */
   composerInbox: ComposerInbox | null;
@@ -100,6 +131,10 @@ interface UiState {
   setActivePane: (groupId: string, paneId: string) => void;
   focusGroup: (groupId: string) => void;
   splitRight: (groupId: string, paneId: string) => void;
+  toggleFilesPane: () => void;
+  setFilesPaneOpen: (open: boolean) => void;
+  setFilesPaneSide: (side: FilesPaneSide) => void;
+  setFilesPaneWidth: (width: number) => void;
 
   // Sidebar drag-and-drop: persist project order and per-project item order.
   reorderWorkspaces: (orderedIds: string[]) => Promise<void>;
@@ -147,6 +182,14 @@ export const useStore = create<UiState>((set, get) => ({
   terminals: [],
   groups: [],
   activeGroupId: null,
+  ...(() => {
+    const files = readFilesPaneState();
+    return {
+      filesPaneOpen: files.open,
+      filesPaneSide: files.side,
+      filesPaneWidth: files.width,
+    };
+  })(),
   composerInbox: null,
 
   setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
@@ -387,6 +430,36 @@ export const useStore = create<UiState>((set, get) => ({
         } else groups.push(g);
       }
       return { groups, activeGroupId: moved.id };
+    });
+  },
+
+  toggleFilesPane: () => {
+    set((s) => {
+      const open = !s.filesPaneOpen;
+      persistFilesPaneState({ open, side: s.filesPaneSide, width: s.filesPaneWidth });
+      return { filesPaneOpen: open };
+    });
+  },
+
+  setFilesPaneOpen: (open) => {
+    set((s) => {
+      persistFilesPaneState({ open, side: s.filesPaneSide, width: s.filesPaneWidth });
+      return { filesPaneOpen: open };
+    });
+  },
+
+  setFilesPaneSide: (side) => {
+    set((s) => {
+      persistFilesPaneState({ open: s.filesPaneOpen, side, width: s.filesPaneWidth });
+      return { filesPaneSide: side };
+    });
+  },
+
+  setFilesPaneWidth: (width) => {
+    const next = Math.min(480, Math.max(200, Math.round(width)));
+    set((s) => {
+      persistFilesPaneState({ open: s.filesPaneOpen, side: s.filesPaneSide, width: next });
+      return { filesPaneWidth: next };
     });
   },
 

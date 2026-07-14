@@ -56,8 +56,8 @@ describe('toggleTaskLine', () => {
 
 describe('getMethodology', () => {
   it('returns the default for unknown/undefined ids', () => {
-    expect(getMethodology(undefined).id).toBe('openpaw');
-    expect(getMethodology('nope').id).toBe('openpaw');
+    expect(getMethodology(undefined).id).toBe('spec-tasks');
+    expect(getMethodology('nope').id).toBe('spec-tasks');
   });
 
   it('resolves a known methodology', () => {

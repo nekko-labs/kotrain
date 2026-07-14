@@ -177,6 +177,8 @@ function makeWebClient(): NekkoApi {
     getSession: (id) => call(IpcChannels.sessionGet, id),
     deleteSession: (id) => call(IpcChannels.sessionDelete, id),
     setSessionWorkspace: (sessionId, workspaceId) => call(IpcChannels.sessionSetWorkspace, sessionId, workspaceId),
+    setSessionSupportingWorkspaces: (sessionId, workspaceIds) =>
+      call(IpcChannels.sessionSetSupportingWorkspaces, sessionId, workspaceIds),
     setSessionAttachments: (sessionId, paths) => call(IpcChannels.sessionSetAttachments, sessionId, paths),
     sendChat: (opts) => call(IpcChannels.chatSend, opts),
     abortChat: (sessionId) => call(IpcChannels.chatAbort, sessionId),
@@ -201,10 +203,10 @@ function makeWebClient(): NekkoApi {
     setContextPrefs: (sessionId, prefs) => call(IpcChannels.contextSetPrefs, sessionId, prefs),
 
     buildSpec: (sessionId) => call(IpcChannels.specBuild, sessionId),
-    buildSpecDoc: (sessionId, docId) => call(IpcChannels.specBuildDoc, sessionId, docId),
-    readSpecDocs: (sessionId) => call(IpcChannels.specReadDocs, sessionId),
+    buildSpecDoc: (sessionId, docId, workspaceId) => call(IpcChannels.specBuildDoc, sessionId, docId, workspaceId),
+    readSpecDocs: (sessionId, workspaceId) => call(IpcChannels.specReadDocs, sessionId, workspaceId),
     setSpecMethodology: (sessionId, methodologyId) => call(IpcChannels.specSetMethodology, sessionId, methodologyId),
-    toggleSpecTask: (sessionId, lineIndex) => call(IpcChannels.specToggleTask, sessionId, lineIndex),
+    toggleSpecTask: (sessionId, lineIndex, workspaceId) => call(IpcChannels.specToggleTask, sessionId, lineIndex, workspaceId),
     setSpecLinked: (sessionId, linked) => call(IpcChannels.specSetLinked, sessionId, linked),
     specPath: (sessionId) => call(IpcChannels.specPath, sessionId),
     setSessionOptions: (id, patch) => call(IpcChannels.sessionSetOptions, id, patch),

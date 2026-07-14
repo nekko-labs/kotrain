@@ -52,6 +52,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [activeSkill, setActiveSkill] = useState<SkillDef | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const [reasoningDuration, setReasoningDuration] = useState<number | null>(null);
   const [changeCount, setChangeCount] = useState(0);
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -71,6 +73,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [lightbox]);
 
   // Track how many files the agent changed this chat (for the Changes button).
   useEffect(() => {
@@ -221,9 +232,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   };
 
   const send = async (override?: string) => {
-    const text = override ?? draft;
+    const input = override ?? draft;
+    const skill = activeSkill;
+    const text = skill
+      ? [skill.template.trimEnd(), input.trim()].filter(Boolean).join('\n\n')
+      : input;
     const images = pendingImages;
-    if ((!text.trim() && images.length === 0) || !providerId) return;
+    if ((!text.trim() && images.length === 0 && !skill) || !providerId) return;
 
     // The `goal` skill: `/goal <condition>` starts a long-running background
     // agent that keeps working until the condition is met (not a one-off turn).
@@ -251,6 +266,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     if (!useModel) return;
     if (override === undefined) setDraft('');
     if (override === undefined) setPendingImages([]);
+    setActiveSkill(null);
     beginTurn();
     setSession((prev) =>
       prev ? {
@@ -260,24 +276,19 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           role: 'user',
           content: text,
           ...(images.length ? { images } : {}),
+          ...(skill ? { skill: { name: skill.name, input } } : {}),
           createdAt: Date.now(),
         }],
       } : prev,
     );
-    await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text, ...(images.length ? { images } : {}) });
-  };
-
-  // Picking a skill from the `/` menu runs it straight away. Skills whose
-  // template still needs an argument (it ends in whitespace, e.g. `research`,
-  // `plan`, `goal`) instead drop the scaffold into the composer to complete.
-  const useSkill = (sk: SkillDef) => {
-    if (sk.kind === 'goal' || /\s$/.test(sk.template)) {
-      setDraft(sk.template);
-      composerRef.current?.focus();
-      return;
-    }
-    setDraft('');
-    void send(sk.template);
+    await window.nekko.sendChat({
+      sessionId,
+      providerId,
+      modelId: useModel,
+      text,
+      ...(images.length ? { images } : {}),
+      ...(skill ? { skill: { name: skill.name, input } } : {}),
+    });
   };
 
   // Queue the draft to run after the current turn (and any earlier queued
@@ -500,11 +511,16 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               </div>
             )}
             {session?.messages.map((m, i) => (
-              <MessageBubble key={m.id + i} message={m} onResend={!streaming && m.role === 'user' && m.id !== 'tmp' ? editResend : undefined} />
+              <MessageBubble
+                key={m.id + i}
+                message={m}
+                onResend={!streaming && m.role === 'user' && m.id !== 'tmp' ? editResend : undefined}
+                onImageClick={setLightbox}
+              />
             ))}
             {liveReasoning && <ReasoningBlock text={liveReasoning} live={streaming && !liveText} duration={reasoningDuration} />}
             {liveTools.map((t) => <ToolCard key={t.id} call={t} />)}
-            {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} />}
+            {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} onImageClick={setLightbox} />}
             {streaming && !liveText && !liveReasoning && !liveTools.length && (
               <div className="flex items-center gap-2 text-[13px] text-ink-faint">
                 <MiniNekko size={18} /> Nekko is working<span className="dots" />
@@ -586,10 +602,18 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               <div className="absolute bottom-full left-0 right-0 mb-2 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface-2 p-2">
                 {pendingImages.map((image, i) => (
                   <div key={`${image.slice(0, 24)}-${i}`} className="group relative shrink-0">
-                    <img src={image} alt={`Pending attachment ${i + 1}`} className="h-14 w-14 rounded-lg object-cover" />
+                    <img
+                      src={image}
+                      alt={`Pending attachment ${i + 1}`}
+                      className="h-20 w-20 cursor-pointer rounded-lg object-cover"
+                      onClick={() => setLightbox(image)}
+                    />
                     <button
                       className="absolute -right-1 -top-1 hidden h-4 w-4 rounded-full bg-ink text-[10px] leading-4 text-paper group-hover:block"
-                      onClick={() => setPendingImages((current) => current.filter((_, index) => index !== i))}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingImages((current) => current.filter((_, index) => index !== i));
+                      }}
                       title="Remove image"
                     >
                       ✕
@@ -621,7 +645,17 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                       <button
                         key={sk.id}
                         className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
-                        onClick={() => useSkill(sk)}
+                        onClick={() => {
+                          if (sk.kind === 'goal') {
+                            setActiveSkill(null);
+                            setDraft('/goal ');
+                          }
+                          else {
+                            setActiveSkill(sk);
+                            setDraft('');
+                          }
+                          composerRef.current?.focus();
+                        }}
                         title={sk.description}
                       >
                         {sk.highlighted && <span className="text-[12px] text-accent">★</span>}
@@ -644,26 +678,53 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 )}
               </div>
             )}
-            <textarea
-              ref={composerRef}
-              className="input max-h-60 min-h-[78px] resize-none"
-              rows={3}
-              placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onPaste={onPaste}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (skillMatches.length === 1 && slashMatches.length === 0) { useSkill(skillMatches[0]); return; }
-                  if (slashMatches.length === 1 && skillMatches.length === 0) { setDraft(slashMatches[0].body); return; }
-                  send();
-                } else if (e.key === 'Escape' && slashMenuOpen) {
-                  setDraft('');
-                }
-              }}
-              disabled={!hasProvider}
-            />
+            <div className="min-w-0 flex-1">
+              {activeSkill && (
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="chip border-accent/40 text-[11px] text-accent">
+                    /{activeSkill.name}
+                    <button
+                      className="ml-1 text-ink-faint hover:text-ink"
+                      onClick={() => setActiveSkill(null)}
+                      title="Remove skill"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
+              )}
+              <textarea
+                ref={composerRef}
+                className="input max-h-60 min-h-[78px] w-full resize-none"
+                rows={3}
+                placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onPaste={onPaste}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (skillMatches.length === 1 && slashMatches.length === 0) {
+                      const skill = skillMatches[0];
+                      if (skill.kind === 'goal') {
+                        setActiveSkill(null);
+                        setDraft('/goal ');
+                      }
+                      else {
+                        setActiveSkill(skill);
+                        setDraft('');
+                      }
+                      return;
+                    }
+                    if (slashMatches.length === 1 && skillMatches.length === 0) { setDraft(slashMatches[0].body); return; }
+                    send();
+                  } else if (e.key === 'Escape' && slashMenuOpen) {
+                    setDraft('');
+                  }
+                }}
+                disabled={!hasProvider}
+              />
+            </div>
             {draft.trim() && hasProvider && (
               <button
                 className="btn btn-outline"
@@ -676,7 +737,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             {streaming ? (
               <button className="btn btn-outline" onClick={() => window.nekko.abortChat(sessionId)}>Stop</button>
             ) : (
-              <button className="btn btn-primary" onClick={() => send()} disabled={(!draft.trim() && pendingImages.length === 0) || !hasProvider}><SendIcon /></button>
+              <button className="btn btn-primary" onClick={() => send()} disabled={(!draft.trim() && pendingImages.length === 0 && !activeSkill) || !hasProvider}><SendIcon /></button>
             )}
           </div>
         </div>
@@ -696,6 +757,16 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           initialPrompt={draft.trim() || undefined}
           onClose={() => setScheduleOpen(false)}
         />
+      )}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox} alt="Full-size attachment" className="max-h-[90vh] max-w-[90vw] object-contain" />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -722,12 +793,21 @@ function ReasoningBlock({ text, live, duration }: { text: string; live: boolean;
   );
 }
 
-function MessageBubble({ message, onResend }: { message: ChatMessage; onResend?: (id: string, text: string) => void }) {
+function MessageBubble({
+  message,
+  onResend,
+  onImageClick,
+}: {
+  message: ChatMessage;
+  onResend?: (id: string, text: string) => void;
+  onImageClick?: (src: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(message.content);
-  if (message.role === 'tool') return null;
   const isUser = message.role === 'user';
+  const displayText = isUser && message.skill ? message.skill.input : message.content;
+  const [draft, setDraft] = useState(displayText);
+  if (message.role === 'tool') return null;
   const copy = () => {
     navigator.clipboard?.writeText(message.content).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); });
   };
@@ -738,7 +818,7 @@ function MessageBubble({ message, onResend }: { message: ChatMessage; onResend?:
         <div className="w-full max-w-[85%]">
           <textarea className="input max-h-48 min-h-[60px] resize-none text-[14px]" value={draft} autoFocus onChange={(e) => setDraft(e.target.value)} />
           <div className="mt-1.5 flex justify-end gap-2">
-            <button className="btn btn-ghost py-1 text-[12px]" onClick={() => { setEditing(false); setDraft(message.content); }}>Cancel</button>
+            <button className="btn btn-ghost py-1 text-[12px]" onClick={() => { setEditing(false); setDraft(displayText); }}>Cancel</button>
             <button className="btn btn-primary py-1 text-[12px]" onClick={() => { setEditing(false); onResend?.(message.id, draft); }}>Save &amp; send</button>
           </div>
         </div>
@@ -749,22 +829,33 @@ function MessageBubble({ message, onResend }: { message: ChatMessage; onResend?:
   return (
     <div className={`group fade-in flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`bubble ${isUser ? 'bubble-user' : 'bubble-ai'}`}>
+        {isUser && message.skill && (
+          <span className="chip mb-2 inline-flex border-accent/40 text-[11px] text-accent">
+            /{message.skill.name}
+          </span>
+        )}
         {isUser && message.images?.length ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {message.images.map((image, i) => (
-              <img key={`${image.slice(0, 24)}-${i}`} src={image} alt={`Attached image ${i + 1}`} className="h-20 w-20 rounded-lg object-cover" />
+              <img
+                key={`${image.slice(0, 24)}-${i}`}
+                src={image}
+                alt={`Attached image ${i + 1}`}
+                className="h-[104px] w-[104px] cursor-pointer rounded-lg object-cover"
+                onClick={() => onImageClick?.(image)}
+              />
             ))}
           </div>
         ) : null}
         {!isUser && message.reasoning && (
           <ReasoningBlock text={message.reasoning} live={false} duration={message.reasoningSeconds ?? null} />
         )}
-        {isUser ? <p className="whitespace-pre-wrap text-[14px]">{message.content}</p> : <Markdown text={message.content} />}
+        {displayText && (isUser ? <p className="whitespace-pre-wrap text-[14px]">{displayText}</p> : <Markdown text={message.content} />)}
         {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
-        {message.content && (
+        {displayText && message.content && (
           <div className={`mt-1.5 flex gap-3 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end text-white/80' : 'text-ink-faint'}`}>
             <button onClick={copy} title="Copy message" className={isUser ? 'hover:text-white' : 'hover:text-ink'}>{copied ? '✓ copied' : 'Copy'}</button>
-            {onResend && <button onClick={() => { setDraft(message.content); setEditing(true); }} title="Edit & resend" className="hover:text-white">Edit</button>}
+            {onResend && <button onClick={() => { setDraft(displayText); setEditing(true); }} title="Edit & resend" className="hover:text-white">Edit</button>}
           </div>
         )}
       </div>

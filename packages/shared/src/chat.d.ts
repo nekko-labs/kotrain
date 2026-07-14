@@ -21,6 +21,11 @@ export interface ChatMessage {
     reasoning?: string;
     /** Whole seconds spent streaming the reasoning text. */
     reasoningSeconds?: number;
+    /** Skill invoked for this user turn and the user's own input. */
+    skill?: {
+        name: string;
+        input: string;
+    };
     /** Tool calls requested by the assistant in this message. */
     toolCalls?: ToolCall[];
     /** Tool results (for role === 'tool'). */
@@ -44,6 +49,8 @@ export interface Session {
     id: string;
     title: string;
     workspaceId?: string;
+    /** Additional context folders for this chat; workspaceId remains primary. */
+    supportingWorkspaceIds?: string[];
     /**
      * When set, this session was spawned as a sub-agent by another session. The
      * workbench nests it as a sub-tab under its parent; the agent loop reports its
@@ -84,6 +91,8 @@ export interface Session {
     createdAt: number;
     updatedAt: number;
 }
+/** Return the primary and supporting context folders in stable, de-duplicated order. */
+export declare function getSessionWorkspaceIds(session: Pick<Session, 'workspaceId' | 'supportingWorkspaceIds'>): string[];
 /** Time window for bulk chat deletion. */
 export type ChatClearScope = 'today' | 'month' | 'all';
 /** Streaming events emitted by the agent loop. */
@@ -130,6 +139,11 @@ export interface SendOptions {
     text: string;
     /** Image data URLs attached to this user turn. */
     images?: string[];
+    /** Skill invoked for this user turn and the user's own input. */
+    skill?: {
+        name: string;
+        input: string;
+    };
     /** File paths the user explicitly attached as context. */
     attachedPaths?: string[];
     /** Re-answer the last user turn: drop trailing assistant/tool messages and

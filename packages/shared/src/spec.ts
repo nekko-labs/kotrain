@@ -36,11 +36,21 @@ export interface SpecMethodology {
 }
 
 /**
- * Built-in methodologies. `openpaw` is the default and matches this project's
- * own spec/plan/tasks convention; `kiro` mirrors Amazon Kiro's
- * requirements/design/tasks naming; `lean` is the original single-spec flow.
+ * Built-in methodologies. `spec-tasks` is the default lightweight
+ * spec/tasks flow; `openpaw` matches this project's spec/plan/tasks
+ * convention; `kiro` mirrors Amazon Kiro's requirements/design/tasks naming;
+ * `lean` is the original single-spec flow.
  */
 export const SPEC_METHODOLOGIES: SpecMethodology[] = [
+  {
+    id: 'spec-tasks',
+    label: 'Spec → Tasks',
+    description: 'A spec then a task checklist, no separate plan.',
+    docs: [
+      { id: 'spec', filename: 'spec.md', label: 'Spec', role: 'spec', description: 'What & why, vision, users, requirements.' },
+      { id: 'tasks', filename: 'tasks.md', label: 'Tasks', role: 'tasks', description: 'Discrete, checkable work items.' },
+    ],
+  },
   {
     id: 'openpaw',
     label: 'Spec → Plan → Tasks',
@@ -71,7 +81,7 @@ export const SPEC_METHODOLOGIES: SpecMethodology[] = [
   },
 ];
 
-export const DEFAULT_SPEC_METHODOLOGY = 'openpaw';
+export const DEFAULT_SPEC_METHODOLOGY = 'spec-tasks';
 
 /** Look up a methodology by id, falling back to the default. */
 export function getMethodology(id: string | undefined): SpecMethodology {
