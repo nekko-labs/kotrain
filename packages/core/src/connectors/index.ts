@@ -6,6 +6,44 @@ export interface Connector {
   fetch(token: string, query?: string, settings?: Record<string, string>): Promise<ConnectorResource[]>;
 }
 
+/** GitHub, REST API, authenticated with a personal access token. Lists the
+ *  user's most recently updated repos, or searches issues and PRs by query. */
+export const githubConnector: Connector = {
+  kind: 'github',
+  async fetch(token, query) {
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'open-paw',
+    };
+    if (query) {
+      const res = await fetch(
+        `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&per_page=20`,
+        { headers },
+      );
+      if (!res.ok) throw new Error(`GitHub ${res.status}`);
+      const json: any = await res.json();
+      return (json.items ?? []).map((it: any) => ({
+        id: String(it.id),
+        title: it.title,
+        subtitle: `${it.pull_request ? 'PR' : 'Issue'} ${it.repository_url?.split('/').slice(-2).join('/') ?? ''} #${it.number}`,
+        url: it.html_url,
+        body: it.body ?? '',
+      }));
+    }
+    const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=25', { headers });
+    if (!res.ok) throw new Error(`GitHub ${res.status}`);
+    const repos = (await res.json()) as any[];
+    return repos.map((r) => ({
+      id: String(r.id),
+      title: r.full_name,
+      subtitle: r.private ? 'private repo' : 'repo',
+      url: r.html_url,
+      body: r.description ?? '',
+    }));
+  },
+};
+
 /** Linear, GraphQL API, authenticated with a personal API key. */
 export const linearConnector: Connector = {
   kind: 'linear',
@@ -100,6 +138,7 @@ export const gdriveConnector: Connector = {
 };
 
 export const CONNECTORS: Record<ConnectorKind, Connector> = {
+  github: githubConnector,
   linear: linearConnector,
   slack: slackConnector,
   discord: discordConnector,

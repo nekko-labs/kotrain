@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo } from '@open-paw/shared';
+import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@open-paw/shared';
 import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
@@ -190,6 +190,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [session?.messages.length, liveText, liveTools.length]);
 
+  // Grow the composer with its content: reset to the 3-line minimum, then match
+  // the scroll height (CSS max-height caps it and lets it scroll past that).
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
+
   const beginTurn = () => {
     setStreaming(true);
     setLiveText('');
@@ -256,6 +265,19 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       } : prev,
     );
     await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text, ...(images.length ? { images } : {}) });
+  };
+
+  // Picking a skill from the `/` menu runs it straight away. Skills whose
+  // template still needs an argument (it ends in whitespace, e.g. `research`,
+  // `plan`, `goal`) instead drop the scaffold into the composer to complete.
+  const useSkill = (sk: SkillDef) => {
+    if (sk.kind === 'goal' || /\s$/.test(sk.template)) {
+      setDraft(sk.template);
+      composerRef.current?.focus();
+      return;
+    }
+    setDraft('');
+    void send(sk.template);
   };
 
   // Queue the draft to run after the current turn (and any earlier queued
@@ -599,7 +621,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                       <button
                         key={sk.id}
                         className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
-                        onClick={() => { setDraft(sk.template); composerRef.current?.focus(); }}
+                        onClick={() => useSkill(sk)}
                         title={sk.description}
                       >
                         {sk.highlighted && <span className="text-[12px] text-accent">★</span>}
@@ -624,8 +646,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             )}
             <textarea
               ref={composerRef}
-              className="input max-h-40 min-h-[44px] resize-none"
-              rows={1}
+              className="input max-h-60 min-h-[78px] resize-none"
+              rows={3}
               placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -633,7 +655,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  if (skillMatches.length === 1 && slashMatches.length === 0) { setDraft(skillMatches[0].template); return; }
+                  if (skillMatches.length === 1 && slashMatches.length === 0) { useSkill(skillMatches[0]); return; }
                   if (slashMatches.length === 1 && skillMatches.length === 0) { setDraft(slashMatches[0].body); return; }
                   send();
                 } else if (e.key === 'Escape' && slashMenuOpen) {
