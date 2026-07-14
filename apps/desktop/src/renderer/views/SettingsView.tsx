@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@open-paw/shared';
 import { useStore } from '../store.js';
-import { SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
@@ -125,11 +125,11 @@ export function SettingsView() {
         <section className="card mt-5 p-5">
           <div className="flex items-center gap-2"><h2 className="font-semibold">Spec-driven development</h2></div>
           <p className="mt-1 text-[12px] text-ink-faint">
-            Default workflow for building a spec, plan, and tasks from a conversation. Each chat can override it in the Context panel.
+            Default workflow for building a spec and tasks from a conversation. Each chat can override it in the Context panel.
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
             {SPEC_METHODOLOGIES.map((m) => {
-              const active = (settings.specMethodology ?? 'openpaw') === m.id;
+              const active = (settings.specMethodology ?? DEFAULT_SPEC_METHODOLOGY) === m.id;
               return (
                 <button key={m.id} onClick={() => update({ specMethodology: m.id })} className={`card p-3 text-left ${active ? 'border-accent' : ''}`}>
                   <div className="text-[13px] font-medium">{m.label}</div>

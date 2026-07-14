@@ -1,38 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import type { SpecDocStatus, Session } from '@open-paw/shared';
-import { SPEC_METHODOLOGIES, getMethodology, parseTasks } from '@open-paw/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, getMethodology, getSessionWorkspaceIds, parseTasks } from '@open-paw/shared';
 import { ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 
 /**
  * Spec-driven development panel (Kiro-inspired). Pick a methodology, then build
- * or update each artifact in order, the spec, the plan, then a task checklist.
+ * or update each artifact in order, the spec, then a task checklist.
  * Later artifacts are chained from the earlier ones server-side. The tasks doc
  * renders as an interactive checklist whose toggles write back to the file.
  */
 export function SpecPanel({ sessionId, session }: { sessionId: string; session: Session | null }) {
   const refreshSessions = useStore((s) => s.refreshSessions);
   const pushToast = useStore((s) => s.pushToast);
+  const settings = useStore((s) => s.settings);
 
   const [docs, setDocs] = useState<SpecDocStatus[] | null>(null);
-  const [methodologyId, setMethodologyId] = useState<string>('openpaw');
+  const [methodologyId, setMethodologyId] = useState<string>(DEFAULT_SPEC_METHODOLOGY);
+  const [workspaceId, setWorkspaceId] = useState<string | undefined>(session?.workspaceId);
   const [busy, setBusy] = useState<string | null>(null); // doc id (or 'all') currently building
   const [showTasks, setShowTasks] = useState(true);
 
-  const hasWorkspace = !!session?.workspaceId;
+  const workspaceIds = session ? getSessionWorkspaceIds(session) : [];
+  const workspaceKey = workspaceIds.join(',');
+  const selectedWorkspaceId = workspaceIds.includes(workspaceId ?? '') ? workspaceId : workspaceIds[0];
+  const hasWorkspace = workspaceIds.length > 0;
 
-  const refresh = () => {
-    window.nekko.readSpecDocs(sessionId).then((r) => {
+  const refresh = (targetWorkspaceId = selectedWorkspaceId) => {
+    window.nekko.readSpecDocs(sessionId, targetWorkspaceId).then((r) => {
       setDocs(r.docs);
       setMethodologyId(r.methodologyId);
     });
   };
 
   useEffect(() => {
+    setWorkspaceId((current) => (current && workspaceIds.includes(current) ? current : workspaceIds[0]));
+  }, [workspaceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!sessionId) return;
-    refresh();
+    refresh(selectedWorkspaceId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, session?.workspaceId, session?.specMethodology]);
+  }, [sessionId, selectedWorkspaceId, session?.specMethodology, workspaceKey]);
 
   // Open the doc in the built-in viewer pane (not the OS, which silently fails
   // when nothing is registered for .md and never kept you in the app anyway).
@@ -43,17 +52,17 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
     setMethodologyId(id);
     await window.nekko.setSpecMethodology(sessionId, id);
     await refreshSessions();
-    refresh();
+    refresh(selectedWorkspaceId);
   };
 
   const build = async (docId: string) => {
     setBusy(docId);
-    const res = await window.nekko.buildSpecDoc(sessionId, docId);
+    const res = await window.nekko.buildSpecDoc(sessionId, docId, selectedWorkspaceId);
     setBusy(null);
     if (res.ok) {
       const label = methodology.docs.find((d) => d.id === docId)?.label ?? 'Document';
       pushToast('success', `${label} updated from this chat.`);
-      refresh();
+      refresh(selectedWorkspaceId);
     } else {
       pushToast('error', res.message ?? 'Could not build the document.');
     }
@@ -63,14 +72,14 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
     setBusy('all');
     let failed: string | null = null;
     for (const d of methodology.docs) {
-      const res = await window.nekko.buildSpecDoc(sessionId, d.id);
+      const res = await window.nekko.buildSpecDoc(sessionId, d.id, selectedWorkspaceId);
       if (!res.ok) {
         failed = res.message ?? `Could not build ${d.label}.`;
         break;
       }
     }
     setBusy(null);
-    refresh();
+    refresh(selectedWorkspaceId);
     if (failed) pushToast('error', failed);
     else pushToast('success', `Built ${methodology.docs.length} artifacts from this chat.`);
   };
@@ -81,8 +90,8 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
   };
 
   const toggleTask = async (line: number) => {
-    const res = await window.nekko.toggleSpecTask(sessionId, line);
-    if (res.ok) refresh();
+    const res = await window.nekko.toggleSpecTask(sessionId, line, selectedWorkspaceId);
+    if (res.ok) refresh(selectedWorkspaceId);
     else pushToast('error', res.message ?? 'Could not update the task.');
   };
 
@@ -108,12 +117,27 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
 
       {!hasWorkspace && (
         <p className="px-1 text-[11px] leading-snug text-ink-faint">
-          Add a project folder to this chat, then build a spec, plan, and tasks straight from the conversation.
+          Add a project folder to this chat, then build a spec and tasks straight from the conversation.
         </p>
       )}
 
       {hasWorkspace && (
         <>
+          {workspaceIds.length > 1 && (
+            <select
+              className="input mb-2 w-full text-[12px]"
+              value={selectedWorkspaceId ?? ''}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+              title="Select the project whose spec and tasks are shown"
+            >
+              {workspaceIds.map((id) => (
+                <option key={id} value={id}>
+                  {session?.workspaceId === id ? 'Primary · ' : 'Supporting · '}
+                  {baseName(settings?.workspaces.find((w) => w.id === id)?.path ?? id)}
+                </option>
+              ))}
+            </select>
+          )}
           {/* Methodology picker */}
           <select
             className="input mb-2 w-full text-[12px]"
@@ -207,4 +231,9 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
       )}
     </div>
   );
+}
+
+function baseName(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] ?? path;
 }

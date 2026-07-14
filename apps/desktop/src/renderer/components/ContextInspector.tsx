@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ContextBundle, ContextItem } from '@open-paw/shared';
+import { getSessionWorkspaceIds } from '@open-paw/shared';
 import { PinIcon, FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
@@ -90,7 +91,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     }
     refreshBundle();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, attached.length, session?.workspaceId]);
+  }, [sessionId, attached.length, session?.workspaceId, session?.supportingWorkspaceIds?.length]);
 
   if (!sessionId) return <Empty />;
 
@@ -133,15 +134,50 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   };
   const removeFolder = async (id: string) => {
     await window.nekko.removeWorkspace(id);
-    if (session?.workspaceId === id) {
-      await window.nekko.setSessionWorkspace(sessionId, undefined);
+    if (session) {
+      const supporting = (session.supportingWorkspaceIds ?? []).filter((wid) => wid !== id);
+      if (session.workspaceId === id) {
+        const [nextPrimary, ...nextSupporting] = supporting;
+        await window.nekko.setSessionWorkspace(sessionId, nextPrimary);
+        await window.nekko.setSessionSupportingWorkspaces(sessionId, nextSupporting);
+      } else {
+        await window.nekko.setSessionSupportingWorkspaces(sessionId, supporting);
+      }
       await refreshSessions();
     }
     await refreshSettings();
   };
-  const useFolder = async (id: string) => {
-    await window.nekko.setSessionWorkspace(sessionId, session?.workspaceId === id ? undefined : id);
+  const setFolderSelection = async (primaryId: string | undefined, supportingIds: string[]) => {
+    await window.nekko.setSessionWorkspace(sessionId, primaryId);
+    await window.nekko.setSessionSupportingWorkspaces(sessionId, supportingIds);
     await refreshSessions();
+  };
+  const includeFolder = async (id: string) => {
+    if (!session?.workspaceId) {
+      await setFolderSelection(id, session?.supportingWorkspaceIds ?? []);
+    } else {
+      await setFolderSelection(session.workspaceId, [...(session.supportingWorkspaceIds ?? []), id]);
+    }
+  };
+  const excludeFolder = async (id: string) => {
+    if (session?.workspaceId === id) {
+      const [nextPrimary, ...nextSupporting] = session.supportingWorkspaceIds ?? [];
+      await setFolderSelection(nextPrimary, nextSupporting);
+    } else {
+      await setFolderSelection(session?.workspaceId, (session?.supportingWorkspaceIds ?? []).filter((wid) => wid !== id));
+    }
+  };
+  const makePrimary = async (id: string) => {
+    if (!session || session.workspaceId === id) return;
+    await setFolderSelection(id, [
+      ...(session.workspaceId ? [session.workspaceId] : []),
+      ...(session.supportingWorkspaceIds ?? []).filter((wid) => wid !== id),
+    ]);
+  };
+  const useFolder = async (id: string) => {
+    const included = getSessionWorkspaceIds(session ?? { workspaceId: undefined }).includes(id);
+    if (included) await makePrimary(id);
+    else await includeFolder(id);
   };
   const addFiles = async () => {
     const picked = await window.nekko.openFilesDialog();
@@ -166,7 +202,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   const pct = Math.min(100, (total / windowTokens) * 100);
   const groups = groupBy(visible, (i) => i.source);
   const guidelineItems = visible.filter((i) => i.source === 'guideline');
-  const memoryCount = visible.filter((i) => i.source === 'memory').length;
+  const memoryItems = visible.filter((i) => i.source === 'memory');
 
   return (
     <div className="flex h-full w-80 flex-col border-l border-line">
@@ -188,16 +224,20 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
         <Section title="Folders" info="Project folders grounding this chat. The active folder's files can be read and searched by the agent, and set the working directory for terminals and tools." onAdd={addFolder} addLabel="Add folder">
           {workspaces.length === 0 && <Hint>No folder yet. Add one to ground the chat in your code.</Hint>}
           {workspaces.map((w) => {
-            const active = session?.workspaceId === w.id;
+            const included = getSessionWorkspaceIds(session ?? { workspaceId: undefined }).includes(w.id);
+            const primary = session?.workspaceId === w.id;
             return (
               <Row
                 key={w.id}
-                active={active}
+                active={primary}
                 icon={<FolderIcon className="h-3.5 w-3.5" />}
                 title={baseName(w.path) || w.path}
                 subtitle={w.path}
                 onClick={() => useFolder(w.id)}
-                badge={active ? 'active' : undefined}
+                badge={included ? (primary ? 'primary' : 'supporting') : undefined}
+                badgeAction={included && !primary ? () => makePrimary(w.id) : undefined}
+                included={included}
+                onToggle={() => (included ? excludeFolder(w.id) : includeFolder(w.id))}
                 onRemove={() => removeFolder(w.id)}
               />
             );
@@ -219,12 +259,9 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
           ))}
         </Section>
 
-        {/* Spec-driven development */}
-        <SpecPanel sessionId={sessionId} session={session} />
-
         {/* Sources: guidelines & memory */}
-        {(guidelineItems.length > 0 || memoryCount > 0) && (
-          <Section title="Project context" info="Always-on context from your project: guideline files (e.g. AGENTS.md) and saved memory notes relevant to this chat.">
+        {(guidelineItems.length > 0 || memoryItems.length > 0) && (
+          <Section title="Guidelines" info="Always-on project guidelines and memory relevant to this chat.">
             {guidelineItems.map((g) => (
               <Row
                 key={g.id}
@@ -232,15 +269,25 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
                 title={g.label}
                 subtitle={g.origin}
                 onClick={() => open(g.origin)}
+                included={g.included}
+                onToggle={() => toggle(g.id)}
               />
             ))}
-            {memoryCount > 0 && (
-              <div className="px-1 py-1 text-[11px] text-ink-faint">
-                {memoryCount} memory note{memoryCount === 1 ? '' : 's'} in context
-              </div>
-            )}
+            {memoryItems.map((m) => (
+              <Row
+                key={m.id}
+                icon={<FileIcon className="h-3.5 w-3.5" />}
+                title={m.label}
+                subtitle={m.preview}
+                included={m.included}
+                onToggle={() => toggle(m.id)}
+              />
+            ))}
           </Section>
         )}
+
+        {/* Spec-driven development */}
+        <SpecPanel sessionId={sessionId} session={session} />
 
         {/* Breakdown */}
         {visible.length > 0 && (
@@ -337,29 +384,46 @@ function Row({
   subtitle,
   active,
   badge,
+  badgeAction,
   onClick,
   onRemove,
+  included,
+  onToggle,
 }: {
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
   active?: boolean;
   badge?: string;
+  badgeAction?: () => void;
   onClick?: () => void;
   onRemove?: () => void;
+  included?: boolean;
+  onToggle?: () => void;
 }) {
   return (
     <div
       className={`group flex items-center gap-2 rounded-lg border px-2 py-1.5 ${
         active ? 'border-accent/40 bg-accent/5' : 'border-line'
-      } ${onClick ? 'cursor-pointer hover:bg-surface-2' : ''}`}
+      } ${onClick ? 'cursor-pointer hover:bg-surface-2' : ''} ${included === false ? 'opacity-40' : ''}`}
       onClick={onClick}
     >
       <span className={active ? 'text-accent' : 'text-ink-faint'}>{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate text-[12.5px] font-medium">{title}</span>
-          {badge && <span className="chip shrink-0 text-[9px] uppercase">{badge}</span>}
+          {badge && (badgeAction ? (
+            <button
+              className="chip shrink-0 cursor-pointer text-[9px] uppercase hover:text-accent"
+              onClick={(e) => {
+                e.stopPropagation();
+                badgeAction();
+              }}
+              title="Make primary"
+            >
+              {badge}
+            </button>
+          ) : <span className="chip shrink-0 text-[9px] uppercase">{badge}</span>)}
           {onClick && <ExternalIcon className="h-3 w-3 shrink-0 text-ink-faint opacity-0 group-hover:opacity-100" />}
         </div>
         {subtitle && <p className="truncate text-[10.5px] text-ink-faint">{subtitle}</p>}
@@ -375,6 +439,16 @@ function Row({
         >
           <TrashIcon className="h-3.5 w-3.5" />
         </button>
+      )}
+      {onToggle && (
+        <input
+          type="checkbox"
+          className="shrink-0 accent-[var(--accent)]"
+          checked={included !== false}
+          aria-label={included === false ? `Include ${title}` : `Exclude ${title}`}
+          onClick={(e) => e.stopPropagation()}
+          onChange={onToggle}
+        />
       )}
     </div>
   );

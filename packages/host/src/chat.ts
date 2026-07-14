@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@open-paw/shared';
-import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getStrategy, orchestrationPromptHint } from '@open-paw/shared';
+import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@open-paw/shared';
 import {
   createProvider,
   runAgent,
@@ -27,29 +27,30 @@ import { syncMcp, mcpToolSpecs, isMcpTool, callMcpTool } from './mcp.js';
  * tokens are searched, hits grouped per file, and the top few files included.
  */
 function collectIndexSnippets(
-  workspaceId: string | undefined,
+  workspaceIds: string[],
   query: string,
 ): Array<{ relPath: string; path: string; body: string }> {
-  if (!workspaceId || !query.trim()) return [];
-  const folder = getSettings().workspaces.find((w) => w.id === workspaceId);
-  if (!folder) return [];
-
+  if (!workspaceIds.length || !query.trim()) return [];
   const tokens = Array.from(new Set(query.toLowerCase().match(/[a-z0-9_]{4,}/g) ?? [])).slice(0, 6);
   if (tokens.length === 0) return [];
 
-  const byFile = new Map<string, { path: string; lines: string[] }>();
-  for (const token of tokens) {
-    for (const hit of searchWorkspace(folder, token)) {
-      const entry = byFile.get(hit.relPath) ?? { path: hit.path, lines: [] };
-      if (entry.lines.length < 8) entry.lines.push(`${hit.line}: ${hit.text}`);
-      byFile.set(hit.relPath, entry);
+  const byFile = new Map<string, { relPath: string; path: string; lines: string[]; workspaceRank: number }>();
+  for (const [workspaceRank, workspaceId] of workspaceIds.entries()) {
+    const folder = getSettings().workspaces.find((w) => w.id === workspaceId);
+    if (!folder) continue;
+    for (const token of tokens) {
+      for (const hit of searchWorkspace(folder, token)) {
+        const entry = byFile.get(hit.path) ?? { relPath: hit.relPath, path: hit.path, lines: [], workspaceRank };
+        if (entry.lines.length < 8) entry.lines.push(`${hit.line}: ${hit.text}`);
+        byFile.set(hit.path, entry);
+      }
     }
   }
 
   return [...byFile.entries()]
-    .sort((a, b) => b[1].lines.length - a[1].lines.length)
+    .sort((a, b) => a[1].workspaceRank - b[1].workspaceRank || b[1].lines.length - a[1].lines.length)
     .slice(0, 4)
-    .map(([relPath, v]) => ({ relPath, path: v.path, body: v.lines.join('\n') }));
+    .map(([, v]) => ({ relPath: v.relPath, path: v.path, body: v.lines.join('\n') }));
 }
 
 type Sender = (event: AgentEvent) => void;
@@ -139,7 +140,7 @@ export async function previewContext(sessionId: string, attachedPaths: string[])
     guidelines: collectGuidelines(),
     memory: [
       ...listMemory('global'),
-      ...(session?.workspaceId ? listMemory('workspace', session.workspaceId) : []),
+      ...((session ? getSessionWorkspaceIds(session) : []).flatMap((id) => listMemory('workspace', id))),
     ],
     connectorSnippets: await collectConnectorSnippets(),
     indexSnippets: [],
@@ -187,7 +188,7 @@ async function runSubAgent(
   }
   if (!task.trim()) return 'No task was provided to the sub-agent.';
   const parent = getSession(parentId);
-  const child = createSession(parent?.workspaceId, parentId);
+  const child = createSession(parent?.workspaceId, parentId, parent ? getSessionWorkspaceIds(parent).slice(1) : undefined);
   child.title = (title?.trim() || task.trim().slice(0, 40)) || 'Sub-agent';
   child.providerId = providerId;
   child.modelId = modelId;
@@ -244,10 +245,10 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     guidelines: collectGuidelines(),
     memory: [
       ...listMemory('global'),
-      ...(session.workspaceId ? listMemory('workspace', session.workspaceId) : []),
+      ...getSessionWorkspaceIds(session).flatMap((id) => listMemory('workspace', id)),
     ],
     connectorSnippets: offline ? [] : await collectConnectorSnippets(opts.text),
-    indexSnippets: collectIndexSnippets(session.workspaceId, opts.text),
+    indexSnippets: collectIndexSnippets(getSessionWorkspaceIds(session), opts.text),
     excluded: new Set(session.contextPrefs?.excluded ?? []),
     pinned: new Set(session.contextPrefs?.pinned ?? []),
   });
@@ -275,6 +276,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
       content: opts.text,
       createdAt: Date.now(),
       ...(opts.images?.length ? { images: opts.images } : {}),
+      ...(opts.skill ? { skill: opts.skill } : {}),
     };
     session.messages.push(userMsg);
     if (session.title === 'New chat') session.title = opts.text.slice(0, 48) || 'New chat';

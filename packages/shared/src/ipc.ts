@@ -36,6 +36,7 @@ export const IpcChannels = {
   sessionGet: 'session:get',
   sessionDelete: 'session:delete',
   sessionSetWorkspace: 'session:setWorkspace',
+  sessionSetSupportingWorkspaces: 'session:setSupportingWorkspaces',
   chatSend: 'chat:send',
   chatAbort: 'chat:abort',
   chatQueue: 'chat:queue',
@@ -178,6 +179,7 @@ export interface NekkoApi {
   getSession(id: string): Promise<Session | null>;
   deleteSession(id: string): Promise<void>;
   setSessionWorkspace(sessionId: string, workspaceId?: string): Promise<Session | null>;
+  setSessionSupportingWorkspaces(sessionId: string, workspaceIds: string[]): Promise<Session | null>;
   setSessionAttachments(sessionId: string, paths: string[]): Promise<Session | null>;
   sendChat(opts: SendOptions): Promise<void>;
   abortChat(sessionId: string): Promise<void>;
@@ -215,13 +217,13 @@ export interface NekkoApi {
   /** Build/refresh the primary spec doc in the chat's workspace from the conversation. */
   buildSpec(sessionId: string): Promise<{ ok: boolean; path?: string; message?: string }>;
   /** Build/refresh one artifact (by id) of the chat's spec methodology. */
-  buildSpecDoc(sessionId: string, docId?: string): Promise<{ ok: boolean; path?: string; docId?: string; message?: string }>;
+  buildSpecDoc(sessionId: string, docId?: string, workspaceId?: string): Promise<{ ok: boolean; path?: string; docId?: string; message?: string }>;
   /** Read the live status of every artifact in the chat's spec methodology. */
-  readSpecDocs(sessionId: string): Promise<{ methodologyId: string; docs: import('./spec.js').SpecDocStatus[] }>;
+  readSpecDocs(sessionId: string, workspaceId?: string): Promise<{ methodologyId: string; docs: import('./spec.js').SpecDocStatus[] }>;
   /** Set the spec methodology for a chat. */
   setSpecMethodology(sessionId: string, methodologyId: string): Promise<void>;
   /** Toggle a checklist item in the chat's tasks artifact. */
-  toggleSpecTask(sessionId: string, lineIndex: number): Promise<{ ok: boolean; message?: string }>;
+  toggleSpecTask(sessionId: string, lineIndex: number, workspaceId?: string): Promise<{ ok: boolean; message?: string }>;
   setSpecLinked(sessionId: string, linked: boolean): Promise<Session | null>;
   specPath(sessionId: string): Promise<string | null>;
   setSessionOptions(

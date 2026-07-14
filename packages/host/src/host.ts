@@ -127,6 +127,7 @@ export interface Host {
   getSession(id: string): Session | null;
   deleteSession(id: string): void;
   setSessionWorkspace(id: string, workspaceId?: string): Session | null;
+  setSessionSupportingWorkspaces(id: string, workspaceIds: string[]): Session | null;
   setSessionAttachments(id: string, paths: string[]): Session | null;
   sendChat(opts: SendOptions): Promise<void>;
   abortChat(sessionId: string): void;
@@ -149,10 +150,10 @@ export interface Host {
   setContextPrefs(sessionId: string, prefs: { excluded: string[]; pinned: string[] }): void;
 
   buildSpec(sessionId: string): Promise<{ ok: boolean; path?: string; message?: string }>;
-  buildSpecDoc(sessionId: string, docId?: string): Promise<{ ok: boolean; path?: string; docId?: string; message?: string }>;
-  readSpecDocs(sessionId: string): { methodologyId: string; docs: SpecDocStatus[] };
+  buildSpecDoc(sessionId: string, docId?: string, workspaceId?: string): Promise<{ ok: boolean; path?: string; docId?: string; message?: string }>;
+  readSpecDocs(sessionId: string, workspaceId?: string): { methodologyId: string; docs: SpecDocStatus[] };
   setSpecMethodology(sessionId: string, methodologyId: string): void;
-  toggleSpecTask(sessionId: string, lineIndex: number): { ok: boolean; message?: string };
+  toggleSpecTask(sessionId: string, lineIndex: number, workspaceId?: string): { ok: boolean; message?: string };
   setSpecLinked(sessionId: string, linked: boolean): Session | null;
   specPath(sessionId: string): string | null;
   setSessionOptions(
@@ -328,6 +329,7 @@ export function createHost(opts: { dataDir: string }): Host {
     getSession: sessions.getSession,
     deleteSession: sessions.deleteSession,
     setSessionWorkspace: sessions.setSessionWorkspace,
+    setSessionSupportingWorkspaces: sessions.setSessionSupportingWorkspaces,
     setSessionAttachments: sessions.setSessionAttachments,
     buildSpec,
     buildSpecDoc,

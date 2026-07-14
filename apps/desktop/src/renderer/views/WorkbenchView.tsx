@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentEvent, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@open-paw/shared';
-import { useStore, type WbGroup, type WbPane } from '../store.js';
+import type { AgentEvent, AppSettings, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@open-paw/shared';
+import { useStore, type FilesPaneSide, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
 import { FilePane } from '../components/FilePane.js';
 import { BrowserPane } from '../components/BrowserPane.js';
 import { DiffPane } from '../components/DiffPane.js';
 import { ProjectFiles } from '../components/FileTree.js';
-import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FolderIcon, FileIcon, ExternalIcon } from '../icons.js';
+import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FolderIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
 
 /** Short label for a pane's tab/title. */
 function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
@@ -99,6 +99,7 @@ export function WorkbenchView() {
     refreshSessions, refreshTerminals, openChatPane, openTerminalPane, newTerminal,
     setActivePane, closePane, focusGroup, splitRight, newChat, setActiveWorkspace,
     reorderWorkspaces, layoutChats, layoutTerminals, openFilePane,
+    filesPaneOpen, filesPaneSide, filesPaneWidth, toggleFilesPane, setFilesPaneOpen, setFilesPaneSide, setFilesPaneWidth,
   } = useStore();
 
   const [statuses, setStatuses] = useState<Map<string, AgentStatus>>(new Map());
@@ -229,6 +230,14 @@ export function WorkbenchView() {
       <div className="flex items-center justify-between px-3 py-2.5">
         <span className="text-sm font-semibold">Workbench</span>
         <div className="relative" ref={newMenuRef}>
+          <button
+            className={`rounded p-1.5 ${filesPaneOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
+            title={filesPaneOpen ? 'Close Files pane' : 'Open Files pane'}
+            aria-label={filesPaneOpen ? 'Close Files pane' : 'Open Files pane'}
+            onClick={toggleFilesPane}
+          >
+            <PanelIcon className="h-3.5 w-3.5" />
+          </button>
           <button className="btn btn-ghost px-2 py-1" title="New agent or terminal"
             onClick={() => setNewMenuOpen((o) => !o)}><PlusIcon /></button>
           {newMenuOpen && (
@@ -337,7 +346,6 @@ export function WorkbenchView() {
                       <TerminalRow term={t} onOpen={openTerminalPane} />
                     </div>
                   ))}
-                  {b.ws && <ProjectFiles root={b.ws.path} onOpen={openFilePane} />}
                 </div>
               )}
             </div>
@@ -351,6 +359,18 @@ export function WorkbenchView() {
     <div className="flex h-full min-w-0 overflow-hidden">
       {mobileNav && <div className="absolute inset-0 z-20 bg-black/40 md:hidden" onClick={() => setMobileNav(false)} />}
       <aside className={`${mobileNav ? 'absolute inset-y-0 left-0 z-30 flex' : 'hidden'} md:relative md:z-auto md:flex`}>{Sidebar}</aside>
+
+      {filesPaneOpen && filesPaneSide === 'left' && (
+        <FilesSidePane
+          settings={settings}
+          side={filesPaneSide}
+          width={filesPaneWidth}
+          onClose={() => setFilesPaneOpen(false)}
+          onSideChange={setFilesPaneSide}
+          onWidthChange={setFilesPaneWidth}
+          onOpen={openFilePane}
+        />
+      )}
 
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-line px-2 py-1.5 md:hidden">
@@ -384,8 +404,111 @@ export function WorkbenchView() {
           </div>
         )}
       </main>
+
+      {filesPaneOpen && filesPaneSide === 'right' && (
+        <FilesSidePane
+          settings={settings}
+          side={filesPaneSide}
+          width={filesPaneWidth}
+          onClose={() => setFilesPaneOpen(false)}
+          onSideChange={setFilesPaneSide}
+          onWidthChange={setFilesPaneWidth}
+          onOpen={openFilePane}
+        />
+      )}
     </div>
   );
+}
+
+function FilesSidePane({
+  settings,
+  side,
+  width,
+  onClose,
+  onSideChange,
+  onWidthChange,
+  onOpen,
+}: {
+  settings: AppSettings | null;
+  side: FilesPaneSide;
+  width: number;
+  onClose: () => void;
+  onSideChange: (side: FilesPaneSide) => void;
+  onWidthChange: (width: number) => void;
+  onOpen: (path: string) => void;
+}) {
+  const resizing = useRef(false);
+
+  const startResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    resizing.current = true;
+    const startX = e.clientX;
+    const startWidth = width;
+    const onMove = (event: PointerEvent) => {
+      const delta = side === 'left' ? event.clientX - startX : startX - event.clientX;
+      onWidthChange(startWidth + delta);
+    };
+    const onUp = () => {
+      resizing.current = false;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  return (
+    <section
+      className={`relative flex min-h-0 shrink-0 flex-col border-line bg-paper ${
+        side === 'left' ? 'border-r' : 'border-l'
+      }`}
+      style={{ width }}
+    >
+      <div className="flex items-center gap-1.5 border-b border-line px-3 py-2">
+        <FileIcon className="h-3.5 w-3.5 text-ink-faint" />
+        <span className="min-w-0 flex-1 text-[12px] font-semibold">Files</span>
+        <button
+          className="rounded p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
+          title={`Dock Files on the ${side === 'left' ? 'right' : 'left'}`}
+          onClick={() => onSideChange(side === 'left' ? 'right' : 'left')}
+        >
+          <span className="text-[13px]">{side === 'left' ? '→' : '←'}</span>
+        </button>
+        <button className="rounded p-1 text-ink-faint hover:bg-surface-2 hover:text-ink" title="Close Files pane" onClick={onClose}>
+          <CloseIcon className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {settings?.workspaces.length ? (
+          <div className="space-y-2">
+            {settings.workspaces.map((workspace) => (
+              <ProjectFiles
+                key={workspace.id}
+                root={workspace.path}
+                label={workspace.name || baseName(workspace.path)}
+                onOpen={onOpen}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="px-1 py-2 text-[11px] text-ink-faint">Add a workspace to browse its files.</p>
+        )}
+      </div>
+      <div
+        className={`absolute inset-y-0 z-10 w-1 cursor-col-resize hover:bg-accent/40 ${
+          side === 'left' ? '-right-0.5' : '-left-0.5'
+        }`}
+        onPointerDown={startResize}
+        role="separator"
+        aria-label="Resize Files pane"
+      />
+    </section>
+  );
+}
+
+function baseName(path: string): string {
+  const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/);
+  return parts[parts.length - 1] || path;
 }
 
 function ChatRow({

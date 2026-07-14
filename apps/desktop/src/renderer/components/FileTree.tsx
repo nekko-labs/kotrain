@@ -9,7 +9,7 @@ import { FolderIcon } from '../icons.js';
  * opens it in a FilePane (view/edit in-app). Not a full IDE tree, no rename/DnD
  * yet, just enough to browse and open without leaving Open Paw.
  */
-export function ProjectFiles({ root, onOpen }: { root: string; onOpen: (path: string) => void }) {
+export function ProjectFiles({ root, label = 'Files', onOpen }: { root: string; label?: string; onOpen: (path: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-0.5">
@@ -18,7 +18,7 @@ export function ProjectFiles({ root, onOpen }: { root: string; onOpen: (path: st
         className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-faint hover:bg-surface-2"
       >
         <span className="w-2 text-[9px]">{open ? '▾' : '▸'}</span>
-        <span>Files</span>
+        <span>{label}</span>
       </button>
       {open && <div className="mt-0.5"><DirChildren path={root} depth={0} onOpen={onOpen} /></div>}
     </div>
