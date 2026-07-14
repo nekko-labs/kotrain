@@ -156,7 +156,15 @@ export class OpenAICompatProvider implements Provider {
           })),
         });
       } else {
-        out.push({ role: m.role, content: m.content });
+        out.push({
+          role: m.role,
+          content: m.role === 'user' && m.images?.length
+            ? [
+                { type: 'text', text: m.content },
+                ...m.images.map((url) => ({ type: 'image_url', image_url: { url } })),
+              ]
+            : m.content,
+        });
       }
     }
     return out;

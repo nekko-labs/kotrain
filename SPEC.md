@@ -1,6 +1,6 @@
 ---
 status: active
-last-updated: 2026-07-11
+last-updated: 2026-07-14
 owner:
 ---
 
@@ -62,7 +62,7 @@ A user opens the app and goes to **Models**. Auto-discovery probes common localh
 
 ### Working in a codebase
 
-The user wires one or more **folders** into a chat (multi-root), and the workspace gets indexed (file tree + code outline + search). They talk to the model in a unified **Chat** surface, messages render as speech bubbles, reasoning streams into a collapsible "Thinking" box, and a metrics bar shows context used/total, tokens/sec, thinking on/off, an effort cycle, and estimated cost. The agent reads/edits/searches/runs with tool calls shown as cards; risky commands trigger an approval prompt. Per-chat control modes (Ask / Guardrails / YOLO, plus Offline and Incognito) govern how much it confirms.
+The user wires one or more **folders** into a chat (multi-root), and the workspace gets indexed (file tree + code outline + search). They talk to the model in a unified **Chat** surface, messages render as speech bubbles, and reasoning appears above each answer as a collapsed summary such as "Thought for 3s" (expandable to inspect the reasoning). Tool calls appear as collapsed "Used `<tool>` tool" cards that expand on demand; risky commands trigger an approval prompt. The composer accepts pasted images and has a **+** menu for a photo, file, or folder. Images are sent to vision-capable models as multimodal messages. A thin metrics bar shows context used/total, tokens/sec, thinking on/off, estimated cost, compact provider/model switching, automation, and effort; the model picker sits immediately to the left of the effort control. Per-chat control modes (Ask / Guardrails / YOLO, plus Offline and Incognito) govern how much it confirms.
 
 ### Editing, reviewing & previewing, without leaving the app
 
@@ -100,14 +100,15 @@ The user pairs a phone to a local agent (QR / link). The local agent dials out t
 - **Provider support** `[shipped]`, Anthropic (native), OpenAI-compatible streaming SSE (covers OpenAI/OpenRouter/LM Studio/vLLM), Ollama native (list/pull/ps/load/unload), with OpenRouter presets. Base-URL `/v1` normalization for bare `host:port` entries.
 - **Local-model auto-discovery** `[shipped]`, scans localhost + `127.0.0.1` on common ports; Test-connection in the add form; cards auto-check and show Connected/Offline; Local vs Cloud grouping.
 - **Models page** `[shipped]`, server cards (add/connect ollama/lmstudio/vllm/cloud), model list, load/unload (ollama), usage analytics (tokens over time, per model/provider), model favorites.
-- **Reasoning-model streaming** `[shipped]`, `reasoning_content` deltas render into a collapsible Thinking box.
+- **Reasoning-model streaming** `[shipped]`, `reasoning_content` deltas render into a collapsed, persisted "Thought for Ns" summary above each assistant answer; the full reasoning remains expandable.
 
 ### Chat & cowork (unified surface)
-- **Workbench (multi-pane)** `[shipped]`, the Chat surface is a Warp/Devin-style workbench: a project-grouped left sidebar (chats + terminals per workspace, with spawned sub-agents nested as sub-tabs under their parent), a tabbed center, and side-by-side split columns (up to 3) so many agents and terminals run at once. Each chat pane is independent, its own provider/model picker, streaming, and Context Inspector, so agents run in parallel.
+- **Workbench (multi-pane)** `[shipped]`, the Chat surface is a Warp/Devin-style workbench: a project-grouped left sidebar with chats and terminals visually indented inside a subtle grouping container (spawned sub-agents remain nested as sub-tabs under their parent), a tabbed center, and side-by-side split columns (up to 3) so many agents and terminals run at once. Each chat pane is independent, with its own provider/model picker, streaming, and Context Inspector, so agents run in parallel.
 - **Terminals** `[shipped]`, persistent shell sessions rendered as Warp-style command **blocks** (command + streamed output + exit code + duration). Backed by one long-lived host shell per terminal (PowerShell on Windows, `$SHELL`/bash elsewhere) so cwd/env persist across commands; marker-delimited blocks capture status with no native PTY (honors the no-native-modules rule). Command history (↑/↑), best-effort interrupt, scrollback restore on tab reattach. New-terminal shortcut (Ctrl+J).
 - **Sub-agents & orchestration** `[shipped]`, a `spawn_agent` tool lets an agent delegate a scoped sub-task to a fresh child session (own context, same project, inherits the parent's tool-execution mode). An **orchestration strategy** (Settings) governs delegation: `solo` (no sub-agents, `spawn_agent` is withheld), `balanced` (delegate only clearly separable/heavy work, default), or `swarm` (act as orchestrator, proactively decompose into parallel sub-agents). The strategy shapes the system prompt and tool availability; **max nesting depth** and an advisory **parallel** count are configurable. Children stream their own events, and the Command Center renders the full **swarm as a recursive tree** under each agent (live status, descendant counts, click-to-open) and reports the final answer back as the tool result.
-- **Streaming chat** `[shipped]`, markdown + code rendering, tool-call cards, approval prompts, model picker, speech-bubble messages.
-- **Metrics bar** `[shipped]`, context used/total with a by-source token tooltip, tokens/sec, thinking on/off, an effort cycle (low/normal/high → sampling temperature), and per-chat estimated cost.
+- **Streaming chat** `[shipped]`, markdown + code rendering, persisted collapsed reasoning summaries, expandable "Used `<tool>` tool" cards, approval prompts, and speech-bubble messages.
+- **Composer attachments** `[shipped]`, paste images directly into the composer or use the **+** menu to add photos, session files, or project folders. Pasted and selected images travel with the user message as data URLs and are encoded for multimodal requests by OpenAI-compatible, Anthropic, and Ollama providers.
+- **Metrics bar** `[shipped]`, context used/total with a by-source token tooltip, tokens/sec, thinking on/off, estimated cost, compact provider/model switching, and an effort cycle (low/normal/high → sampling temperature). The model picker and **⚡ Automate** control live here rather than in the chat header, with the picker immediately to the left of effort.
 - **Model auto-mode** `[shipped]`, a per-chat **✨ Auto (pick best)** option in the model picker. When on, each turn is routed to the best available model for that prompt via a pure heuristic: complex/coding asks get the strongest model the provider offers, quick questions get a small fast one, with favorited models breaking ties. The picker shows a "→ <model>" preview of what Auto will use for the current message. Persisted per chat (`session.autoModel`).
 - **Chat control modes** `[shipped]`, per-chat Ask / Guardrails / YOLO, plus Offline (local-only, no tools/connectors/internet) and Incognito (no transcript/memory persistence); in-composer Tools popover to enable/disable builtins + MCP tools.
 - **Competitor-parity chat features** `[shipped]`, export to Markdown, regenerate last response, edit & resend, per-message + code-block Copy, slash-command palette (`/`), @-mention files, chat-list search + rename, conversation tags, per-chat ⋯ menu (Pin/Rename/Delete).

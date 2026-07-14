@@ -44,6 +44,9 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
     }
 
     let text = '';
+    let reasoning = '';
+    let reasoningStartedAt = 0;
+    let reasoningSeconds: number | undefined;
     const calls: ToolCall[] = [];
 
     try {
@@ -57,13 +60,21 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
       })) {
         switch (chunk.type) {
           case 'text':
+            if (reasoningStartedAt && reasoningSeconds == null) {
+              reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+            }
             text += chunk.delta;
             yield { type: 'text', sessionId: opts.sessionId, delta: chunk.delta };
             break;
           case 'reasoning':
+            if (!reasoningStartedAt) reasoningStartedAt = Date.now();
+            reasoning += chunk.delta;
             yield { type: 'reasoning', sessionId: opts.sessionId, delta: chunk.delta };
             break;
           case 'tool_call':
+            if (reasoningStartedAt && reasoningSeconds == null) {
+              reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+            }
             calls.push(chunk.call);
             yield { type: 'tool_call', sessionId: opts.sessionId, call: chunk.call };
             break;
@@ -84,11 +95,16 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
       return;
     }
 
+    if (reasoningStartedAt && reasoningSeconds == null) {
+      reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+    }
+
     // Record the assistant message.
     const assistantMsg: ChatMessage = {
       id: id('msg'),
       role: 'assistant',
       content: text,
+      ...(reasoning ? { reasoning, reasoningSeconds } : {}),
       toolCalls: calls.length ? calls : undefined,
       createdAt: Date.now(),
     };
