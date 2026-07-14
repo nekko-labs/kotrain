@@ -1,0 +1,25 @@
+name: Auto-merge
+
+# Turns on GitHub's native auto-merge for every non-draft PR, so it merges
+# itself once required checks pass. Requires "Allow auto-merge" enabled in repo
+# settings and required status checks on the target branch (otherwise a
+# mergeable PR merges immediately).
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge (squash)
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}

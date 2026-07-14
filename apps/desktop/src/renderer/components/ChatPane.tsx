@@ -8,6 +8,7 @@ import { ChatMetrics } from './ChatMetrics.js';
 import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
+import { MiniNekko } from './Mascot.js';
 import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
@@ -199,6 +200,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [session?.messages.length, liveText, liveTools.length]);
+
+  // Grow the composer with its content: reset to the 3-line minimum, then match
+  // the scroll height (CSS max-height caps it and lets it scroll past that).
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
 
   const beginTurn = () => {
     setStreaming(true);
@@ -513,7 +523,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} onImageClick={setLightbox} />}
             {streaming && !liveText && !liveReasoning && !liveTools.length && (
               <div className="flex items-center gap-2 text-[13px] text-ink-faint">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-accent" /> Nekko is thinking…
+                <MiniNekko size={18} /> Nekko is working<span className="dots" />
               </div>
             )}
             {canRegenerate && (
@@ -685,8 +695,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               )}
               <textarea
                 ref={composerRef}
-                className="input max-h-40 min-h-[44px] w-full resize-none"
-                rows={1}
+                className="input max-h-60 min-h-[78px] w-full resize-none"
+                rows={3}
                 placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -857,13 +867,12 @@ function ToolCard({ call }: { call: ToolCall }) {
   const isSpawn = call.name === 'spawn_agent';
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-2 rounded-xl border border-line p-2.5 font-mono text-[12px]" style={{ background: 'var(--surface-2)' }}>
-      <button className="flex w-full items-center gap-2 text-left text-ink-soft" onClick={() => setOpen((value) => !value)}>
-        <ShieldIcon className="h-3.5 w-3.5" />
-        <span className="font-semibold">{isSpawn ? '🤖 ' : ''}Used <span className="font-mono">{call.name}</span> tool</span>
-        <span className="ml-auto text-[10px] text-ink-faint">{open ? '▾' : '▸'}</span>
+    <div className="mt-1 font-mono text-[12px]">
+      <button className="flex w-full items-center gap-1.5 py-0.5 text-left text-ink-faint" onClick={() => setOpen((value) => !value)}>
+        <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
+        <span className="font-medium text-ink-soft">{isSpawn ? '🤖 ' : ''}Used <span className="font-mono">{call.name}</span> tool</span>
       </button>
-      {open && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap border-t border-line pt-1 text-ink-faint">{JSON.stringify(call.input, null, 2)}</pre>}
+      {open && <pre className="ml-[18px] mt-0.5 overflow-x-auto whitespace-pre-wrap border-l border-line pl-2 text-ink-faint">{JSON.stringify(call.input, null, 2)}</pre>}
     </div>
   );
 }
