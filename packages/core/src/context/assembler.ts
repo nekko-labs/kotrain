@@ -13,6 +13,10 @@ export interface AssembleInput {
   connectorSnippets: Array<{ label: string; origin: string; body: string }>;
   /** Index search snippets relevant to the query. */
   indexSnippets: Array<{ relPath: string; path: string; body: string }>;
+  /** The running conversation (so its token weight is reflected in the window). */
+  history?: Array<{ role: string; content: string }>;
+  /** The base system prompt (framework instructions, tools, safety). */
+  systemText?: string;
   contextWindow?: number;
   /** Item ids the user toggled off. */
   excluded?: Set<string>;
@@ -61,6 +65,35 @@ export function assembleContext(input: AssembleInput): ContextBundle {
     });
   };
 
+  // The base system prompt and the running conversation always occupy the
+  // window; surface them so the Context Inspector total tracks real usage
+  // (and grows as the chat gets longer) instead of only counting sources.
+  if (input.systemText) {
+    items.push({
+      id: 'system:base',
+      source: 'system',
+      label: 'System prompt',
+      origin: 'Open Paw',
+      tokens: estimateTokens(input.systemText),
+      pinned: false,
+      included: true,
+      preview: preview(input.systemText),
+    });
+  }
+  if (input.history?.length) {
+    const convo = input.history.map((m) => m.content ?? '').join('\n');
+    items.push({
+      id: 'conversation',
+      source: 'conversation',
+      label: `Conversation (${input.history.length} message${input.history.length === 1 ? '' : 's'})`,
+      origin: 'chat',
+      tokens: estimateTokens(convo),
+      pinned: false,
+      included: true,
+      preview: preview(convo),
+    });
+  }
+
   for (const g of input.guidelines) push('guideline', `guideline:${g.path}`, basename(g.path), g.path, g.content);
   for (const a of input.attached) push('attached-file', `file:${a.path}`, basename(a.path), a.path, a.content);
   for (const m of input.memory) push('memory', `mem:${m.id}`, m.title, `memory/${m.scope}`, m.body);
@@ -76,6 +109,9 @@ export function renderContextBlock(bundle: ContextBundle, contents: Map<string, 
   const parts: string[] = [];
   for (const item of bundle.items) {
     if (!item.included) continue;
+    // System prompt and conversation are supplied to the model separately;
+    // they only appear in the bundle for token accounting, never in the block.
+    if (item.source === 'system' || item.source === 'conversation' || item.source === 'skill') continue;
     const body = contents.get(item.id) ?? item.preview;
     const header =
       item.source === 'guideline'

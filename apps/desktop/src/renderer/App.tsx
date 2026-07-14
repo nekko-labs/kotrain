@@ -16,27 +16,27 @@ import { ConnectorsView } from './views/ConnectorsView.js';
 import { MemoryView } from './views/MemoryView.js';
 import { SettingsView } from './views/SettingsView.js';
 import {
-  ChatIcon,
-  FolderIcon,
-  ServerIcon,
-  PlugIcon,
-  BrainIcon,
-  GearIcon,
-  GridIcon,
-  LayoutIcon,
-  WandIcon,
-} from './icons.js';
+  CommandHudIcon,
+  ChatColorIcon,
+  SkillsColorIcon,
+  DesignColorIcon,
+  ProjectsColorIcon,
+  ModelsColorIcon,
+  ConnectorsColorIcon,
+  MemoryColorIcon,
+  SettingsColorIcon,
+} from './navIcons.js';
 
 const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string }) => JSX.Element }> = [
-  { view: 'command', labelKey: 'nav.command', Icon: GridIcon },
-  { view: 'chat', labelKey: 'nav.chat', Icon: ChatIcon },
-  { view: 'skills', labelKey: 'nav.skills', Icon: WandIcon },
-  { view: 'design', labelKey: 'nav.design', Icon: LayoutIcon },
-  { view: 'projects', labelKey: 'nav.projects', Icon: FolderIcon },
-  { view: 'models', labelKey: 'nav.models', Icon: ServerIcon },
-  { view: 'connectors', labelKey: 'nav.connectors', Icon: PlugIcon },
-  { view: 'memory', labelKey: 'nav.memory', Icon: BrainIcon },
-  { view: 'settings', labelKey: 'nav.settings', Icon: GearIcon },
+  { view: 'command', labelKey: 'nav.command', Icon: CommandHudIcon },
+  { view: 'chat', labelKey: 'nav.chat', Icon: ChatColorIcon },
+  { view: 'skills', labelKey: 'nav.skills', Icon: SkillsColorIcon },
+  { view: 'design', labelKey: 'nav.design', Icon: DesignColorIcon },
+  { view: 'projects', labelKey: 'nav.projects', Icon: ProjectsColorIcon },
+  { view: 'models', labelKey: 'nav.models', Icon: ModelsColorIcon },
+  { view: 'connectors', labelKey: 'nav.connectors', Icon: ConnectorsColorIcon },
+  { view: 'memory', labelKey: 'nav.memory', Icon: MemoryColorIcon },
+  { view: 'settings', labelKey: 'nav.settings', Icon: SettingsColorIcon },
 ];
 
 export function App() {

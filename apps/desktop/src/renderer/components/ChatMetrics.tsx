@@ -10,6 +10,8 @@ const SOURCE_LABEL: Record<string, string> = {
   connector: 'Connectors',
   'index-snippet': 'Code index',
   system: 'System',
+  conversation: 'Conversation',
+  skill: 'Skill',
 };
 
 const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `${n}`);
@@ -28,6 +30,7 @@ export function ChatMetrics({
   streaming,
   cost,
   controls,
+  skill,
 }: {
   bundle: ContextBundle | null;
   tps: number;
@@ -35,12 +38,14 @@ export function ChatMetrics({
   streaming: boolean;
   cost?: number;
   controls?: React.ReactNode;
+  /** The skill armed in the composer, folded into the token count when present. */
+  skill?: { name: string; tokens: number } | null;
 }) {
   const settings = useStore((s) => s.settings);
   const effort = settings?.effort ?? 'normal';
 
   const included = (bundle?.items ?? []).filter((i: ContextItem) => i.included);
-  const used = included.reduce((s, i) => s + i.tokens, 0);
+  const used = included.reduce((s, i) => s + i.tokens, 0) + (skill?.tokens ?? 0);
   const windowTokens = bundle?.contextWindow ?? 0;
   const pct = windowTokens ? Math.min(100, (used / windowTokens) * 100) : 0;
 
@@ -48,6 +53,7 @@ export function ChatMetrics({
     acc[i.source] = (acc[i.source] ?? 0) + i.tokens;
     return acc;
   }, {});
+  if (skill?.tokens) bySource.skill = (bySource.skill ?? 0) + skill.tokens;
 
   const cycleEffort = () => {
     const next = EFFORTS[(EFFORTS.indexOf(effort) + 1) % EFFORTS.length];

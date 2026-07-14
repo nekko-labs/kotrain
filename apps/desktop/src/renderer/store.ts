@@ -101,6 +101,10 @@ interface UiState {
   installedSkillDefs: SkillDef[];
   refreshSkills: () => Promise<void>;
 
+  /** The skill armed in each chat's composer (highlighted pill, runs on send). */
+  activeSkillBySession: Record<string, SkillDef | null>;
+  setActiveSkill: (sessionId: string, skill: SkillDef | null) => void;
+
   setActiveWorkspace: (id: string | null) => void;
   pushToast: (kind: Toast['kind'], message: string) => void;
   dismissToast: (id: string) => void;
@@ -243,6 +247,10 @@ export const useStore = create<UiState>((set, get) => ({
       /* older host without the marketplace channels */
     }
   },
+
+  activeSkillBySession: {},
+  setActiveSkill: (sessionId, skill) =>
+    set((s) => ({ activeSkillBySession: { ...s.activeSkillBySession, [sessionId]: skill } })),
 
   setActiveSession: (id) => set({ activeSessionId: id }),
 

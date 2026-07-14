@@ -1,0 +1,117 @@
+import React from 'react';
+
+/**
+ * Colorful, playful duotone icons for the left navigation rail. Unlike the
+ * monochrome `icons.tsx` set (used inside buttons that inherit text color),
+ * these carry their own vivid palette so the rail reads as fun and lively.
+ * Hover / click / active motion is driven by CSS in styles.css (`.nav-item svg`).
+ *
+ * Each icon is a 24×24 glyph rendered at 22px. Colors are mid-saturation so they
+ * stay legible on both the light (#fbfbfd) and dark (#0c0c11) rail backgrounds.
+ */
+
+type P = { className?: string };
+
+const Svg = ({ children, className }: { children: React.ReactNode } & P) => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" className={className}>
+    {children}
+  </svg>
+);
+
+/** Command Center — a military HUD / radar scope (sweep, rings, crosshair, blips). */
+export const CommandHudIcon = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9.2" stroke="#10b981" strokeWidth="1.5" opacity="0.35" />
+    <circle cx="12" cy="12" r="5.6" stroke="#10b981" strokeWidth="1.3" opacity="0.55" />
+    <path d="M12 2.4v19.2M2.4 12h19.2" stroke="#10b981" strokeWidth="1.1" opacity="0.4" />
+    {/* radar sweep wedge */}
+    <path d="M12 12 L12 2.8 A9.2 9.2 0 0 1 20.9 9 Z" fill="#10b981" opacity="0.28" />
+    {/* blips */}
+    <circle cx="16" cy="8.4" r="1.35" fill="#34d399" />
+    <circle cx="8.4" cy="15.2" r="1.05" fill="#6ee7b7" />
+    <circle cx="12" cy="12" r="1.5" fill="#059669" />
+  </Svg>
+);
+
+/** Chat — a friendly violet speech bubble with colored dots. */
+export const ChatColorIcon = (p: P) => (
+  <Svg {...p}>
+    <path
+      d="M4.5 6.2A2.5 2.5 0 0 1 7 3.7h10a2.5 2.5 0 0 1 2.5 2.5v6.4a2.5 2.5 0 0 1-2.5 2.5h-5.7L6.6 20v-3.4A2.5 2.5 0 0 1 4.5 14z"
+      fill="#7c6cff"
+    />
+    <circle cx="9" cy="9.4" r="1.15" fill="#ffffff" />
+    <circle cx="12" cy="9.4" r="1.15" fill="#c4b5fd" />
+    <circle cx="15" cy="9.4" r="1.15" fill="#22d3ee" />
+  </Svg>
+);
+
+/** Skills — a magic wand with a star tip and sparkles. */
+export const SkillsColorIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M6 18.5 14.5 10" stroke="#f59e0b" strokeWidth="2.7" strokeLinecap="round" />
+    <path d="M17.4 3.2l1.15 2.45 2.55.32-1.9 1.78.52 2.53-2.32-1.26-2.32 1.26.52-2.53-1.9-1.78 2.55-.32z" fill="#fbbf24" />
+    <path d="M6 5.4l.62 1.5L8.1 7.5l-1.48.6L6 9.6l-.62-1.5L3.9 7.5l1.48-.6z" fill="#ec4899" />
+    <circle cx="19" cy="15.5" r="1.1" fill="#f472b6" />
+  </Svg>
+);
+
+/** Design — a colorful bento layout / palette. */
+export const DesignColorIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="3" width="8.2" height="8.2" rx="2.2" fill="#f43f5e" />
+    <rect x="12.8" y="3" width="8.2" height="5" rx="2.2" fill="#8b5cf6" />
+    <rect x="12.8" y="9.6" width="8.2" height="11.4" rx="2.2" fill="#22d3ee" />
+    <rect x="3" y="12.8" width="8.2" height="8.2" rx="2.2" fill="#fb923c" />
+  </Svg>
+);
+
+/** Projects — a two-tone blue folder. */
+export const ProjectsColorIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 6.6a2 2 0 0 1 2-2h3.5a2 2 0 0 1 1.5.7l1.05 1.2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="#1d4ed8" />
+    <path d="M3 10.4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="#3b82f6" />
+  </Svg>
+);
+
+/** Models — a purple CPU / chip with pins. */
+export const ModelsColorIcon = (p: P) => (
+  <Svg {...p}>
+    <path
+      d="M9 2.6v2.2M12 2.6v2.2M15 2.6v2.2M9 19.2v2.2M12 19.2v2.2M15 19.2v2.2M2.6 9h2.2M2.6 12h2.2M2.6 15h2.2M19.2 9h2.2M19.2 12h2.2M19.2 15h2.2"
+      stroke="#a78bfa"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+    />
+    <rect x="5.5" y="5.5" width="13" height="13" rx="3" fill="#8b5cf6" />
+    <rect x="9" y="9" width="6" height="6" rx="1.4" fill="#ddd6fe" />
+  </Svg>
+);
+
+/** Connectors — a green plug. */
+export const ConnectorsColorIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M9 2.8v4.6M15 2.8v4.6" stroke="#15803d" strokeWidth="2" strokeLinecap="round" />
+    <path d="M6.4 7.4h11.2v3.1a5.6 5.6 0 0 1-11.2 0z" fill="#22c55e" />
+    <path d="M12 15.8v5.4" stroke="#15803d" strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+/** Memory — a two-tone pink brain. */
+export const MemoryColorIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M11.4 5.4a3.3 3.3 0 0 0-6.2-1.1 3 3 0 0 0-1.3 5.2 3 3 0 0 0 .9 4.9 3 3 0 0 0 6.6 1z" fill="#ec4899" />
+    <path d="M12.6 5.4a3.3 3.3 0 0 1 6.2-1.1 3 3 0 0 1 1.3 5.2 3 3 0 0 1-.9 4.9 3 3 0 0 1-6.6 1z" fill="#f472b6" />
+  </Svg>
+);
+
+/** Settings — a cog with an accent hub. */
+export const SettingsColorIcon = (p: P) => (
+  <Svg {...p}>
+    {[0, 45, 90, 135].map((a) => (
+      <rect key={a} x="10.7" y="2.4" width="2.6" height="19.2" rx="1.3" fill="#64748b" transform={`rotate(${a} 12 12)`} />
+    ))}
+    <circle cx="12" cy="12" r="6.6" fill="#64748b" />
+    <circle cx="12" cy="12" r="3" fill="#a5b4fc" />
+  </Svg>
+);
