@@ -19,6 +19,12 @@ export interface ChatMessage {
   id: string;
   role: Role;
   content: string;
+  /** Image data URLs attached to a user message. */
+  images?: string[];
+  /** Model chain-of-thought text, when the provider streams it. */
+  reasoning?: string;
+  /** Whole seconds spent streaming the reasoning text. */
+  reasoningSeconds?: number;
   /** Tool calls requested by the assistant in this message. */
   toolCalls?: ToolCall[];
   /** Tool results (for role === 'tool'). */
@@ -105,6 +111,8 @@ export interface SendOptions {
   providerId: string;
   modelId: string;
   text: string;
+  /** Image data URLs attached to this user turn. */
+  images?: string[];
   /** File paths the user explicitly attached as context. */
   attachedPaths?: string[];
   /** Re-answer the last user turn: drop trailing assistant/tool messages and

@@ -119,7 +119,25 @@ export class AnthropicProvider implements Provider {
         }
         out.push({ role: 'assistant', content });
       } else if (m.role === 'user' || m.role === 'assistant') {
-        out.push({ role: m.role, content: m.content });
+        out.push({
+          role: m.role,
+          content: m.role === 'user' && m.images?.length
+            ? [
+                { type: 'text', text: m.content },
+                ...m.images.map((url) => {
+                  const match = url.match(/^data:([^;]+);base64,(.+)$/);
+                  return {
+                    type: 'image',
+                    source: {
+                      type: 'base64',
+                      media_type: match?.[1] ?? 'application/octet-stream',
+                      data: match?.[2] ?? url,
+                    },
+                  };
+                }),
+              ]
+            : m.content,
+        });
       }
     }
     return out;

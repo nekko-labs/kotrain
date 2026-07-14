@@ -306,7 +306,7 @@ export function WorkbenchView() {
                 </span>
               </div>
               {!isCollapsed && (
-                <div className="mt-0.5 space-y-0.5">
+                <div className="mt-0.5 ml-2 space-y-0.5 border-l border-line bg-surface-2/30 py-0.5">
                   {chats.length === 0 && terms.length === 0 && (
                     <p className="px-3 py-1 text-[11px] text-ink-faint">Empty, start a chat or terminal.</p>
                   )}

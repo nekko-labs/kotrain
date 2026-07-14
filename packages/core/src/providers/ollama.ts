@@ -150,7 +150,13 @@ export class OllamaProvider implements Provider {
           tool_calls: m.toolCalls.map((c) => ({ function: { name: c.name, arguments: c.input } })),
         });
       } else {
-        out.push({ role: m.role, content: m.content });
+        out.push({
+          role: m.role,
+          content: m.content,
+          ...(m.role === 'user' && m.images?.length
+            ? { images: m.images.map((image) => image.replace(/^data:[^;]+;base64,/, '')) }
+            : {}),
+        });
       }
     }
     return out;

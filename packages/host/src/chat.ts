@@ -274,6 +274,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
       role: 'user',
       content: opts.text,
       createdAt: Date.now(),
+      ...(opts.images?.length ? { images: opts.images } : {}),
     };
     session.messages.push(userMsg);
     if (session.title === 'New chat') session.title = opts.text.slice(0, 48) || 'New chat';

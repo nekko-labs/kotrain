@@ -27,12 +27,14 @@ export function ChatMetrics({
   thinking,
   streaming,
   cost,
+  controls,
 }: {
   bundle: ContextBundle | null;
   tps: number;
   thinking: boolean;
   streaming: boolean;
   cost?: number;
+  controls?: React.ReactNode;
 }) {
   const settings = useStore((s) => s.settings);
   const effort = settings?.effort ?? 'normal';
@@ -112,9 +114,11 @@ export function ChatMetrics({
           </>
         )}
 
+        {controls && <div className="ml-auto flex min-w-0 items-center gap-1">{controls}</div>}
+
         {/* Effort control (pushed right) */}
         <button
-          className="ml-auto rounded-md px-2 py-0.5 hover:text-ink"
+          className="rounded-md px-2 py-0.5 hover:text-ink"
           style={{ background: 'var(--surface-2)' }}
           onClick={cycleEffort}
           title="Sampling effort (temperature). Click to change."
