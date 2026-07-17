@@ -14,7 +14,7 @@ owner:
 
 Quality bar: on par with Zed / Cursor / Warp / OpenClaw, generous whitespace, minimal chrome, dark/light themes, fast.
 
-The persona/mascot is **Nekko**, an 8-bit cat that peeks from the window edge, waves, and "makes biscuits" while the model is thinking.
+The persona/mascot is **Nekko**, an 8-bit cat in a kendo outfit (red hachimaki bandana, indigo keikogi + hakama) that peeks from the window edge, waves, and **trains** while the model is thinking: punches, a snapping side-kick, then bokken overhead swings (suburi), cycling until the turn ends.
 
 ## Why It Exists
 
@@ -152,7 +152,7 @@ The user pairs a phone to a local agent (QR / link). The local agent dials out t
 - **`kotrain` CLI + MCP server** `[shipped]`, run the host in-process or against a running server over HTTP+WS; `kotrain status|sessions|chat|mcp|watch`; `kotrain mcp` exposes Kotrain as an MCP *server* (chat/list/new/get/status) so other agents can trigger agents + swarms. Bundled into the npx package.
 
 ### Mascot, polish & onboarding
-- **Nekko mascot** `[shipped]`, 8-bit pixel cat (CSS/canvas sprite): wave / biscuit-kneading / peek-from-edge / idle, hooked into app state (thinking → biscuits).
+- **Nekko mascot** `[shipped]`, 8-bit pixel cat (SVG rect-grid sprite) in a **kendo outfit**: red hachimaki bandana, indigo keikogi + hakama and belt. States: wave / peek-from-edge / idle, and a **training routine** while the model thinks, alternating punches, a snapping side-kick, then bokken overhead swings (suburi), cycling until the turn ends. The inline MiniNekko spinner throws quick alternating jabs.
 - **Polish** `[shipped]`, welcome/empty states, command palette (Ctrl+K), keyboard shortcuts, toasts, onboarding banner, persistent Context Inspector prefs, app icon, boot smoke test.
 - **Refined design system** `[shipped]`, a Warp/Linear-grade visual pass: cleaner cooler neutrals with more breathing room, soft elevation shadows on cards, a **secondary color** (`--accent-2`) paired with the accent into a **brand gradient** (the Command Center wordmark, primary buttons, the rail logo, and the active-nav indicator), focus rings, and tighter heading tracking. All theme tokens (incl. `--accent-soft`) track the user's chosen accent. Approachable for non-technical users while keeping the 8-bit Nekko mascot.
 - **Fresh color palette** `[shipped]`, the default accent is a modern **indigo-violet** (`#6d5efc`) paired with a **cyan** secondary into a violet→cyan brand gradient, the current developer-tool look (Linear/Vercel-era), replacing the original salmon/orange. Neutrals were cooled to match. Existing installs are **migrated** off the old default automatically (users who picked their own accent keep it); the accent is still fully recolorable in Settings. Applied across the app, the marketing website, and the branded installer art. The 8-bit Nekko mascot stays a ginger cat.
