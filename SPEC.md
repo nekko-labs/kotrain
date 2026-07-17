@@ -160,7 +160,7 @@ The user pairs a phone to a local agent (QR / link). The local agent dials out t
 - **Data & privacy controls** `[shipped]`, delete chats by window, Reset configs, Delete everything; settings export/import.
 
 ### Distribution & platforms
-- **Marketing website** `[shipped]`, static site with downloads, feature tour, mascot; positioning + edition cards.
+- **Marketing website** `[shipped]`, static site (kotrain.com) rebuilt in an immersive deep-space style inspired by liquidink.design's GitHub concept: drifting starfield canvas, nebula gradients, a giant KOTRAIN display hero ("Train your models. Run your agents. Own your machine."), glass panels, numbered chapters with scroll reveals, the kendo Nekko doing bokken suburi in the hero, plus the app-window mock, feature tour, local-models spotlight, positioning cards, edition cards, and OS-aware downloads. Dark-only by design; reduced-motion safe; still no-framework hand-crafted HTML/CSS/JS.
 - **Desktop packaging & release** `[shipped]`, electron-builder (win/mac/linux), GitHub Actions release workflow, branded NSIS installer + Windows uninstaller, macOS Gatekeeper ad-hoc-sign workaround, auto-updates (electron-updater). Released through v0.1.5.
 - **Self-hosted web edition** `[shipped]`, `npm run web` / `npx kotrain` serves the same UI; localhost bind by default, token to expose.
 - **Docker edition** `[shipped]`, multi-stage image, compose with volume workspaces + `host.docker.internal`, non-root, GHCR publish.
