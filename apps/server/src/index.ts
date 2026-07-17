@@ -6,31 +6,43 @@ import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
-import { createHost, createDispatcher } from '@open-paw/host';
-import { IpcEvents } from '@open-paw/shared';
+import { createHost, createDispatcher } from '@kotrain/host';
+import { IpcEvents } from '@kotrain/shared';
 import { runRelayAgent } from './relay-agent.js';
-import { runCli } from '@open-paw/cli';
+import { runCli } from '@kotrain/cli';
 
-/** Subcommands handled by the embedded CLI (so `npx open-paw mcp|chat|…` works). */
+/** Subcommands handled by the embedded CLI (so `npx kotrain mcp|chat|…` works). */
 const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', 'help', 'version']);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const PORT = Number(process.env.OPENPAW_PORT ?? 1440);
-const HOST = process.env.OPENPAW_HOST ?? '127.0.0.1';
+/** KOTRAIN_* env with legacy OPENPAW_* fallback (pre-rebrand installs). */
+function env(name: string): string | undefined {
+  return process.env[`KOTRAIN_${name}`] ?? process.env[`OPENPAW_${name}`];
+}
+/** Default data dir: ~/.kotrain, but keep using a pre-rebrand ~/.open-paw if it exists. */
+function defaultDataDir(): string {
+  const next = join(homedir(), '.kotrain');
+  const legacy = join(homedir(), '.open-paw');
+  if (!existsSync(next) && existsSync(legacy)) return legacy;
+  return next;
+}
+
+const PORT = Number(env('PORT') ?? 1440);
+const HOST = env('HOST') ?? '127.0.0.1';
 const isLocal = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
-const DATA_DIR = process.env.OPENPAW_DATA_DIR ?? join(homedir(), '.open-paw');
+const DATA_DIR = env('DATA_DIR') ?? defaultDataDir();
 // Auth is required iff a token is configured. (Containers must bind 0.0.0.0 but
 // are typically published only to the host's localhost, so we don't force a
-// token just because of the bind address, set OPENPAW_TOKEN when truly exposed.)
-const TOKEN = process.env.OPENPAW_TOKEN ?? '';
+// token just because of the bind address, set KOTRAIN_TOKEN when truly exposed.)
+const TOKEN = env('TOKEN') ?? '';
 const requireAuth = TOKEN !== '';
 
 // Find the built renderer: explicit override, then the bundled `web/` (published
 // npx package), then the in-repo desktop build (dev).
 function findRendererDir(): string {
   const candidates = [
-    process.env.OPENPAW_RENDERER_DIR,
+    env('RENDERER_DIR'),
     resolve(__dirname, 'web'),
     resolve(__dirname, '../../desktop/out/renderer'),
   ].filter(Boolean) as string[];
@@ -39,7 +51,7 @@ function findRendererDir(): string {
 const RENDERER_DIR = findRendererDir();
 
 async function main() {
-  // Subcommand → embedded CLI (e.g. `npx open-paw mcp`, `open-paw status`).
+  // Subcommand → embedded CLI (e.g. `npx kotrain mcp`, `kotrain status`).
   const sub = process.argv[2];
   if (sub && CLI_SUBCOMMANDS.has(sub)) {
     await runCli(process.argv.slice(2));
@@ -47,11 +59,13 @@ async function main() {
   }
 
   // Relay-agent mode: connect out to a relay instead of serving HTTP locally.
-  if (process.env.OPENPAW_RELAY_URL && process.env.OPENPAW_ROOM) {
+  const relayUrl = env('RELAY_URL');
+  const relayRoom = env('ROOM');
+  if (relayUrl && relayRoom) {
     await runRelayAgent({
-      relayUrl: process.env.OPENPAW_RELAY_URL,
-      room: process.env.OPENPAW_ROOM,
-      key: process.env.OPENPAW_PAIR_KEY || randomUUID().slice(0, 8),
+      relayUrl,
+      room: relayRoom,
+      key: env('PAIR_KEY') || randomUUID().slice(0, 8),
       dataDir: DATA_DIR,
     });
     return;
@@ -59,17 +73,17 @@ async function main() {
 
   if (!existsSync(join(RENDERER_DIR, 'index.html'))) {
     console.error(
-      `[open-paw] Renderer not found at ${RENDERER_DIR}.\n` +
-        `Build it first (npm run build -w @open-paw/desktop) or set OPENPAW_RENDERER_DIR.`,
+      `[kotrain] Renderer not found at ${RENDERER_DIR}.\n` +
+        `Build it first (npm run build -w @kotrain/desktop) or set KOTRAIN_RENDERER_DIR.`,
     );
     process.exit(1);
   }
 
   // Report this build's version (for the web edition's refresh-when-updated check).
-  if (!process.env.OPENPAW_VERSION) {
+  if (!process.env.KOTRAIN_VERSION) {
     try {
       const { createRequire } = await import('node:module');
-      process.env.OPENPAW_VERSION = createRequire(import.meta.url)('../package.json').version ?? '0.0.0';
+      process.env.KOTRAIN_VERSION = createRequire(import.meta.url)('../package.json').version ?? '0.0.0';
     } catch {
       /* leave unset → host reports 0.0.0 */
     }
@@ -80,7 +94,7 @@ async function main() {
   const app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
   await app.register(websocket);
 
-  // Auth: only enforced when a token is configured (OPENPAW_TOKEN).
+  // Auth: only enforced when a token is configured (KOTRAIN_TOKEN).
   const authorized = (suppliedToken: string | undefined) => !requireAuth || suppliedToken === TOKEN;
 
   app.addHook('onRequest', async (req, reply) => {
@@ -131,11 +145,11 @@ async function main() {
 
   await app.listen({ port: PORT, host: HOST });
   const url = `http://${isLocal ? 'localhost' : HOST}:${PORT}`;
-  console.log(`\n🐾 Open Paw web edition running at ${url}`);
+  console.log(`\n🐾 Kotrain web edition running at ${url}`);
   console.log(`   data dir: ${DATA_DIR}`);
   if (requireAuth) console.log(`   auth: token required (append ?token=… to the URL)`);
   else if (!isLocal)
-    console.log(`   ⚠ bound to ${HOST} without a token, set OPENPAW_TOKEN to require auth before exposing publicly.`);
+    console.log(`   ⚠ bound to ${HOST} without a token, set KOTRAIN_TOKEN to require auth before exposing publicly.`);
   console.log(`   (offline-first, only reaches the model servers + connectors you configure)\n`);
 }
 

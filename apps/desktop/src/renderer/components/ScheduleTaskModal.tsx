@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { NewTask, TaskKind, KeepAlive } from '@open-paw/shared';
+import type { NewTask, TaskKind, KeepAlive } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { CloseIcon } from '../icons.js';
 

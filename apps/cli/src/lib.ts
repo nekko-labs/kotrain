@@ -1,12 +1,20 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createHost } from '@open-paw/host';
-import { IpcEvents } from '@open-paw/shared';
-import type { AppSettings, Session, SendOptions, AgentEvent, WorkspaceFolder, RemoteStatus } from '@open-paw/shared';
+import { existsSync } from 'node:fs';
+import { createHost } from '@kotrain/host';
+import { IpcEvents } from '@kotrain/shared';
+import type { AppSettings, Session, SendOptions, AgentEvent, WorkspaceFolder, RemoteStatus } from '@kotrain/shared';
 
-/** The data dir for the in-process (local) client. */
+/** The data dir for the in-process (local) client. KOTRAIN_DATA_DIR wins, then
+ * the legacy OPENPAW_DATA_DIR, then ~/.kotrain (keeping a pre-rebrand
+ * ~/.open-paw if it already exists). */
 export function dataDir(): string {
-  return process.env.OPENPAW_DATA_DIR || join(homedir(), '.open-paw');
+  const fromEnv = process.env.KOTRAIN_DATA_DIR || process.env.OPENPAW_DATA_DIR;
+  if (fromEnv) return fromEnv;
+  const next = join(homedir(), '.kotrain');
+  const legacy = join(homedir(), '.open-paw');
+  if (!existsSync(next) && existsSync(legacy)) return legacy;
+  return next;
 }
 
 /**
@@ -74,7 +82,7 @@ function httpClient(url: string, token?: string): Client {
     };
     openP = new Promise<void>((resolve, reject) => {
       ws!.onopen = () => resolve();
-      ws!.onerror = () => reject(new Error(`Cannot reach Open Paw server at ${base}`));
+      ws!.onerror = () => reject(new Error(`Cannot reach Kotrain server at ${base}`));
     });
     return openP;
   };
@@ -97,10 +105,10 @@ function httpClient(url: string, token?: string): Client {
   };
 }
 
-/** Build a client from env/flags: `--url`/OPENPAW_URL → HTTP, else local. */
+/** Build a client from env/flags: `--url`/KOTRAIN_URL → HTTP, else local. */
 export function getClient(opts: { url?: string; token?: string } = {}): Client {
-  const url = opts.url || process.env.OPENPAW_URL;
-  return url ? httpClient(url, opts.token || process.env.OPENPAW_TOKEN) : localClient();
+  const url = opts.url || process.env.KOTRAIN_URL;
+  return url ? httpClient(url, opts.token || process.env.KOTRAIN_TOKEN) : localClient();
 }
 
 /** Resolve provider + model from flags, the session, then saved defaults. */

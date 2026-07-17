@@ -1,13 +1,13 @@
 {
-  "name": "@open-paw/desktop",
+  "name": "@kotrain/desktop",
   "version": "0.3.0",
   "private": true,
-  "description": "Open Paw desktop app.",
+  "description": "Kotrain desktop app.",
   "author": {
     "name": "Nekko Labs",
-    "email": "support@openpaw.com"
+    "email": "support@kotrain.com"
   },
-  "homepage": "https://github.com/nekko-labs/open-paw",
+  "homepage": "https://github.com/nekko-labs/kotrain",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -19,9 +19,9 @@
   },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.12",
-    "@open-paw/core": "*",
-    "@open-paw/host": "*",
-    "@open-paw/shared": "*",
+    "@kotrain/core": "*",
+    "@kotrain/host": "*",
+    "@kotrain/shared": "*",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",

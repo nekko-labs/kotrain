@@ -1,7 +1,7 @@
 /**
  * Nekko Dojo Skills integration: an optional connection to the public
  * Agent Skills hub at github.com/nekko-labs/nekko-dojo-skills (browsable at
- * dojo.nekkolabs.com). The Dojo is a separate app; Open Paw only reads its
+ * dojo.nekkolabs.com). The Dojo is a separate app; Kotrain only reads its
  * machine-readable catalog and installs skills the user explicitly picks.
  *
  * Offline-first: the marketplace shelf renders from the bundled snapshot
@@ -93,7 +93,7 @@ export const DOJO_SNAPSHOT: DojoCatalog = {
   ],
 };
 
-/** Map the Dojo's free-form category onto Open Paw's skill categories. */
+/** Map the Dojo's free-form category onto Kotrain's skill categories. */
 export function dojoCategory(cat: string): SkillCategory {
   const c = cat.toLowerCase();
   if (/research|planning|naming|brainstorm/.test(c)) return 'Research & planning';

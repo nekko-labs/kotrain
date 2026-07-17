@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { IndexedFile, IndexStatus, SearchHit, WorkspaceFolder } from '@open-paw/shared';
+import type { IndexedFile, IndexStatus, SearchHit, WorkspaceFolder } from '@kotrain/shared';
 import { PlusIcon, TrashIcon, FolderIcon } from '../icons.js';
 
 export function ProjectsView() {

@@ -12,8 +12,8 @@ import type {
   IndexStatus,
   UpdateInfo,
   TerminalEvent,
-} from '@open-paw/shared';
-import { IpcChannels, IpcEvents } from '@open-paw/shared';
+} from '@kotrain/shared';
+import { IpcChannels, IpcEvents } from '@kotrain/shared';
 
 const inv = ipcRenderer.invoke.bind(ipcRenderer);
 
@@ -178,7 +178,7 @@ const api: NekkoApi = {
     return () => ipcRenderer.removeListener(IpcEvents.changesUpdated, listener);
   },
   onTasksUpdated: (cb) => {
-    const listener = (_: unknown, tasks: import('@open-paw/shared').AutomationTask[]) => cb(tasks);
+    const listener = (_: unknown, tasks: import('@kotrain/shared').AutomationTask[]) => cb(tasks);
     ipcRenderer.on(IpcEvents.tasksUpdated, listener);
     return () => ipcRenderer.removeListener(IpcEvents.tasksUpdated, listener);
   },

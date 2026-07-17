@@ -5,7 +5,7 @@ import {
   matchSkills,
   layoutWorkflow,
   type SkillDef,
-} from '@open-paw/shared';
+} from '@kotrain/shared';
 
 describe('SKILLS registry', () => {
   it('every skill has a category in the known set and a non-empty workflow', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { classifyAgent, detectSkill, agentSignals, classifySession } from '@open-paw/shared';
-import type { Session, AutomationTask } from '@open-paw/shared';
+import { classifyAgent, detectSkill, agentSignals, classifySession } from '@kotrain/shared';
+import type { Session, AutomationTask } from '@kotrain/shared';
 
 describe('detectSkill', () => {
   it('reads a leading /command', () => {

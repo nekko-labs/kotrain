@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { ConnectorConfig, ConnectorKind, ConnectorResource } from '@open-paw/shared';
-import { CONNECTOR_CATALOG } from '@open-paw/shared';
+import type { ConnectorConfig, ConnectorKind, ConnectorResource } from '@kotrain/shared';
+import { CONNECTOR_CATALOG } from '@kotrain/shared';
 import { ConnectorIcon } from '../connectorIcons.js';
 
 /** Where to get each connector's token, with a link to open. */

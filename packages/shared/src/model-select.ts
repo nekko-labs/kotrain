@@ -8,7 +8,7 @@
 
 import type { ModelInfo } from './models.js';
 
-/** Sentinel model id meaning "let Open Paw pick per turn". */
+/** Sentinel model id meaning "let Kotrain pick per turn". */
 export const AUTO_MODEL_ID = '__auto__';
 
 const COMPLEX_RE =

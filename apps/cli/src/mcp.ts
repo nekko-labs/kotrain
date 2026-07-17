@@ -1,7 +1,7 @@
 import { getClient, resolveModel, runChat, type Client } from './lib.js';
 
 /**
- * MCP stdio server exposing Open Paw to other tools (Claude Code, Codex, …).
+ * MCP stdio server exposing Kotrain to other tools (Claude Code, Codex, …).
  * Hand-rolled JSON-RPC 2.0 over newline-delimited stdio, the MCP stdio
  * transport. Other agents can trigger this machine's agent, make chat requests,
  * spin up sessions (swarm by calling chat across several sessions), and read
@@ -14,7 +14,7 @@ const TOOLS = [
   {
     name: 'open_paw_chat',
     description:
-      "Run an agent turn on this machine's Open Paw (reads/edits/searches/runs in the configured workspace, using the local or cloud model). Returns the assistant's reply. Omit sessionId to start a fresh session.",
+      "Run an agent turn on this machine's Kotrain (reads/edits/searches/runs in the configured workspace, using the local or cloud model). Returns the assistant's reply. Omit sessionId to start a fresh session.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -44,7 +44,7 @@ const TOOLS = [
   },
   {
     name: 'open_paw_status',
-    description: 'Summary of this Open Paw: providers, default model, workspaces, session count, remote relay status.',
+    description: 'Summary of this Kotrain: providers, default model, workspaces, session count, remote relay status.',
     inputSchema: { type: 'object', properties: {} },
   },
 ];
@@ -132,7 +132,7 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
   async function handle(msg: any) {
     const { id, method, params } = msg;
     if (method === 'initialize') {
-      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'open-paw', version: VERSION } });
+      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'kotrain', version: VERSION } });
     } else if (method === 'notifications/initialized' || method?.startsWith('notifications/')) {
       /* notifications: no response */
     } else if (method === 'ping') {
@@ -151,5 +151,5 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
     }
   }
 
-  console.error('[open-paw] MCP server ready on stdio');
+  console.error('[kotrain] MCP server ready on stdio');
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef } from '@open-paw/shared';
-import { getMarketSkill, marketToSkillDef } from '@open-paw/shared';
+import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef } from '@kotrain/shared';
+import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
 
 export type View = 'command' | 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings' | 'design' | 'skills';
@@ -40,7 +40,7 @@ export interface WbGroup {
 export type FilesPaneSide = 'left' | 'right';
 
 const MAX_GROUPS = 3;
-const FILES_PANE_STORAGE_KEY = 'openpaw.filesPane';
+const FILES_PANE_STORAGE_KEY = 'kotrain.filesPane';
 let paneSeq = 0;
 const newPaneId = () => `pane_${(++paneSeq).toString(36)}`;
 const newGroupId = () => `grp_${(++paneSeq).toString(36)}`;
@@ -96,7 +96,7 @@ interface UiState {
   /** Pending message to hand a chat's composer (set by editor comments / design notes). */
   composerInbox: ComposerInbox | null;
 
-  /** Marketplace installs (all targets) + the Open Paw ones as runnable skills. */
+  /** Marketplace installs (all targets) + the Kotrain ones as runnable skills. */
   installedSkills: InstalledSkillRecord[];
   installedSkillDefs: SkillDef[];
   refreshSkills: () => Promise<void>;
@@ -237,7 +237,7 @@ export const useStore = create<UiState>((set, get) => ({
     try {
       const installedSkills = await window.nekko.listInstalledSkills();
       const installedSkillDefs = installedSkills
-        .filter((r) => r.target === 'openpaw')
+        .filter((r) => r.target === 'kotrain')
         // Dojo (non-catalog) installs carry their own snapshot on the record.
         .map((r) => r.skill ?? getMarketSkill(r.skillId))
         .filter((m): m is NonNullable<typeof m> => !!m)

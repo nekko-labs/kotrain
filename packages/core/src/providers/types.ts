@@ -1,4 +1,4 @@
-import type { ChatMessage, ModelInfo, ProviderConfig, ToolCall } from '@open-paw/shared';
+import type { ChatMessage, ModelInfo, ProviderConfig, ToolCall } from '@kotrain/shared';
 
 /** A tool the model may call, in a provider-neutral shape. */
 export interface ToolSpec {

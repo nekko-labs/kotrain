@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { TerminalEvent, TerminalInfo } from '@open-paw/shared';
+import type { TerminalEvent, TerminalInfo } from '@kotrain/shared';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';

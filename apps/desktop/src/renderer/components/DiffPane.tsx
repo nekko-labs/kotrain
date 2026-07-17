@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { FileChange } from '@open-paw/shared';
+import type { FileChange } from '@kotrain/shared';
 import { FileTypeIcon } from '../fileIcons.js';
 
 /**

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { ModelInfo, ProviderConfig, ProviderKind } from '@open-paw/shared';
-import { PROVIDER_DEFAULTS } from '@open-paw/shared';
+import type { ModelInfo, ProviderConfig, ProviderKind } from '@kotrain/shared';
+import { PROVIDER_DEFAULTS } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { PlusIcon, TrashIcon, CheckIcon, StarIcon } from '../icons.js';
 

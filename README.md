@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐾 Open Paw
+# 🐾 Kotrain
 
 **Local-first AI coding & cowork, chat, cowork, and code in one calm window.**
 
@@ -10,7 +10,7 @@ Open source · MIT · first-class support for the models you run yourself.
 
 ---
 
-Open Paw is a desktop assistant (Electron + React) that unifies conversation and
+Kotrain is a desktop assistant (Electron + React) that unifies conversation and
 coding into a single surface. Its headline feature is **first-class local model
 support**, point it at Ollama, LM Studio, or vLLM in one click, alongside every
 major cloud provider. It ships with a context-provenance inspector, default
@@ -23,7 +23,7 @@ biscuits while the model thinks.
 > agent loop (single- and multi-step). Run `node scripts/itest-local.mjs <baseUrl> <model>`
 > to check your own server.
 
-![Open Paw, unified chat with the Context Inspector](docs/screenshots/chat.png)
+![Kotrain, unified chat with the Context Inspector](docs/screenshots/chat.png)
 
 <table>
   <tr>
@@ -36,27 +36,27 @@ biscuits while the model thinks.
 
 ## Download
 
-Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/open-paw/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
+Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
 
-### macOS: "Open Paw is damaged and can't be opened" 🛑
+### macOS: "Kotrain is damaged and can't be opened" 🛑
 
-Open Paw isn't notarized yet (no Apple Developer certificate), so macOS quarantines the downloaded app and may say it's *damaged* or move it to the Trash. The app is fine, this is Gatekeeper blocking an unsigned download. After dragging **Open Paw** to Applications, clear the quarantine flag once:
+Kotrain isn't notarized yet (no Apple Developer certificate), so macOS quarantines the downloaded app and may say it's *damaged* or move it to the Trash. The app is fine, this is Gatekeeper blocking an unsigned download. After dragging **Kotrain** to Applications, clear the quarantine flag once:
 
 ```bash
-xattr -cr "/Applications/Open Paw.app"
+xattr -cr "/Applications/Kotrain.app"
 ```
 
 Then open it normally. (Alternatively: right-click the app → **Open** → **Open**.) We'll drop this step once notarized builds are signed. Windows may also show a SmartScreen "unknown publisher" prompt, choose **More info → Run anyway**.
 
 ### Uninstalling
 
-- **Windows**: *Settings → Apps → Installed apps → Open Paw → Uninstall*, or the **Uninstall Open Paw** shortcut in the Start Menu folder. The uninstaller asks whether to also delete your chats and settings (choose **No** to keep them for a reinstall).
-- **macOS**: drag **Open Paw** from Applications to the Trash. To also remove data: `rm -rf "$HOME/Library/Application Support/Open Paw"`.
-- **Linux**: remove the AppImage, or `sudo apt remove open-paw` for the `.deb`.
+- **Windows**: *Settings → Apps → Installed apps → Kotrain → Uninstall*, or the **Uninstall Kotrain** shortcut in the Start Menu folder. The uninstaller asks whether to also delete your chats and settings (choose **No** to keep them for a reinstall).
+- **macOS**: drag **Kotrain** from Applications to the Trash. To also remove data: `rm -rf "$HOME/Library/Application Support/Kotrain"`.
+- **Linux**: remove the AppImage, or `sudo apt remove kotrain` for the `.deb`.
 
-## Why Open Paw
+## Why Kotrain
 
-**LM Studio runs models. Open Paw runs *with your work*.** Local model UIs are
+**LM Studio runs models. Kotrain runs *with your work*.** Local model UIs are
 essentially a chat box around a model, no awareness of your files or projects.
 Nekko reads, edits, searches, and runs inside your actual codebases: multi-folder
 index, file viewer with inline editing, a tool-using agent, per-project memory,
@@ -80,7 +80,7 @@ Same engine, same UI, multiple runtimes (see the design in the project spec):
 | **Docker** | `docker compose up`, workspaces as volumes, local models via `host.docker.internal` | ✅ available |
 | **Nekko Cloud** (paid) | managed hosting: subscriptions, always-available **Zero-Data-Retention** mode, cloud chat-history + file management, and **drive your local model from your phone** via a secure E2E relay | 🔜 planned |
 
-The desktop, web, and (coming) Docker editions all run the **same engine + same React UI**, only the transport differs (Electron IPC vs HTTP/WebSocket), via the shared `@open-paw/host`.
+The desktop, web, and (coming) Docker editions all run the **same engine + same React UI**, only the transport differs (Electron IPC vs HTTP/WebSocket), via the shared `@kotrain/host`.
 
 ### Run the web edition
 
@@ -90,11 +90,11 @@ npm run web        # builds everything, then serves at http://localhost:1440
 ```
 
 Same app, in your browser, fully offline. It binds to `localhost` by default; set
-`OPENPAW_TOKEN` to require an access token (append `?token=…` to the URL) before
-exposing it with `OPENPAW_HOST=0.0.0.0`. Data lives in `~/.open-paw` (override with
-`OPENPAW_DATA_DIR`).
+`KOTRAIN_TOKEN` to require an access token (append `?token=…` to the URL) before
+exposing it with `KOTRAIN_HOST=0.0.0.0`. Data lives in `~/.kotrain` (override with
+`KOTRAIN_DATA_DIR`).
 
-![Open Paw web edition](docs/screenshots/web-edition.png)
+![Kotrain web edition](docs/screenshots/web-edition.png)
 
 ### Run with Docker
 
@@ -105,7 +105,7 @@ docker compose up        # build + run, then open http://localhost:1440
 Mount your codebases into `./workspace` (the sandbox confines file tools there),
 and reach a model server on your host at `http://host.docker.internal:<port>`.
 Settings/sessions persist in the `nekko-data` volume. Published to the host's
-localhost by default; set `OPENPAW_TOKEN` before exposing on a network.
+localhost by default; set `KOTRAIN_TOKEN` before exposing on a network.
 
 Cloud keeps inference and tools **on your machine**, the relay is an
 end-to-end-encrypted pipe to a paired local agent, so using your own model stays

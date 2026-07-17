@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@open-paw/shared';
+import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
@@ -207,7 +207,7 @@ export function SettingsView() {
         {/* Data & privacy */}
         <DataSection onSettings={(s) => { setSettings(s); useStore.setState({ settings: s }); applyTheme(); }} />
 
-        <p className="mt-6 text-center text-[11px] text-ink-faint">Open Paw · open source · MIT</p>
+        <p className="mt-6 text-center text-[11px] text-ink-faint">Kotrain · open source · MIT</p>
       </div>
     </div>
   );
@@ -221,7 +221,7 @@ function BackupSection({ settings, onSettings }: { settings: AppSettings; onSett
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'open-paw-settings.json';
+    a.download = 'kotrain-settings.json';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -286,7 +286,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
 
   const wipe = async () => {
     if (!window.confirm('Delete EVERYTHING, all chats, settings, memory, and usage? This cannot be undone.')) return;
-    if (!window.confirm('Are you absolutely sure? This wipes all Open Paw data.')) return;
+    if (!window.confirm('Are you absolutely sure? This wipes all Kotrain data.')) return;
     setBusy(true);
     const s = await window.nekko.wipeAllData();
     onSettings(s);
@@ -639,7 +639,7 @@ function UpdatesSection({ settings, onToggle }: { settings: AppSettings; onToggl
     <section className="card mt-5 p-5">
       <div className="flex items-center gap-2"><SunIcon className="h-4 w-4" /><h2 className="font-semibold">Updates</h2></div>
       <p className="mt-1 text-[12px] text-ink-faint">
-        {info ? `Open Paw ${info.version} · ${info.edition} edition` : ' '}
+        {info ? `Kotrain ${info.version} · ${info.edition} edition` : ' '}
       </p>
       <div className="mt-3 flex min-h-[40px] items-center justify-between">
         <div>

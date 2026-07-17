@@ -10,12 +10,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.CLOUD_PORT ?? 4318);
 const HOST = process.env.CLOUD_HOST ?? '127.0.0.1';
 const isLocal = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
-const DATA_ROOT = process.env.CLOUD_DATA_DIR ?? join(homedir(), '.open-paw-cloud');
+const DATA_ROOT = process.env.CLOUD_DATA_DIR ?? join(homedir(), '.kotrain-cloud');
 
 // Reuse the desktop-built renderer (same UI as every edition).
 function findRendererDir(): string | undefined {
   const candidates = [
-    process.env.OPENPAW_RENDERER_DIR,
+    process.env.KOTRAIN_RENDERER_DIR,
     resolve(__dirname, 'web'),
     resolve(__dirname, '../../desktop/out/renderer'),
   ].filter(Boolean) as string[];

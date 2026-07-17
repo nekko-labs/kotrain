@@ -20,7 +20,7 @@ import {
   type InstalledSkillRecord,
   type InstallTargetInfo,
   type InstallTarget,
-} from '@open-paw/shared';
+} from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { StarIcon, SendIcon } from '../icons.js';
 
@@ -88,7 +88,7 @@ export function SkillsView() {
   );
 }
 
-/** Built-in skills + marketplace skills installed into Open Paw. */
+/** Built-in skills + marketplace skills installed into Kotrain. */
 function LibraryTab() {
   const { sendToChat, installedSkillDefs } = useStore();
   const [query, setQuery] = useState('');
@@ -347,7 +347,7 @@ function MarketplaceTab() {
         <div className="p-4">
           <h1 className="text-lg font-semibold text-gradient">Marketplace</h1>
           <p className="mt-0.5 text-[12px] text-ink-faint">
-            Install skills into Open Paw, or export them to Claude Code / Codex.
+            Install skills into Kotrain, or export them to Claude Code / Codex.
           </p>
           <input
             className="input mt-3"
@@ -469,7 +469,7 @@ function MarketplaceTab() {
                   </div>
                 )}
               </div>
-              {selectedInstalls.some((r) => r.target === 'openpaw') && (
+              {selectedInstalls.some((r) => r.target === 'kotrain') && (
                 <button
                   className="btn btn-primary shrink-0 gap-1.5"
                   onClick={() => sendToChat(marketToSkillDef(selected).template, false)}

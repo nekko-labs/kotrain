@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { Session } from '@open-paw/shared';
+import type { Session } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 function sessionsDir(): string {

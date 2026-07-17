@@ -1,13 +1,13 @@
-# Open Paw, self-hosted web edition in Docker.
+# Kotrain, self-hosted web edition in Docker.
 #   docker compose up        (build + run)
 # Then open http://localhost:1440
 services:
   nekko:
     build: .
     # Or use a published image instead of building:
-    # image: ghcr.io/nekko-labs/open-paw:latest
+    # image: ghcr.io/nekko-labs/kotrain:latest
     # Published to the host's localhost only. To expose on your LAN, change to
-    # "1440:1440" AND set OPENPAW_TOKEN below.
+    # "1440:1440" AND set KOTRAIN_TOKEN below.
     ports:
       - "127.0.0.1:1440:1440"
     volumes:
@@ -16,9 +16,9 @@ services:
       # Settings, sessions, memory, usage.
       - nekko-data:/data
     environment:
-      - OPENPAW_SANDBOX=workspace-jail
+      - KOTRAIN_SANDBOX=workspace-jail
       # Uncomment to require an access token (recommended if exposing beyond localhost):
-      # - OPENPAW_TOKEN=change-me
+      # - KOTRAIN_TOKEN=change-me
     # Lets the container reach a model server (Ollama/LM Studio/vLLM) on the host,
     # e.g. base URL http://host.docker.internal:1234
     extra_hosts:

@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { AppSettings } from '@open-paw/shared';
-import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@open-paw/shared';
-import { DEFAULT_GUARDRAILS } from '@open-paw/core';
+import type { AppSettings } from '@kotrain/shared';
+import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@kotrain/shared';
+import { DEFAULT_GUARDRAILS } from '@kotrain/core';
 import { dataDir } from './paths.js';
 
 export { dataDir } from './paths.js';

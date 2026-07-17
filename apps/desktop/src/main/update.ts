@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import electronUpdater from 'electron-updater';
-import { RELEASE_NOTES_URL, type UpdateInfo } from '@open-paw/shared';
+import { RELEASE_NOTES_URL, type UpdateInfo } from '@kotrain/shared';
 
 // electron-updater ships CommonJS; destructure the default import.
 const { autoUpdater } = electronUpdater;

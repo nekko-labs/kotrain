@@ -1,13 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord, MarketplaceSkill } from '@open-paw/shared';
-import { getMarketSkill, skillToMarkdown } from '@open-paw/shared';
+import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord, MarketplaceSkill } from '@kotrain/shared';
+import { getMarketSkill, skillToMarkdown } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 /**
  * Skills marketplace installs. Records live in skills.json under the data dir.
- * The `openpaw` target is purely a record (installed skills join the `/` menu
+ * The `kotrain` target is purely a record (installed skills join the `/` menu
  * and the Skills tab); `claude`/`codex` write a SKILL.md folder into the app's
  * user-level skills directory so other agents pick the skill up too.
  */
@@ -49,7 +49,7 @@ export function skillTargets(): InstallTargetInfo[] {
   const claudeDir = join(homedir(), '.claude');
   const codexDir = join(homedir(), '.codex');
   return [
-    { id: 'openpaw', label: 'Open Paw', hint: 'joins the / menu and Skills tab', available: true },
+    { id: 'kotrain', label: 'Kotrain', hint: 'joins the / menu and Skills tab', available: true },
     {
       id: 'claude',
       label: 'Claude Code',
@@ -87,7 +87,7 @@ export function installSkill(
   }
 
   let path: string | undefined;
-  if (target !== 'openpaw') {
+  if (target !== 'kotrain') {
     const base = targetDir(target)!;
     path = join(base, skill.name);
     // Never clobber a skill folder we didn't create (no record for it).

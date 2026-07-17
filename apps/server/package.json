@@ -1,12 +1,12 @@
 {
-  "name": "@open-paw/server",
+  "name": "@kotrain/server",
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Open Paw self-hosted web server, same engine + UI as the desktop app.",
+  "description": "Kotrain self-hosted web server, same engine + UI as the desktop app.",
   "main": "./dist/index.js",
   "bin": {
-    "open-paw": "./dist/index.js"
+    "kotrain": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -17,9 +17,9 @@
   "dependencies": {
     "@fastify/static": "^8.0.3",
     "@fastify/websocket": "^11.0.1",
-    "@open-paw/cli": "*",
-    "@open-paw/host": "*",
-    "@open-paw/shared": "*",
+    "@kotrain/cli": "*",
+    "@kotrain/host": "*",
+    "@kotrain/shared": "*",
     "fastify": "^5.1.0"
   },
   "devDependencies": {

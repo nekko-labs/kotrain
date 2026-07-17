@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { SpecDocStatus, Session } from '@open-paw/shared';
-import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, getMethodology, getSessionWorkspaceIds, parseTasks } from '@open-paw/shared';
+import type { SpecDocStatus, Session } from '@kotrain/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, getMethodology, getSessionWorkspaceIds, parseTasks } from '@kotrain/shared';
 import { ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 

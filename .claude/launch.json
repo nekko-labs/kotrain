@@ -10,7 +10,7 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start", "-w", "@open-paw/server"],
+      "runtimeArgs": ["run", "start", "-w", "@kotrain/server"],
       "port": 1440
     }
   ]

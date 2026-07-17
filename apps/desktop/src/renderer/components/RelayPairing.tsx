@@ -70,7 +70,7 @@ export function RelayPairing() {
           onClose={() => setScanning(false)}
           onResult={(text) => {
             setScanning(false);
-            if (!commit(text)) setError('That QR isn’t an Open Paw pairing code.');
+            if (!commit(text)) setError('That QR isn’t an Kotrain pairing code.');
           }}
         />
       </Suspense>
@@ -82,7 +82,7 @@ export function RelayPairing() {
       <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl text-3xl" style={{ background: 'var(--accent-soft)' }}>🐾</div>
       <h1 className="text-xl font-semibold">Pair with your computer</h1>
       <p className="mt-2 max-w-sm text-center text-[13px] text-ink-faint">
-        Open Paw on your desktop → <span className="font-medium text-ink-soft">Settings → Remote access → Enable</span>, then paste the pairing link here. Your phone drives the model on your computer over an end-to-end encrypted relay.
+        Kotrain on your desktop → <span className="font-medium text-ink-soft">Settings → Remote access → Enable</span>, then paste the pairing link here. Your phone drives the model on your computer over an end-to-end encrypted relay.
       </p>
       <textarea
         className="input mt-5 max-w-sm"

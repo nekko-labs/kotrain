@@ -1,4 +1,4 @@
-import { IpcChannels } from '@open-paw/shared';
+import { IpcChannels } from '@kotrain/shared';
 import type { Host } from './host.js';
 
 /**

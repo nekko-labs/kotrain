@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { AgentEvent, ProviderConfig, Session, TerminalInfo, UsageSummary, AutomationTask } from '@open-paw/shared';
-import type { RemoteStatus } from '@open-paw/shared';
-import { estimateCostUSD, formatUSD, optimizationTips, MODEL_PRICING, taskCadence, classifySession, classifyAgent, agentSignals } from '@open-paw/shared';
-import type { OptimizationTip, AgentType } from '@open-paw/shared';
+import type { AgentEvent, ProviderConfig, Session, TerminalInfo, UsageSummary, AutomationTask } from '@kotrain/shared';
+import type { RemoteStatus } from '@kotrain/shared';
+import { estimateCostUSD, formatUSD, optimizationTips, MODEL_PRICING, taskCadence, classifySession, classifyAgent, agentSignals } from '@kotrain/shared';
+import type { OptimizationTip, AgentType } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Markdown } from '../components/Markdown.js';
 import { ChatIcon, FolderIcon, ServerIcon, PlusIcon, CheckIcon, TerminalIcon, RobotIcon, TrashIcon } from '../icons.js';
@@ -525,7 +525,7 @@ function KanbanCard({
 
 function WorkersDashboard({ providers, usage }: { providers: ProviderConfig[]; usage: UsageSummary | null }) {
   const [remote, setRemote] = useState<RemoteStatus | null>(null);
-  const [mcp, setMcp] = useState<import('@open-paw/shared').McpServerStatus[]>([]);
+  const [mcp, setMcp] = useState<import('@kotrain/shared').McpServerStatus[]>([]);
   useEffect(() => { window.nekko.getRemoteStatus().then(setRemote).catch(() => setRemote(null)); }, []);
   useEffect(() => { window.nekko.getMcpStatus().then(setMcp).catch(() => setMcp([])); }, []);
   return (

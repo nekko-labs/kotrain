@@ -1,9 +1,9 @@
 // Exercises the MCP streamable-HTTP transport against a running NekkoMCP
 // daemon (nekko-mcpd, default http://localhost:7777): detects the gateway,
-// adds a scratch echo server through the daemon API, connects Open Paw's
+// adds a scratch echo server through the daemon API, connects Kotrain's
 // host MCP client to the gateway URL, and lists + calls a tool through it.
 // Usage: node scripts/itest-mcp-http.mjs [daemonBase]
-import { createHost } from '@open-paw/host';
+import { createHost } from '@kotrain/host';
 import { mkdtempSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';

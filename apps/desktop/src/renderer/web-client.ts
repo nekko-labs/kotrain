@@ -1,5 +1,5 @@
-import { IpcChannels, IpcEvents, deriveKey, seal, open, RELEASE_NOTES_URL } from '@open-paw/shared';
-import type { AppSettings, AgentEvent, IndexStatus, NekkoApi, AppInfo, UpdateInfo, TerminalEvent } from '@open-paw/shared';
+import { IpcChannels, IpcEvents, deriveKey, seal, open, RELEASE_NOTES_URL } from '@kotrain/shared';
+import type { AppSettings, AgentEvent, IndexStatus, NekkoApi, AppInfo, UpdateInfo, TerminalEvent } from '@kotrain/shared';
 
 /**
  * Browser transport for the web/Docker editions: implements the same NekkoApi
@@ -18,7 +18,7 @@ function makeWebClient(): NekkoApi {
   const indexCbs = new Set<(s: IndexStatus) => void>();
   const terminalCbs = new Set<(e: TerminalEvent) => void>();
   const changesCbs = new Set<(e: { sessionId: string }) => void>();
-  const tasksCbs = new Set<(t: import('@open-paw/shared').AutomationTask[]) => void>();
+  const tasksCbs = new Set<(t: import('@kotrain/shared').AutomationTask[]) => void>();
   // Server build version captured when this tab loaded (for refresh detection).
   let loadVersion: string | null = null;
   const dispatchEvent = (channel: string, payload: any) => {

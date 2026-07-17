@@ -53,8 +53,8 @@ const room = (code: string): Room => {
 
 const pushSender = createPushSender();
 
-const PORT = Number(process.env.OPENPAW_RELAY_PORT ?? 4400);
-const HOST = process.env.OPENPAW_RELAY_HOST ?? '0.0.0.0';
+const PORT = Number(process.env.KOTRAIN_RELAY_PORT ?? 4400);
+const HOST = process.env.KOTRAIN_RELAY_HOST ?? '0.0.0.0';
 
 async function main() {
   const app = Fastify();
@@ -90,7 +90,7 @@ async function main() {
         const ctrl = controlFrame(s);
         if (ctrl?.type === 'notify') {
           if (r.clients.size === 0 && r.pushTokens.size > 0) {
-            const payload = { title: String(ctrl.title || 'Open Paw'), body: String(ctrl.body || 'Your task finished.') };
+            const payload = { title: String(ctrl.title || 'Kotrain'), body: String(ctrl.body || 'Your task finished.') };
             for (const [token, platform] of r.pushTokens) void pushSender.send(token, platform, payload);
           }
           return;

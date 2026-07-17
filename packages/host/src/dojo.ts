@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { DojoCatalog, DojoCatalogSkill } from '@open-paw/shared';
-import { DOJO_CATALOG_URL, DOJO_SNAPSHOT, dojoSkillMdUrl } from '@open-paw/shared';
+import type { DojoCatalog, DojoCatalogSkill } from '@kotrain/shared';
+import { DOJO_CATALOG_URL, DOJO_SNAPSHOT, dojoSkillMdUrl } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 /**

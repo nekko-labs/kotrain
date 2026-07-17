@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
-import type { ToolSpec } from '@open-paw/core';
-import type { McpServerConfig, McpServerStatus, NekkoMcpInfo, ToolResult, ToolCall } from '@open-paw/shared';
+import type { ToolSpec } from '@kotrain/core';
+import type { McpServerConfig, McpServerStatus, NekkoMcpInfo, ToolResult, ToolCall } from '@kotrain/shared';
 
 /**
  * Minimal MCP client, hand-rolled so we add no dependency. Two transports:
@@ -41,7 +41,7 @@ class McpServer {
     await this.request('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
-      clientInfo: { name: 'open-paw', version: '1' },
+      clientInfo: { name: 'kotrain', version: '1' },
     });
     this.notify('notifications/initialized');
     const res = await this.request('tools/list', {});
