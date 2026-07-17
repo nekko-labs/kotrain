@@ -3,7 +3,7 @@ import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, Ins
 import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
 
-export type View = 'command' | 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings' | 'design' | 'skills';
+export type View = 'command' | 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings' | 'design' | 'skills' | 'training' | 'goals';
 
 /** A message routed into a chat's composer from another surface (editor comment, design note). */
 export interface ComposerInbox {

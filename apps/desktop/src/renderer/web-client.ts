@@ -19,6 +19,7 @@ function makeWebClient(): NekkoApi {
   const terminalCbs = new Set<(e: TerminalEvent) => void>();
   const changesCbs = new Set<(e: { sessionId: string }) => void>();
   const tasksCbs = new Set<(t: import('@kotrain/shared').AutomationTask[]) => void>();
+  const trainingCbs = new Set<(r: import('@kotrain/shared').TrainingRun[]) => void>();
   // Server build version captured when this tab loaded (for refresh detection).
   let loadVersion: string | null = null;
   const dispatchEvent = (channel: string, payload: any) => {
@@ -27,6 +28,7 @@ function makeWebClient(): NekkoApi {
     else if (channel === IpcEvents.terminalEvent) terminalCbs.forEach((cb) => cb(payload));
     else if (channel === IpcEvents.changesUpdated) changesCbs.forEach((cb) => cb(payload));
     else if (channel === IpcEvents.tasksUpdated) tasksCbs.forEach((cb) => cb(payload));
+    else if (channel === IpcEvents.trainingUpdated) trainingCbs.forEach((cb) => cb(payload));
   };
 
   // Relay transport: when the page is opened with ?relay=&room=&key=, talk to a
@@ -274,6 +276,15 @@ function makeWebClient(): NekkoApi {
     deleteTask: (id) => call(IpcChannels.taskDelete, id),
     runTaskNow: (id) => call(IpcChannels.taskRunNow, id),
 
+    listTrainingRuns: () => call(IpcChannels.trainingList),
+    createTrainingRun: (input) => call(IpcChannels.trainingCreate, input),
+    updateTrainingRun: (id, patch) => call(IpcChannels.trainingUpdate, id, patch),
+    deleteTrainingRun: (id) => call(IpcChannels.trainingDelete, id),
+    startTrainingRun: (id) => call(IpcChannels.trainingStart, id),
+    pauseTrainingRun: (id) => call(IpcChannels.trainingPause, id),
+    stopTrainingRun: (id) => call(IpcChannels.trainingStop, id),
+    addTrainingHint: (id, text) => call(IpcChannels.trainingHint, id, text),
+
     listConnectors: () => call(IpcChannels.connectorsList),
     connectConnector: (kind, t, settings) => call(IpcChannels.connectorConnect, kind, t, settings),
     disconnectConnector: (kind) => call(IpcChannels.connectorDisconnect, kind),
@@ -337,6 +348,10 @@ function makeWebClient(): NekkoApi {
     onTasksUpdated: (cb) => {
       tasksCbs.add(cb);
       return () => tasksCbs.delete(cb);
+    },
+    onTrainingUpdated: (cb) => {
+      trainingCbs.add(cb);
+      return () => trainingCbs.delete(cb);
     },
     onUpdateEvent: (cb) => {
       // Poll the server version; emit 'available' once it differs from load.

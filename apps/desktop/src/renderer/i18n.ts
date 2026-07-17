@@ -19,6 +19,8 @@ const en: Dict = {
   'nav.chat': 'Chat',
   'nav.design': 'Design',
   'nav.skills': 'Skills',
+  'nav.training': 'Training',
+  'nav.goals': 'Goals',
   'nav.projects': 'Projects',
   'nav.models': 'Models',
   'nav.connectors': 'Connectors',

@@ -10,6 +10,7 @@ import type { WorkspaceFolder, IndexStatus, SearchHit, IndexedFile } from './wor
 import type { DirEntry, FileContent, FileChange, LineComment } from './files.js';
 import type { DesignBoard, DesignPage } from './design.js';
 import type { AutomationTask, NewTask } from './tasks.js';
+import type { TrainingRun, NewTrainingRun } from './training.js';
 import type { ConnectorConfig, ConnectorKind, ConnectorResource } from './connectors.js';
 import type { GuardrailRule } from './guardrails.js';
 import type { AppInfo, UpdateInfo } from './update.js';
@@ -122,6 +123,15 @@ export const IpcChannels = {
   taskDelete: 'task:delete',
   taskRunNow: 'task:runNow',
 
+  trainingList: 'training:list',
+  trainingCreate: 'training:create',
+  trainingUpdate: 'training:update',
+  trainingDelete: 'training:delete',
+  trainingStart: 'training:start',
+  trainingPause: 'training:pause',
+  trainingStop: 'training:stop',
+  trainingHint: 'training:hint',
+
   connectorsList: 'connectors:list',
   connectorConnect: 'connector:connect',
   connectorDisconnect: 'connector:disconnect',
@@ -154,6 +164,7 @@ export const IpcEvents = {
   terminalEvent: 'terminal:event',
   changesUpdated: 'changes:updated',
   tasksUpdated: 'tasks:updated',
+  trainingUpdated: 'training:updated',
 } as const;
 
 /** The typed API the preload bridge exposes as window.nekko. */
@@ -307,6 +318,17 @@ export interface NekkoApi {
   deleteTask(id: string): Promise<AutomationTask[]>;
   runTaskNow(id: string): Promise<void>;
 
+  /** Training/goal runs: the data-scientist agent + experiment tree engine. */
+  listTrainingRuns(): Promise<TrainingRun[]>;
+  createTrainingRun(input: NewTrainingRun): Promise<TrainingRun>;
+  updateTrainingRun(id: string, patch: Partial<TrainingRun>): Promise<TrainingRun[]>;
+  deleteTrainingRun(id: string): Promise<TrainingRun[]>;
+  startTrainingRun(id: string): Promise<TrainingRun[]>;
+  pauseTrainingRun(id: string): Promise<TrainingRun[]>;
+  stopTrainingRun(id: string): Promise<TrainingRun[]>;
+  /** Inject a hint / new approach / new-data pointer into the next turn. */
+  addTrainingHint(id: string, text: string): Promise<TrainingRun[]>;
+
   listConnectors(): Promise<ConnectorConfig[]>;
   connectConnector(kind: ConnectorKind, token: string, settings?: Record<string, string>): Promise<ConnectorConfig[]>;
   disconnectConnector(kind: ConnectorKind): Promise<ConnectorConfig[]>;
@@ -344,4 +366,6 @@ export interface NekkoApi {
   onChangesUpdated(cb: (e: { sessionId: string }) => void): () => void;
   /** Fires when the automation-task list changes (created/updated/fired/deleted). */
   onTasksUpdated(cb: (tasks: AutomationTask[]) => void): () => void;
+  /** Fires when any training/goal run changes (experiments, hints, status). */
+  onTrainingUpdated(cb: (runs: TrainingRun[]) => void): () => void;
 }

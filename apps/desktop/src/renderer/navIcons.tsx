@@ -115,3 +115,26 @@ export const SettingsColorIcon = (p: P) => (
     <circle cx="12" cy="12" r="3" fill="#a5b4fc" />
   </Svg>
 );
+
+/** Training — a barbell with colored plates (the model gym). */
+export const TrainingColorIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="4" y="10.8" width="16" height="2.4" rx="1.2" fill="#94a3b8" />
+    <rect x="3" y="7" width="3" height="10" rx="1.4" fill="#22d3ee" />
+    <rect x="18" y="7" width="3" height="10" rx="1.4" fill="#22d3ee" />
+    <rect x="6.4" y="5.4" width="3" height="13.2" rx="1.4" fill="#6d5efc" />
+    <rect x="14.6" y="5.4" width="3" height="13.2" rx="1.4" fill="#6d5efc" />
+    <circle cx="12" cy="4.2" r="1.2" fill="#fbbf24" />
+  </Svg>
+);
+
+/** Goals — a bullseye with an arrow in the gold. */
+export const GoalsColorIcon = (p: P) => (
+  <Svg {...p}>
+    <circle cx="11" cy="13" r="8.4" fill="#fda4af" />
+    <circle cx="11" cy="13" r="5.6" fill="#fff1f2" />
+    <circle cx="11" cy="13" r="2.9" fill="#f43f5e" />
+    <path d="M11 13 18.6 5.4" stroke="#8b5e34" strokeWidth="1.8" strokeLinecap="round" />
+    <path d="M17.2 4.2l3.4-.8-.8 3.4-2.2-.4z" fill="#4ade80" />
+  </Svg>
+);
