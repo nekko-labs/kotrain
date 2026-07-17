@@ -9,6 +9,8 @@ import { RelayPairing } from './components/RelayPairing.js';
 import { WorkbenchView } from './views/WorkbenchView.js';
 import { DesignBoardView } from './views/DesignBoardView.js';
 import { SkillsView } from './views/SkillsView.js';
+import { TrainingView } from './views/TrainingView.js';
+import { GoalsView } from './views/GoalsView.js';
 import { CommandCenterView } from './views/CommandCenterView.js';
 import { ModelsView } from './views/ModelsView.js';
 import { ProjectsView } from './views/ProjectsView.js';
@@ -19,6 +21,8 @@ import {
   CommandHudIcon,
   ChatColorIcon,
   SkillsColorIcon,
+  TrainingColorIcon,
+  GoalsColorIcon,
   DesignColorIcon,
   ProjectsColorIcon,
   ModelsColorIcon,
@@ -31,6 +35,8 @@ const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string 
   { view: 'command', labelKey: 'nav.command', Icon: CommandHudIcon },
   { view: 'chat', labelKey: 'nav.chat', Icon: ChatColorIcon },
   { view: 'skills', labelKey: 'nav.skills', Icon: SkillsColorIcon },
+  { view: 'training', labelKey: 'nav.training', Icon: TrainingColorIcon },
+  { view: 'goals', labelKey: 'nav.goals', Icon: GoalsColorIcon },
   { view: 'design', labelKey: 'nav.design', Icon: DesignColorIcon },
   { view: 'projects', labelKey: 'nav.projects', Icon: ProjectsColorIcon },
   { view: 'models', labelKey: 'nav.models', Icon: ModelsColorIcon },
@@ -159,6 +165,8 @@ export function App() {
         {view === 'command' && <CommandCenterView />}
         {view === 'chat' && <WorkbenchView />}
         {view === 'skills' && <SkillsView />}
+        {view === 'training' && <TrainingView />}
+        {view === 'goals' && <GoalsView />}
         {view === 'design' && <DesignBoardView />}
         {view === 'models' && <ModelsView />}
         {view === 'projects' && <ProjectsView />}

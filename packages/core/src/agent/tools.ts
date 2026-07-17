@@ -99,3 +99,28 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
     },
   },
 ];
+
+/**
+ * Extra tool offered only to sessions driven by a training/goal run: the agent
+ * registers every attempt so the run's experiment tree (idea maze), stats, and
+ * leader stay live in the Training/Goals tabs. Executed in the host.
+ */
+export const REPORT_EXPERIMENT_TOOL: ToolSpec = {
+  name: 'report_experiment',
+  description:
+    'Record or update an experiment in this run\'s experiment tree. Call it when you START an attempt (status "running") and again when it finishes ("succeeded", "failed", or "repaired" if you fixed a failure), including the score when measured. Use parent_id to branch from the experiment you are iterating on. The tool result tells you the current leader.',
+  parameters: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Experiment id to update (omit to create a new one).' },
+      parent_id: { type: 'string', description: 'Id of the experiment this one branches from.' },
+      title: { type: 'string', description: 'Short pipeline-style title, e.g. "RobustScaler PCA RandomForest".' },
+      approach: { type: 'string', description: 'The idea family, e.g. "gradient boosting", "feature engineering".' },
+      status: { type: 'string', enum: ['planned', 'running', 'succeeded', 'failed', 'repaired'] },
+      score: { type: 'number', description: 'Primary metric value when measured.' },
+      metric: { type: 'string', description: 'Metric name, e.g. "cv r2", "accuracy".' },
+      note: { type: 'string', description: 'One-line takeaway from this experiment.' },
+    },
+    required: ['title', 'status'],
+  },
+};

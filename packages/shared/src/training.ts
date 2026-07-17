@@ -1,0 +1,295 @@
+/**
+ * Model training runs + long-running goal runs, one shared engine.
+ *
+ * A run drives a dedicated agent session (the "data-scientist agent") through
+ * repeated turns. The agent registers every attempt via the report_experiment
+ * tool, which builds the run's experiment tree (the "idea maze"). The user can
+ * inject hints, new approaches, or new data mid-run; unconsumed hints are folded
+ * into the next turn's prompt. Pure helpers here (stats, maze layout, presets)
+ * are unit-tested and shared by the host service and both views.
+ */
+
+export type RunKind = 'training' | 'goal';
+
+export type RunStatus = 'draft' | 'running' | 'paused' | 'completed' | 'stopped' | 'failed';
+
+export type ExperimentStatus = 'planned' | 'running' | 'succeeded' | 'failed' | 'repaired';
+
+export interface ExperimentNode {
+  id: string;
+  /** Parent experiment this one branched from (absent = a root approach). */
+  parentId?: string;
+  /** Short pipeline-style title, e.g. "RobustScaler PCA RandomForest". */
+  title: string;
+  /** The idea family this belongs to, e.g. "gradient boosting", "PCA stack". */
+  approach?: string;
+  status: ExperimentStatus;
+  /** Primary metric value (higher is better unless the run minimizes). */
+  score?: number;
+  /** Metric name, e.g. "cv r2", "accuracy". */
+  metric?: string;
+  /** The agent's one-line takeaway. */
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RunHint {
+  id: string;
+  text: string;
+  at: number;
+  /** Set when a turn has folded this hint into its prompt. */
+  consumedAt?: number;
+}
+
+export interface RunLogEntry {
+  at: number;
+  kind: 'info' | 'milestone' | 'hint' | 'error';
+  text: string;
+}
+
+export interface DatasetRef {
+  source: 'huggingface' | 'kaggle' | 'local' | 'url';
+  /** e.g. "imdb", "user/dataset", a path, or a URL. */
+  id: string;
+  split?: string;
+}
+
+export interface BaseModelRef {
+  source: 'huggingface' | 'local' | 'none';
+  /** e.g. "distilbert-base-uncased" or a local path; ignored for "none". */
+  id?: string;
+}
+
+/** Simple-mode fields + the full expert levers. Everything optional. */
+export interface TrainingConfig {
+  dataset?: DatasetRef;
+  baseModel?: BaseModelRef;
+  /** Metric to optimize, e.g. "r2", "accuracy", "f1". */
+  metric?: string;
+  /** Optimize downward (loss/error metrics) instead of upward. */
+  minimizeMetric?: boolean;
+  /** Expert levers, forwarded to the agent as constraints. */
+  framework?: 'auto' | 'sklearn' | 'pytorch' | 'transformers';
+  epochs?: number;
+  batchSize?: number;
+  learningRate?: number;
+  maxExperiments?: number;
+  timeBudgetMin?: number;
+  /** Free-form expert notes appended verbatim to the agent brief. */
+  extra?: string;
+  /** Harness artifacts to produce beside the model for the use case. */
+  harness?: { agentsMd?: boolean; skill?: boolean; spec?: boolean };
+}
+
+export interface TrainingRun {
+  id: string;
+  kind: RunKind;
+  name: string;
+  /** The purpose ("build a model for X") or the long-running goal. */
+  goal: string;
+  status: RunStatus;
+  config: TrainingConfig;
+  /** Selected ML solving approach preset id (goal runs). */
+  approachId?: string;
+  /** The chat session the agent works in. */
+  sessionId?: string;
+  workspaceId?: string;
+  experiments: ExperimentNode[];
+  hints: RunHint[];
+  log: RunLogEntry[];
+  bestExperimentId?: string;
+  createdAt: number;
+  updatedAt: number;
+  startedAt?: number;
+  endedAt?: number;
+  /** Total milliseconds spent in 'running' before the last pause/stop. */
+  runtimeMs?: number;
+  /** Count of agent turns taken so far. */
+  turns?: number;
+}
+
+export interface NewTrainingRun {
+  kind: RunKind;
+  name?: string;
+  goal: string;
+  config?: TrainingConfig;
+  approachId?: string;
+  workspaceId?: string;
+  providerId?: string;
+  modelId?: string;
+}
+
+/** Derived, display-ready stats (the dashboard header tiles). */
+export interface RunStats {
+  best?: number;
+  bestMetric?: string;
+  experiments: number;
+  /** succeeded / (succeeded + failed + repaired), 0..1; undefined until any finish. */
+  successRate?: number;
+  /** Distinct idea families tried (approach values, falling back to roots). */
+  niches: number;
+  /** Experiments that recovered from a failure. */
+  repairs: number;
+  runtimeMs: number;
+  turns: number;
+}
+
+/** Common ML solving approaches offered as presets on goal runs. */
+export interface ApproachPreset {
+  id: string;
+  label: string;
+  blurb: string;
+  /** Folded into the agent brief when selected. */
+  hint: string;
+}
+
+export const APPROACH_PRESETS: ApproachPreset[] = [
+  {
+    id: 'automl-sweep',
+    label: 'AutoML sweep',
+    blurb: 'Breadth-first: try many model families fast, then double down on winners.',
+    hint: 'Work breadth-first like an AutoML system: quickly try many model families (linear, trees, boosting, kNN, small nets) with sane defaults, compare on one CV metric, then iterate on the top 2-3 families.',
+  },
+  {
+    id: 'feature-first',
+    label: 'Feature engineering first',
+    blurb: 'Invest in the data representation before touching model choice.',
+    hint: 'Prioritize feature engineering: profile the data, handle missingness/outliers, build derived features and encodings, and validate each transformation by its CV delta before exploring model families.',
+  },
+  {
+    id: 'hyperparam-search',
+    label: 'Hyperparameter search',
+    blurb: 'Fix a strong family, then search its configuration space methodically.',
+    hint: 'Pick the strongest baseline family early, then run a methodical hyperparameter search (coarse random search, then fine-grained around the best region). Track every trial as an experiment.',
+  },
+  {
+    id: 'ensemble-stack',
+    label: 'Ensemble & stacking',
+    blurb: 'Combine diverse decent models instead of hunting one perfect model.',
+    hint: 'Build several diverse decent models and combine them (voting, averaging, stacking with a meta-learner). Diversity matters more than individual perfection.',
+  },
+  {
+    id: 'transfer-finetune',
+    label: 'Transfer learning / fine-tune',
+    blurb: 'Start from a pretrained model and adapt it to the task.',
+    hint: 'Start from a suitable pretrained model (Hugging Face) and fine-tune: freeze most layers first, tune the head, then progressively unfreeze if the budget allows. Compare against a classical baseline.',
+  },
+  {
+    id: 'data-centric',
+    label: 'Data-centric iteration',
+    blurb: 'Fix the labels and coverage; the model is rarely the bottleneck.',
+    hint: 'Iterate on the data, not the model: audit label quality, find error clusters, augment or rebalance underrepresented slices, and re-measure. Keep the model fixed while the data improves.',
+  },
+  {
+    id: 'neuro-evolution',
+    label: 'Evolutionary / population search',
+    blurb: 'Maintain a population of candidates, mutate winners, prune losers.',
+    hint: 'Run a population-based search: keep a pool of candidate pipelines, mutate/crossover the best performers each generation, prune the weakest, and record each generation as experiments branching from their parent.',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    blurb: 'No preset. The brief and your hints steer the agent.',
+    hint: '',
+  },
+];
+
+export function getApproach(id?: string): ApproachPreset | undefined {
+  return APPROACH_PRESETS.find((a) => a.id === id);
+}
+
+/** Compare scores respecting the run's metric direction. */
+export function isBetterScore(candidate: number, incumbent: number | undefined, minimize?: boolean): boolean {
+  if (incumbent == null) return true;
+  return minimize ? candidate < incumbent : candidate > incumbent;
+}
+
+/** The current best experiment (by score, respecting direction). */
+export function bestExperiment(run: Pick<TrainingRun, 'experiments' | 'config'>): ExperimentNode | undefined {
+  let best: ExperimentNode | undefined;
+  for (const e of run.experiments) {
+    if (e.score == null) continue;
+    if (!best || isBetterScore(e.score, best.score, run.config?.minimizeMetric)) best = e;
+  }
+  return best;
+}
+
+/** Derive the dashboard stats from a run. */
+export function runStats(run: TrainingRun, now = Date.now()): RunStats {
+  const finished = run.experiments.filter((e) => e.status === 'succeeded' || e.status === 'failed' || e.status === 'repaired');
+  const ok = finished.filter((e) => e.status === 'succeeded' || e.status === 'repaired').length;
+  const families = new Set(run.experiments.map((e) => (e.approach?.trim().toLowerCase() || (e.parentId ? '' : e.id))).filter(Boolean));
+  const best = bestExperiment(run);
+  const live = run.status === 'running' && run.startedAt ? now - run.startedAt : 0;
+  return {
+    best: best?.score,
+    bestMetric: best?.metric ?? run.config?.metric,
+    experiments: run.experiments.length,
+    successRate: finished.length ? ok / finished.length : undefined,
+    niches: families.size,
+    repairs: run.experiments.filter((e) => e.status === 'repaired').length,
+    runtimeMs: (run.runtimeMs ?? 0) + live,
+    turns: run.turns ?? 0,
+  };
+}
+
+/** A node placed on the idea-maze canvas (column/row grid coordinates). */
+export interface MazeNode {
+  exp: ExperimentNode;
+  /** Column: stable left-to-right order (DFS over creation-ordered forest). */
+  col: number;
+  /** Row: depth in the tree (roots at 0). */
+  row: number;
+  /** True when this node is on the ancestry path of the best experiment. */
+  onBestPath: boolean;
+}
+
+/**
+ * Deterministic idea-maze layout: a DFS over the forest (roots and siblings in
+ * creation order) assigns each node the next column; depth gives the row. The
+ * result reads left→right chronologically, with branches hanging under their
+ * parents, like the AIDE-style experiment maze.
+ */
+export function layoutMaze(run: Pick<TrainingRun, 'experiments' | 'config' | 'bestExperimentId'>): MazeNode[] {
+  const byParent = new Map<string | undefined, ExperimentNode[]>();
+  const byId = new Map(run.experiments.map((e) => [e.id, e]));
+  for (const e of run.experiments) {
+    // Orphaned parent ids (agent typo) fall back to root placement.
+    const key = e.parentId && byId.has(e.parentId) ? e.parentId : undefined;
+    const list = byParent.get(key) ?? [];
+    list.push(e);
+    byParent.set(key, list);
+  }
+  for (const list of byParent.values()) list.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+
+  const bestId = run.bestExperimentId ?? bestExperiment(run as TrainingRun)?.id;
+  const bestPath = new Set<string>();
+  let cur = bestId ? byId.get(bestId) : undefined;
+  let guard = 0;
+  while (cur && guard++ < 1000) {
+    bestPath.add(cur.id);
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+  }
+
+  const out: MazeNode[] = [];
+  let col = 0;
+  const walk = (node: ExperimentNode, row: number) => {
+    out.push({ exp: node, col: col++, row, onBestPath: bestPath.has(node.id) });
+    for (const child of byParent.get(node.id) ?? []) walk(child, row + 1);
+  };
+  for (const root of byParent.get(undefined) ?? []) walk(root, 0);
+  return out;
+}
+
+/** Short human runtime, e.g. "15h", "2d 4h", "34m". */
+export function formatRuntime(ms: number): string {
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return h >= 10 ? `${h}h` : `${h}h ${m % 60 ? `${m % 60}m` : ''}`.trim();
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
+/** Token the agent uses to declare the whole run finished. */
+export const RUN_DONE_TOKEN = '⟦RUN_DONE⟧';

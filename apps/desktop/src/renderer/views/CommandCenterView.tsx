@@ -82,7 +82,7 @@ export function CommandCenterView() {
 
   // Chats the user started directly, excludes sub-agents and task-driven chats
   // (those live in the swarm tree and the Tasks board respectively).
-  const topLevel = useMemo(() => sessions.filter((s) => !s.parentSessionId && !s.taskId), [sessions]);
+  const topLevel = useMemo(() => sessions.filter((s) => !s.parentSessionId && !s.taskId && !s.trainingRunId), [sessions]);
   const recentSession = topLevel[0];
   const recentWorkspace = settings?.workspaces?.[0];
   const todayKey = new Date().toISOString().slice(0, 10);

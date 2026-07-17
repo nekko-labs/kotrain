@@ -64,6 +64,10 @@ export interface Session {
   /** When set, this chat is driven by an automation task (shown in the Tasks
    *  board, kept out of the regular chat boards/lanes). */
   taskId?: string;
+  /** When set, this chat is driven by a training/goal run (shown in the
+   *  Training/Goals tabs, kept out of the regular chat boards/lanes; the
+   *  report_experiment tool becomes available to the agent). */
+  trainingRunId?: string;
   providerId?: string;
   modelId?: string;
   messages: ChatMessage[];

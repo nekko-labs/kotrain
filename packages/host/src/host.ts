@@ -21,6 +21,8 @@ import type {
   DesignPage,
   AutomationTask,
   NewTask,
+  TrainingRun,
+  NewTrainingRun,
   InstalledSkillRecord,
   InstallTargetInfo,
   InstallTarget,
@@ -74,6 +76,19 @@ import {
   setTasksNotifier,
   startTaskScheduler,
 } from './tasks.js';
+import {
+  listTrainingRuns,
+  createTrainingRun,
+  updateTrainingRun,
+  deleteTrainingRun,
+  startTrainingRun,
+  pauseTrainingRun,
+  stopTrainingRun,
+  addTrainingHint,
+  setTrainingSender,
+  setTrainingNotifier,
+  startTrainingScheduler,
+} from './training.js';
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
@@ -222,6 +237,16 @@ export interface Host {
   deleteTask(id: string): AutomationTask[];
   runTaskNow(id: string): void;
 
+  /** Training/goal runs: the data-scientist agent + experiment-tree engine. */
+  listTrainingRuns(): TrainingRun[];
+  createTrainingRun(input: NewTrainingRun): TrainingRun;
+  updateTrainingRun(id: string, patch: Partial<TrainingRun>): TrainingRun[];
+  deleteTrainingRun(id: string): TrainingRun[];
+  startTrainingRun(id: string): TrainingRun[];
+  pauseTrainingRun(id: string): TrainingRun[];
+  stopTrainingRun(id: string): TrainingRun[];
+  addTrainingHint(id: string, text: string): TrainingRun[];
+
   listConnectors(): ConnectorConfig[];
   connectConnector(kind: ConnectorKind, token: string, settings?: Record<string, string>): ConnectorConfig[];
   disconnectConnector(kind: ConnectorKind): ConnectorConfig[];
@@ -254,6 +279,11 @@ export function createHost(opts: { dataDir: string }): Host {
   setTaskSender((e) => events.emit('agentEvent', e));
   setTasksNotifier((tasks) => events.emit('tasksUpdated', tasks));
   startTaskScheduler();
+  // Training/goal runs: agent events ride the shared bus; run changes get their
+  // own event. Resume any runs that were mid-flight when the host went down.
+  setTrainingSender((e) => events.emit('agentEvent', e));
+  setTrainingNotifier((runs) => events.emit('trainingUpdated', runs));
+  startTrainingScheduler();
 
   const findProvider = (id: string) => getSettings().providers.find((p) => p.id === id);
 
@@ -431,6 +461,15 @@ export function createHost(opts: { dataDir: string }): Host {
     updateTask,
     deleteTask,
     runTaskNow,
+
+    listTrainingRuns,
+    createTrainingRun,
+    updateTrainingRun,
+    deleteTrainingRun,
+    startTrainingRun,
+    pauseTrainingRun,
+    stopTrainingRun,
+    addTrainingHint,
 
     listConnectors: () => getSettings().connectors,
     connectConnector: (kind, token, settings) => {

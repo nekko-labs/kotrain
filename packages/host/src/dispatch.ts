@@ -114,6 +114,15 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.taskDelete]: ([id]) => host.deleteTask(id),
     [C.taskRunNow]: ([id]) => host.runTaskNow(id),
 
+    [C.trainingList]: () => host.listTrainingRuns(),
+    [C.trainingCreate]: ([input]) => host.createTrainingRun(input),
+    [C.trainingUpdate]: ([id, patch]) => host.updateTrainingRun(id, patch),
+    [C.trainingDelete]: ([id]) => host.deleteTrainingRun(id),
+    [C.trainingStart]: ([id]) => host.startTrainingRun(id),
+    [C.trainingPause]: ([id]) => host.pauseTrainingRun(id),
+    [C.trainingStop]: ([id]) => host.stopTrainingRun(id),
+    [C.trainingHint]: ([id, text]) => host.addTrainingHint(id, text),
+
     [C.connectorsList]: () => host.listConnectors(),
     [C.connectorConnect]: ([kind, token, settings]) => host.connectConnector(kind, token, settings),
     [C.connectorDisconnect]: ([kind]) => host.disconnectConnector(kind),

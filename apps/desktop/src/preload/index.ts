@@ -124,6 +124,15 @@ const api: NekkoApi = {
   deleteTask: (id) => inv(IpcChannels.taskDelete, id),
   runTaskNow: (id) => inv(IpcChannels.taskRunNow, id),
 
+  listTrainingRuns: () => inv(IpcChannels.trainingList),
+  createTrainingRun: (input) => inv(IpcChannels.trainingCreate, input),
+  updateTrainingRun: (id, patch) => inv(IpcChannels.trainingUpdate, id, patch),
+  deleteTrainingRun: (id) => inv(IpcChannels.trainingDelete, id),
+  startTrainingRun: (id) => inv(IpcChannels.trainingStart, id),
+  pauseTrainingRun: (id) => inv(IpcChannels.trainingPause, id),
+  stopTrainingRun: (id) => inv(IpcChannels.trainingStop, id),
+  addTrainingHint: (id, text) => inv(IpcChannels.trainingHint, id, text),
+
   listConnectors: () => inv(IpcChannels.connectorsList),
   connectConnector: (kind: ConnectorKind, token, settings) => inv(IpcChannels.connectorConnect, kind, token, settings),
   disconnectConnector: (kind: ConnectorKind) => inv(IpcChannels.connectorDisconnect, kind),
@@ -181,6 +190,11 @@ const api: NekkoApi = {
     const listener = (_: unknown, tasks: import('@kotrain/shared').AutomationTask[]) => cb(tasks);
     ipcRenderer.on(IpcEvents.tasksUpdated, listener);
     return () => ipcRenderer.removeListener(IpcEvents.tasksUpdated, listener);
+  },
+  onTrainingUpdated: (cb) => {
+    const listener = (_: unknown, runs: import('@kotrain/shared').TrainingRun[]) => cb(runs);
+    ipcRenderer.on(IpcEvents.trainingUpdated, listener);
+    return () => ipcRenderer.removeListener(IpcEvents.trainingUpdated, listener);
   },
 };
 
