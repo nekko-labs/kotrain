@@ -16,7 +16,7 @@ const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', '
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const PORT = Number(process.env.OPENPAW_PORT ?? 4317);
+const PORT = Number(process.env.OPENPAW_PORT ?? 1440);
 const HOST = process.env.OPENPAW_HOST ?? '127.0.0.1';
 const isLocal = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
 const DATA_DIR = process.env.OPENPAW_DATA_DIR ?? join(homedir(), '.open-paw');

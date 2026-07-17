@@ -16,7 +16,7 @@ node apps/cli/dist/index.js status        # or: npm link, then `opaw status`
   (shared with the web/Docker edition). Set `OPENPAW_DATA_DIR` to the desktop app's
   dir to share that instead (`%APPDATA%/Open Paw/open-paw` on Windows,
   `~/Library/Application Support/Open Paw/open-paw` on macOS).
-- **Remote**: pass `--url http://host:4317` (or `OPENPAW_URL`) to talk to a
+- **Remote**: pass `--url http://host:1440` (or `OPENPAW_URL`) to talk to a
   **running** Open Paw server over HTTP+WS, your live instance, a Docker
   container, or another machine. Add `--token` (or `OPENPAW_TOKEN`) if it's secured.
 

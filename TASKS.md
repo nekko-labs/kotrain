@@ -100,11 +100,11 @@ The workbench is a Zustand pane model (`store.ts`: `groups: WbGroup[]`, each a c
 
 - **Desktop**: electron-builder targets win (MSI/NSIS/zip), mac (dmg/zip, arm64 ad-hoc signed), linux (AppImage/deb). Release CI on `v*` tags builds all 3 OSes and publishes a draft. Auto-updates via electron-updater (GitHub feed, NSIS). To cut a release: bump version (root/desktop/server) + `git tag vX.Y.Z && git push` → CI publishes a draft → publish it.
 - **Web/npx**: `npm run web` (in-repo) or `npm run bundle:web` → esbuild-bundled self-contained `open-paw` package in `apps/server/cli-dist` (server+engine inlined, fastify external) → `npx open-paw`. Publish needs the user's npm login.
-- **Docker**: multi-stage `Dockerfile` (`ELECTRON_SKIP_BINARY_DOWNLOAD=1`, dev deps pruned, non-root node:20-slim) + `docker-compose.yml` (volume workspace + data, `host.docker.internal:host-gateway`, publishes to 127.0.0.1:4317); GHCR publish workflow on `v*` tags.
+- **Docker**: multi-stage `Dockerfile` (`ELECTRON_SKIP_BINARY_DOWNLOAD=1`, dev deps pruned, non-root node:20-slim) + `docker-compose.yml` (volume workspace + data, `host.docker.internal:host-gateway`, publishes to 127.0.0.1:1440); GHCR publish workflow on `v*` tags.
 - **Mobile**: `.github/workflows/mobile.yml` (manual) builds Android debug APK + iOS simulator. `cap add ios/android` + native toolchains run on cloud runners (not the Windows dev box). Requires a full root `npm run build` first so workspace dists resolve.
 - **Cloud**: `npm run cloud` (:4318) locally; hosted deploy target TBD (open question).
 - **Local test loop**: `npm run local` builds + launches the built desktop app (electron-vite preview, no installer/Defender); `npm run web` for the browser edition.
-- **Ports**: web 4317, cloud 4318. Kill a stale dev server by port (`Get-NetTCPConnection -LocalPort … | Stop-Process`), npm-wrapped node survives `pkill`.
+- **Ports**: web 1440, cloud 4318. Kill a stale dev server by port (`Get-NetTCPConnection -LocalPort … | Stop-Process`), npm-wrapped node survives `pkill`.
 
 ## Design System & UI/UX
 
@@ -205,6 +205,9 @@ Extends `../../knowledgebase/principles/coding.md` (which these override).
 - [ ] **T33**, Relay + phone connectivity: working prototype done (`apps/relay` dumb pipe, `apps/server` relay-agent outbound WSS, pairing-key auth, web-client relay transport, E2E encryption, relay sees only ciphertext). **Still TODO**: mobile/PWA polish, device registry + revocation (needs the Cloud account model).
 
 ## Backlog / Planned
+
+### Workbench resizable splits (86)
+- [ ] **T86**, Resizable workbench columns. The workbench already splits into up to 3 columns (`MAX_GROUPS = 3`), but each column gets an equal `flex: 1` share. Add a drag handle between adjacent groups so the user can resize column widths freely (like VS Code / Warp / Cursor). The handle lives between rendered `<PaneGroupView>`s, uses pointer events for the drag gesture, clamps each column to a min/max width, and persists the per-group `flexGrow` or pixel widths so splits survive a reload. No new deps; reuse the same pointer-event resize pattern already used by the Files side-pane (`startResize` in `FilesSidePane`). *Planned: 2026-07-14.*
 
 ### Phase 3, Open Paw Cloud (paid, hosted), parallel track, does not gate OSS v1.0
 - [ ] **T32**, ZDR mode (always available) + cloud chat-history + cloud file management; encrypted-at-rest sync engine; ZDR badges + audit log.
