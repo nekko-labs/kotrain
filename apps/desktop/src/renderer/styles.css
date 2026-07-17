@@ -231,10 +231,54 @@ h1 { letter-spacing: -0.02em; }
   0% { transform: translateY(20px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+/* kendo training: alternating jabs (mini + full sprite) */
+@keyframes nekko-punch {
+  0%, 100% { transform: translate(0, 0); }
+  30% { transform: translate(0, 0); }
+  50% { transform: translate(-4px, -3px); }
+  70% { transform: translate(0, 0); }
+}
+@keyframes nekko-punch-r {
+  0%, 100% { transform: translate(0, 0); }
+  30% { transform: translate(0, 0); }
+  50% { transform: translate(4px, -3px); }
+  70% { transform: translate(0, 0); }
+}
+@keyframes nekko-jab {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+/* side-kick snap: leg fires out from the hip, holds, returns */
+@keyframes nekko-kick {
+  0%, 15% { transform: rotate(38deg); }
+  35% { transform: rotate(-12deg); }
+  55% { transform: rotate(-8deg); }
+  75%, 100% { transform: rotate(38deg); }
+}
+/* bokken suburi: slow lift overhead, fast strike down, brief hold */
+@keyframes nekko-swing {
+  0% { transform: rotate(-78deg); }
+  38% { transform: rotate(-78deg); }
+  50% { transform: rotate(24deg); }
+  66% { transform: rotate(20deg); }
+  100% { transform: rotate(-78deg); }
+}
+/* arms held up in guard while gripping */
+@keyframes nekko-guard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
 .nekko-bob { animation: nekko-bob 0.7s ease-in-out infinite; }
 .nekko-wave { animation: nekko-wave 0.9s ease-in-out infinite; transform-origin: bottom center; }
 .nekko-knead-l { animation: nekko-knead 0.45s ease-in-out infinite; }
 .nekko-knead-r { animation: nekko-knead 0.45s ease-in-out infinite 0.22s; }
+.nekko-punch-l { animation: nekko-punch 0.8s ease-in-out infinite; }
+.nekko-punch-r { animation: nekko-punch-r 0.8s ease-in-out infinite 0.4s; }
+.nekko-jab-l { animation: nekko-jab 0.5s ease-in-out infinite; }
+.nekko-jab-r { animation: nekko-jab 0.5s ease-in-out infinite 0.25s; }
+.nekko-kick { animation: nekko-kick 1.3s ease-in-out infinite; }
+.nekko-swing { animation: nekko-swing 1.7s cubic-bezier(0.5, 0, 0.3, 1) infinite; }
+.nekko-arms-up { animation: nekko-guard 0.8s ease-in-out infinite; }
 .nekko-peek { animation: nekko-peek 0.5s ease-out; }
 @keyframes dots {
   0% { content: ''; }
