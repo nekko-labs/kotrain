@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@open-paw/shared';
-import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens } from '@open-paw/shared';
+import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@kotrain/shared';
+import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
@@ -486,7 +486,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           setModelId(v);
           window.nekko.setSessionOptions(sessionId, { autoModel: v === AUTO_MODEL_ID }).catch(() => {});
         }}
-        title={modelId === AUTO_MODEL_ID ? 'Open Paw picks the best model for each message' : undefined}
+        title={modelId === AUTO_MODEL_ID ? 'Kotrain picks the best model for each message' : undefined}
       >
         {models.length === 0 && <option value="">No models</option>}
         {models.length > 1 && <option value={AUTO_MODEL_ID}>✨ Auto (pick best)</option>}

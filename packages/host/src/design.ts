@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { DesignBoard, DesignPage } from '@open-paw/shared';
+import type { DesignBoard, DesignPage } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 /**

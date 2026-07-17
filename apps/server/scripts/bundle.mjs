@@ -1,8 +1,8 @@
-// Produce a self-contained, publishable `open-paw` package under cli-dist/:
-//   - index.mjs : the server + @open-paw/host/core/shared bundled by esbuild
+// Produce a self-contained, publishable `kotrain` package under cli-dist/:
+//   - index.mjs : the server + @kotrain/host/core/shared bundled by esbuild
 //   - web/      : the built renderer (the UI)
-//   - package.json : name "open-paw", bin, and the few runtime deps
-// Run after building the renderer (npm run build -w @open-paw/desktop).
+//   - package.json : name "kotrain", bin, and the few runtime deps
+// Run after building the renderer (npm run build -w @kotrain/desktop).
 import { build } from 'esbuild';
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -15,7 +15,7 @@ const out = join(serverDir, 'cli-dist');
 
 const renderer = join(repoRoot, 'apps/desktop/out/renderer');
 if (!existsSync(join(renderer, 'index.html'))) {
-  console.error('Build the renderer first: npm run build -w @open-paw/desktop');
+  console.error('Build the renderer first: npm run build -w @kotrain/desktop');
   process.exit(1);
 }
 
@@ -41,12 +41,12 @@ cpSync(renderer, join(out, 'web'), { recursive: true });
 
 const version = JSON.parse(readFileSync(join(serverDir, 'package.json'), 'utf8')).version;
 const pkg = {
-  name: 'open-paw',
+  name: 'kotrain',
   version,
-  description: 'Local-first AI coding & cowork, the self-hosted web edition. Run with `npx open-paw`.',
+  description: 'Local-first AI coding & cowork, the self-hosted web edition. Run with `npx kotrain`.',
   license: 'MIT',
   type: 'module',
-  bin: { 'open-paw': 'index.mjs' },
+  bin: { 'kotrain': 'index.mjs' },
   files: ['index.mjs', 'web'],
   engines: { node: '>=20' },
   dependencies: {
@@ -58,7 +58,7 @@ const pkg = {
 writeFileSync(join(out, 'package.json'), JSON.stringify(pkg, null, 2));
 writeFileSync(
   join(out, 'README.md'),
-  '# Open Paw (web edition + CLI/MCP)\n\nWeb server:\n\n```bash\nnpx open-paw\n```\n\nThen open http://localhost:1440.\n\nCLI / MCP (drive your local agent from the terminal or other tools):\n\n```bash\nnpx open-paw status\nnpx open-paw chat "summarize README.md"\nnpx open-paw mcp        # MCP server on stdio (e.g. claude mcp add open-paw -- npx open-paw mcp)\n```\n\nSee https://github.com/nekko-labs/open-paw\n',
+  '# Kotrain (web edition + CLI/MCP)\n\nWeb server:\n\n```bash\nnpx kotrain\n```\n\nThen open http://localhost:1440.\n\nCLI / MCP (drive your local agent from the terminal or other tools):\n\n```bash\nnpx kotrain status\nnpx kotrain chat "summarize README.md"\nnpx kotrain mcp        # MCP server on stdio (e.g. claude mcp add kotrain -- npx kotrain mcp)\n```\n\nSee https://github.com/nekko-labs/kotrain\n',
 );
 
 console.log(`\n✓ Bundled publishable package → ${out}`);

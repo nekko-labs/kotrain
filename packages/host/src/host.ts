@@ -36,7 +36,7 @@ import type {
   TerminalInfo,
   TerminalSnapshot,
   ShellOption,
-} from '@open-paw/shared';
+} from '@kotrain/shared';
 import {
   createProvider,
   discoverLocalProviders,
@@ -44,7 +44,7 @@ import {
   getConnector,
   classifyCommand,
   BUILTIN_TOOLS,
-} from '@open-paw/core';
+} from '@kotrain/core';
 import { setDataDir, dataDir } from './paths.js';
 import { getSettings, saveSettings, resetSettings } from './store.js';
 import * as sessions from './sessions.js';
@@ -208,11 +208,11 @@ export interface Host {
   installSkill(
     skillId: string,
     target: InstallTarget,
-    payload?: import('@open-paw/shared').MarketplaceSkill,
+    payload?: import('@kotrain/shared').MarketplaceSkill,
   ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
   uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[];
   /** Nekko Dojo skills hub (optional): catalog + a skill's SKILL.md. */
-  dojoCatalog(refresh?: boolean): Promise<import('@open-paw/shared').DojoCatalog>;
+  dojoCatalog(refresh?: boolean): Promise<import('@kotrain/shared').DojoCatalog>;
   dojoSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
@@ -238,7 +238,7 @@ export interface Host {
   /** Connect (or reconnect) configured MCP servers and return their status. */
   mcpStatus(): Promise<McpServerStatus[]>;
   /** Probe for a local NekkoMCP daemon and return its gateway info. */
-  detectNekkoMcp(): Promise<import('@open-paw/shared').NekkoMcpInfo | null>;
+  detectNekkoMcp(): Promise<import('@kotrain/shared').NekkoMcpInfo | null>;
 }
 
 export function createHost(opts: { dataDir: string }): Host {
@@ -467,7 +467,7 @@ export function createHost(opts: { dataDir: string }): Host {
       return { enabled: false };
     },
     remoteStatus: () => (remote ? remote.status : { enabled: false }),
-    appInfo: () => ({ version: process.env.OPENPAW_VERSION ?? '0.0.0', platform: process.platform, edition: 'web' }),
+    appInfo: () => ({ version: process.env.KOTRAIN_VERSION ?? '0.0.0', platform: process.platform, edition: 'web' }),
     mcpStatus: async () => {
       const configs = getSettings().mcpServers ?? [];
       await syncMcp(configs);

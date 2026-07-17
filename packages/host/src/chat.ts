@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@open-paw/shared';
-import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@open-paw/shared';
+import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@kotrain/shared';
+import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@kotrain/shared';
 import {
   createProvider,
   runAgent,
@@ -11,7 +11,7 @@ import {
   isGuidelineFile,
   getConnector,
   BUILTIN_TOOLS,
-} from '@open-paw/core';
+} from '@kotrain/core';
 import { getSettings } from './store.js';
 import { getSession, saveSession, createSession } from './sessions.js';
 import { executeTool } from './tools.js';

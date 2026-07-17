@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assembleContext, isGuidelineFile } from './assembler.js';
-import type { MemoryEntry } from '@open-paw/shared';
+import type { MemoryEntry } from '@kotrain/shared';
 
 const mem: MemoryEntry = {
   id: 'm1',

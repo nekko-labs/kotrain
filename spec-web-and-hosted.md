@@ -1,4 +1,4 @@
-# Open Paw, Web, Docker & Hosted Editions (Spec)
+# Kotrain, Web, Docker & Hosted Editions (Spec)
 
 > Added 2026-06-20. Expands the canonical [master-build-prompt.md](master-build-prompt.md) with three new pillars requested by Philip:
 > 1. An **offline web edition** that runs the *same code* as the native app via one npm command or `docker compose`.
@@ -14,7 +14,7 @@ This is a planning/spec document. Implementation lands in phases (see [Build pla
 | | **Desktop** (today) | **Self-hosted web** | **Docker** | **Nekko Cloud** (paid) |
 |---|---|---|---|---|
 | Runtime | Electron | Node server + browser | Node server in a container | Managed multi-tenant service |
-| Install | installer / `npm run dev` | `npx open-paw` or `npm run web` | `docker compose up` | sign in at app.openpaw.com |
+| Install | installer / `npm run dev` | `npx kotrain` or `npm run web` | `docker compose up` | sign in at app.kotrain.com |
 | Runs your code & files | ✅ local FS | ✅ local FS | ✅ mounted volume | ✅ via paired local agent |
 | Local models | ✅ | ✅ | ✅ (host network) | ✅ via secure relay |
 | Cost | free, OSS | free, OSS | free, OSS | subscription |
@@ -22,7 +22,7 @@ This is a planning/spec document. Implementation lands in phases (see [Build pla
 | Phone access |, | LAN only | LAN only | ✅ from anywhere |
 | Data retention | local only | local only | local only | **ZDR option always on offer** |
 
-**One promise across all of them:** the engine (`@open-paw/core`) and the entire React UI are identical. Only the *host transport* differs.
+**One promise across all of them:** the engine (`@kotrain/core`) and the entire React UI are identical. Only the *host transport* differs.
 
 ---
 
@@ -31,7 +31,7 @@ This is a planning/spec document. Implementation lands in phases (see [Build pla
 ### 2.1 Where we are
 - `packages/core`, pure engine (providers, agent loop, guardrails, context, indexer, memory, connectors). Already transport-agnostic. ✅
 - `apps/desktop/src/main/*`, **host services** (settings store, sessions, chat orchestrator, sandboxed tool executor, workspace indexer, memory store, usage log, connector fetch) currently live here and are wired to the renderer through Electron IPC (`ipc.ts` + `preload`).
-- `apps/desktop/src/renderer/*`, React UI that calls `window.nekko.*` (the `NekkoApi` contract in `@open-paw/shared`).
+- `apps/desktop/src/renderer/*`, React UI that calls `window.nekko.*` (the `NekkoApi` contract in `@kotrain/shared`).
 
 ### 2.2 The refactor: extract `packages/host`
 Move the service logic out of `apps/desktop/src/main` into a new transport-agnostic **`packages/host`**:
@@ -58,7 +58,7 @@ The renderer must get `window.nekko` regardless of runtime. Introduce a tiny boo
 Selection is by build target / presence of the preload bridge: `window.nekko ??= makeWebClient()`.
 
 ### 2.4 Net effect
-`@open-paw/core` + `apps/desktop/src/renderer` are shared verbatim. New code is: `packages/host` (mostly moved), `apps/server` (new, thin), and `renderer/web-client.ts` (new, thin). The desktop `main` shrinks to a host wiring file.
+`@kotrain/core` + `apps/desktop/src/renderer` are shared verbatim. New code is: `packages/host` (mostly moved), `apps/server` (new, thin), and `renderer/web-client.ts` (new, thin). The desktop `main` shrinks to a host wiring file.
 
 ---
 
@@ -73,7 +73,7 @@ Selection is by build target / presence of the preload bridge: `window.nekko ??=
 5. Opens the default browser at `http://localhost:1440`.
 
 Run paths:
-- `npx open-paw` (published bin) → downloads + starts the server.
+- `npx kotrain` (published bin) → downloads + starts the server.
 - In-repo: `npm run web` → builds renderer + core + host, starts `apps/server`.
 - The server is **offline-first**: it makes no outbound calls except to the model servers and connectors the user configures.
 
@@ -83,14 +83,14 @@ Ship a `Dockerfile` + `docker-compose.yml`:
 ```yaml
 services:
   nekko:
-    image: ghcr.io/nekko-labs/open-paw:latest    # or build: .
+    image: ghcr.io/nekko-labs/kotrain:latest    # or build: .
     ports: ["1440:1440"]
     volumes:
       - ./workspace:/workspace                # codebases the agent may touch
       - nekko-data:/data                      # settings, sessions, memory, usage
     environment:
-      - OPENPAW_SANDBOX=workspace-jail
-      - OPENPAW_DATA_DIR=/data
+      - KOTRAIN_SANDBOX=workspace-jail
+      - KOTRAIN_DATA_DIR=/data
     extra_hosts: ["host.docker.internal:host-gateway"]   # reach a model server on the host
 volumes: { nekko-data: {} }
 ```
@@ -112,7 +112,7 @@ The web server grants file + shell access to whoever can reach it. Therefore:
 The managed edition. Everything the OSS app does, plus convenience that only a hosted service can provide, without giving up local execution or privacy.
 
 ### 4.1 What it adds over self-hosting
-1. **Zero-setup access** from any browser at `app.openpaw.com`.
+1. **Zero-setup access** from any browser at `app.kotrain.com`.
 2. **Cloud chat history**: sessions sync across devices, encrypted at rest.
 3. **Cloud file management**: a cloud workspace (upload/organize/version files) alongside your local ones.
 4. **Phone connectivity to your local model**: use your phone to drive the model running on your home/office machine, from anywhere (§4.5). This is the headline cloud feature.
@@ -169,7 +169,7 @@ Goal: open Nekko on your phone, talk to the LLM running on your home machine, se
 Capture these on the website + README.
 
 ### 5.1 vs LM Studio (and Ollama UIs)
-> **LM Studio runs models. Open Paw runs *with your work*.**
+> **LM Studio runs models. Kotrain runs *with your work*.**
 - LM Studio / most local UIs are **chat-only**, a great model runner with a chat box, but no awareness of your files or projects.
 - Nekko **reads, edits, searches, and runs** in your actual codebases: multi-folder index, file viewer + inline editing, tool-using agent, per-project memory, guardrails. Same easy local-model setup, but the model can *do the work*, not just talk about it.
 
@@ -206,8 +206,8 @@ Phase ordering keeps the OSS app shippable throughout.
 - [ ] **P2.1, Host extraction**: move `apps/desktop/src/main` services into `packages/host`; rewrite desktop `main` as thin IPC wiring over `createHost()`. No user-visible change; keep build + tests green.
 - [ ] **P2.2, Web server**: `apps/server` (Fastify) mapping the IPC contract to HTTP + WS; `renderer/web-client.ts` adapter; `npm run web`; localhost bind + token for non-local.
 - [ ] **P2.3, Docker**: `Dockerfile`, `docker-compose.yml`, `host.docker.internal` model access, volume-mounted workspaces, non-root, published image via CI.
-- [ ] **P2.4, Packaging/publish**: `npx open-paw` bin; website download/run section updated; docs.
-- [ ] **P3.1, Cloud foundation**: accounts/auth, Postgres, entitlements, app.openpaw.com shell reusing the same renderer with a cloud transport.
+- [ ] **P2.4, Packaging/publish**: `npx kotrain` bin; website download/run section updated; docs.
+- [ ] **P3.1, Cloud foundation**: accounts/auth, Postgres, entitlements, app.kotrain.com shell reusing the same renderer with a cloud transport.
 - [x] **P3.2, Payments**: Stripe Checkout + Portal + signature-verified webhooks → `store.setPlan`; entitlement gating (already existed). Gated on `STRIPE_SECRET_KEY`; live charges need keys. See §4.3.
 - [ ] **P3.3, ZDR + cloud history/files**: retention modes, encrypted storage, sync engine, ZDR badges + audit.
 - [ ] **P3.4, Relay + phone**: local agent outbound WSS, relay service, device pairing (QR/code), E2E encryption, mobile-responsive UI / PWA, revoke devices.

@@ -24,7 +24,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/nekko-labs/open-paw
+          images: ghcr.io/nekko-labs/kotrain
           tags: |
             type=ref,event=tag
             type=raw,value=latest

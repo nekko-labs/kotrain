@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentEvent, AppSettings, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@open-paw/shared';
+import type { AgentEvent, AppSettings, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@kotrain/shared';
 import { useStore, type FilesPaneSide, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';

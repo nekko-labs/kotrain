@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { DirEntry } from '@open-paw/shared';
+import type { DirEntry } from '@kotrain/shared';
 import { FileTypeIcon } from '../fileIcons.js';
 import { FolderIcon } from '../icons.js';
 
@@ -7,7 +7,7 @@ import { FolderIcon } from '../icons.js';
  * A lightweight VS Code–style file explorer: a collapsible "Files" disclosure
  * per project that lazy-loads each folder's children on expand. Clicking a file
  * opens it in a FilePane (view/edit in-app). Not a full IDE tree, no rename/DnD
- * yet, just enough to browse and open without leaving Open Paw.
+ * yet, just enough to browse and open without leaving Kotrain.
  */
 export function ProjectFiles({ root, label = 'Files', onOpen }: { root: string; label?: string; onOpen: (path: string) => void }) {
   const [open, setOpen] = useState(false);

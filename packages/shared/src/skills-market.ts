@@ -9,7 +9,7 @@
  *    offline-first snapshot so the marketplace works with no internet.
  *  - **Installed**, what the user has installed, and where.
  *
- * A skill can be installed into **Open Paw** itself (it joins the `/` menu and
+ * A skill can be installed into **Kotrain** itself (it joins the `/` menu and
  * the Skills tab) or exported to another agent app that reads the SKILL.md
  * convention (Claude Code `~/.claude/skills`, Codex `~/.codex/skills`).
  */
@@ -19,7 +19,7 @@ import type { SkillCategory, SkillDef, SkillWorkflow } from './skills.js';
 export type SkillSource = 'nekkolabs' | 'community' | 'dojo';
 
 /** Where a skill can be installed. */
-export type InstallTarget = 'openpaw' | 'claude' | 'codex';
+export type InstallTarget = 'kotrain' | 'claude' | 'codex';
 
 export interface InstallTargetInfo {
   id: InstallTarget;
@@ -34,7 +34,7 @@ export interface InstallTargetInfo {
 
 export interface MarketplaceSkill {
   id: string;
-  /** Invoked as `/name` once installed into Open Paw. */
+  /** Invoked as `/name` once installed into Kotrain. */
   name: string;
   description: string;
   author: string;
@@ -46,7 +46,7 @@ export interface MarketplaceSkill {
   stars?: number;
   installs?: number;
   tools?: string[];
-  /** Text dropped into the composer when run inside Open Paw. */
+  /** Text dropped into the composer when run inside Kotrain. */
   template: string;
   /** Longer instructions written to SKILL.md for file-based installs. */
   instructions: string;
@@ -84,7 +84,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Code quality',
-    url: 'https://github.com/nekko-labs/open-paw',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 4820,
     tools: ['git diff', 'read_file', 'spawn_agent'],
     template: 'Run a review council over the current changes: spawn three parallel reviewers (correctness bugs, security, simplification), then merge their findings into one ranked report.',
@@ -119,7 +119,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Research & planning',
-    url: 'https://github.com/nekko-labs/open-paw',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 3110,
     tools: ['read_file', 'search'],
     template: 'Compare SPEC.md against the actual code: list shipped features the spec does not mention, and spec claims the code no longer satisfies. Then update SPEC.md to match reality.',
@@ -133,7 +133,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Delivery',
-    url: 'https://github.com/nekko-labs/open-paw',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 2740,
     tools: ['git log', 'write_file'],
     template: 'Write a user-facing changelog entry from the commits since the last release tag: group by Added / Changed / Fixed, plain language, no commit hashes.',
@@ -147,7 +147,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Delivery',
-    url: 'https://github.com/nekko-labs/open-paw',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 1980,
     tools: ['git log', 'git diff'],
     template: 'Summarize what changed in this repo in the last 24h as a standup update: done / in progress / blockers, three bullets each max.',
@@ -161,7 +161,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Code quality',
-    url: 'https://github.com/nekko-labs/open-paw',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 1540,
     tools: ['bash', 'read_file'],
     template: 'Audit the dependencies: run the package manager audit, find unused packages, and list majors we are behind on, with a prioritized upgrade plan.',
@@ -175,7 +175,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Code quality',
-    url: 'https://github.com/nekko-labs/open-paw',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 1210,
     tools: ['read_file', 'search'],
     template: 'Audit the UI components for accessibility issues: missing labels/alt text, keyboard traps, focus handling, contrast risks. Report by severity with fixes.',
@@ -336,7 +336,7 @@ export function marketWorkflow(skill: MarketplaceSkill): SkillWorkflow {
   return { nodes, edges };
 }
 
-/** A marketplace skill as a runnable in-app SkillDef (once installed to Open Paw). */
+/** A marketplace skill as a runnable in-app SkillDef (once installed to Kotrain). */
 export function marketToSkillDef(m: MarketplaceSkill): SkillDef {
   return {
     id: m.id,
@@ -363,7 +363,7 @@ export function skillToMarkdown(m: MarketplaceSkill): string {
     '',
     m.instructions,
     '',
-    `> Installed from the Open Paw skills marketplace (author: ${m.author}${m.url ? `, ${m.url}` : ''}).`,
+    `> Installed from the Kotrain skills marketplace (author: ${m.author}${m.url ? `, ${m.url}` : ''}).`,
     '',
   ].join('\n');
 }

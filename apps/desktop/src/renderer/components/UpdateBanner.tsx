@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, UpdateInfo } from '@open-paw/shared';
+import type { AppInfo, UpdateInfo } from '@kotrain/shared';
 import { useStore } from '../store.js';
 
 const LS_LAST_VERSION = 'op_last_version';
@@ -40,7 +40,7 @@ export function UpdateBanner() {
   if (!info) return null;
 
   const isDesktop = info.edition === 'desktop';
-  const notesUrl = update?.notesUrl ?? 'https://github.com/nekko-labs/open-paw/releases/latest';
+  const notesUrl = update?.notesUrl ?? 'https://github.com/nekko-labs/kotrain/releases/latest';
   const openNotes = () => window.nekko.openPath(notesUrl);
 
   // First-run prompt (desktop only, the web edition just refreshes).

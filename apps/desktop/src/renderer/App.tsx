@@ -92,7 +92,7 @@ export function App() {
         off = window.nekko.onAgentEvent((e) => {
           if (e.type === 'done' && document.hidden) {
             LocalNotifications.schedule({
-              notifications: [{ id: nid++, title: 'Nekko finished', body: 'Your task is ready in Open Paw.' }],
+              notifications: [{ id: nid++, title: 'Nekko finished', body: 'Your task is ready in Kotrain.' }],
             }).catch(() => {});
           }
         });

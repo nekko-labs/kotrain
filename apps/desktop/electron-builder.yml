@@ -1,5 +1,5 @@
-appId: dev.nekkolabs.openpaw
-productName: Open Paw
+appId: dev.nekkolabs.kotrain
+productName: Kotrain
 copyright: Copyright © 2026 Nekko Labs
 afterPack: scripts/after-pack.cjs
 directories:
@@ -18,7 +18,7 @@ extraMetadata:
 publish:
   provider: github
   owner: nekko-labs
-  repo: open-paw
+  repo: kotrain
 win:
   target:
     - msi
@@ -35,7 +35,7 @@ nsis:
   # Add/Remove Programs + Start Menu uninstall entry, with a Start Menu folder.
   menuCategory: true
   createStartMenuShortcut: true
-  uninstallDisplayName: Open Paw
+  uninstallDisplayName: Kotrain
   # Custom uninstall hook lives at build/installer.nsh, electron-builder picks
   # it up automatically (its customUnInstall macro offers to remove user data).
 msi:

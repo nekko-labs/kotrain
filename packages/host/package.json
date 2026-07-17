@@ -1,5 +1,5 @@
 {
-  "name": "@open-paw/host",
+  "name": "@kotrain/host",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.12",
-    "@open-paw/core": "*",
-    "@open-paw/shared": "*"
+    "@kotrain/core": "*",
+    "@kotrain/shared": "*"
   }
 }

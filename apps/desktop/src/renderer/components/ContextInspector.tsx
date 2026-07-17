@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { ContextBundle, ContextItem } from '@open-paw/shared';
-import { getSessionWorkspaceIds, estimateTokens } from '@open-paw/shared';
+import type { ContextBundle, ContextItem } from '@kotrain/shared';
+import { getSessionWorkspaceIds, estimateTokens } from '@kotrain/shared';
 import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
@@ -29,9 +29,9 @@ const SOURCE_COLOR: Record<ContextItem['source'], string> = {
 
 /** Plain-language explanation of each context source, shown on hover. */
 const SOURCE_EXPLAIN: Record<ContextItem['source'], string> = {
-  system: "Open Paw's base instructions to the model, its role, available tools, and safety rules. Always included.",
+  system: "Kotrain's base instructions to the model, its role, available tools, and safety rules. Always included.",
   guideline: 'Your project guideline files (AGENTS.md / CLAUDE.md and similar) that tell the model how to work in this repo.',
-  memory: 'Facts Open Paw remembers across chats, your preferences and project notes, that match this conversation.',
+  memory: 'Facts Kotrain remembers across chats, your preferences and project notes, that match this conversation.',
   'attached-file': 'Files you attached to this chat. Included in full on every turn.',
   connector: 'Content pulled from your connected tools and integrations that is relevant to this prompt.',
   'index-snippet': "Code snippets retrieved from your workspace index that match this turn's prompt.",
@@ -61,7 +61,7 @@ function baseName(p: string): string {
 }
 
 /**
- * The Context Inspector, Open Paw's signature panel. Two parts:
+ * The Context Inspector, Kotrain's signature panel. Two parts:
  *  1. Sources, the folders, attached files, and key context files (spec.md,
  *     guidelines) wired into this chat, each addable/openable.
  *  2. Breakdown, exactly what enters the prompt this turn, grouped by

@@ -29,4 +29,4 @@ export interface UpdateInfo {
   edition: 'desktop' | 'web';
 }
 
-export const RELEASE_NOTES_URL = 'https://github.com/nekko-labs/open-paw/releases/latest';
+export const RELEASE_NOTES_URL = 'https://github.com/nekko-labs/kotrain/releases/latest';

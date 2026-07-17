@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { IpcChannels, IpcEvents } from '@open-paw/shared';
-import { createDispatcher, type Host } from '@open-paw/host';
+import { IpcChannels, IpcEvents } from '@kotrain/shared';
+import { createDispatcher, type Host } from '@kotrain/host';
 import { initUpdater, checkForUpdates, downloadUpdate, quitAndInstall } from './update.js';
 
 function broadcast(channel: string, payload: unknown): void {

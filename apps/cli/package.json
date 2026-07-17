@@ -1,10 +1,11 @@
 {
-  "name": "@open-paw/cli",
+  "name": "@kotrain/cli",
   "version": "0.1.5",
   "private": true,
   "type": "module",
-  "description": "Open Paw CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
+  "description": "Kotrain CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
   "bin": {
+    "kotrain": "./dist/index.js",
     "opaw": "./dist/index.js"
   },
   "main": "./dist/run.js",
@@ -14,7 +15,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@open-paw/host": "*",
-    "@open-paw/shared": "*"
+    "@kotrain/host": "*",
+    "@kotrain/shared": "*"
   }
 }

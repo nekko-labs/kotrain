@@ -17,8 +17,8 @@ jobs:
       - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      # Build every workspace first: the cloud test suite imports @open-paw/host,
-      # and @open-paw/server imports @open-paw/cli, so their dists must exist
+      # Build every workspace first: the cloud test suite imports @kotrain/host,
+      # and @kotrain/server imports @kotrain/cli, so their dists must exist
       # before `npm test` / typecheck run.
       - run: npm run build:web
       - run: npm test

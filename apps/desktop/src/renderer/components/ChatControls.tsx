@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { ChatMode, Session } from '@open-paw/shared';
+import type { ChatMode, Session } from '@kotrain/shared';
 import { useStore } from '../store.js';
 
 const MODE_LABEL: Record<ChatMode, string> = { ask: 'Ask', guardrails: 'Guardrails', yolo: 'YOLO' };

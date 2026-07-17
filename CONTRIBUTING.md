@@ -1,14 +1,14 @@
-# Contributing to Open Paw
+# Contributing to Kotrain
 
-Thanks for your interest! Open Paw is an open-source, local-first AI coding & cowork desktop app. Contributions of all sizes are welcome.
+Thanks for your interest! Kotrain is an open-source, local-first AI coding & cowork desktop app. Contributions of all sizes are welcome.
 
 ## Development setup
 
 Requires Node 20+. The project uses **npm workspaces** (not pnpm/yarn).
 
 ```bash
-git clone https://github.com/nekko-labs/open-paw
-cd open-paw
+git clone https://github.com/nekko-labs/kotrain
+cd kotrain
 npm install
 npm run build:core   # build the shared + core packages first
 npm run dev          # launch the desktop app (electron-vite)
@@ -26,7 +26,7 @@ npm run dev          # launch the desktop app (electron-vite)
 
 **Rule of thumb:** business logic goes in `packages/core` (so it's testable without Electron); the desktop app wires it to the filesystem, shell, and UI.
 
-## Publishing the `npx open-paw` package
+## Publishing the `npx kotrain` package
 
 `npm run bundle:web` produces a self-contained package in `apps/server/cli-dist/`
 (server + engine bundled by esbuild, plus the built `web/` UI). To release it:
@@ -36,7 +36,7 @@ npm run bundle:web
 cd apps/server/cli-dist && npm publish
 ```
 
-After that, anyone can run the web edition with `npx open-paw`.
+After that, anyone can run the web edition with `npx kotrain`.
 
 ## Before you open a PR
 

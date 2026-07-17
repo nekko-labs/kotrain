@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { LineComment } from '@open-paw/shared';
+import type { LineComment } from '@kotrain/shared';
 import { Markdown } from './Markdown.js';
 import { FileTypeIcon } from '../fileIcons.js';
 import { ExternalIcon, CloseIcon } from '../icons.js';
@@ -20,7 +20,7 @@ function commentBlock(name: string, line: number, lineText: string, comment: str
  * in-app. A gutter "+" lets you drop an inline comment on any line that the
  * agent picks up, Add to prompt (queue it) or Run now (send it). Deliberately
  * not a full IDE, just enough to read, tweak, and steer changes without leaving
- * Open Paw.
+ * Kotrain.
  */
 export function FilePane({ path }: { path: string }) {
   const isMd = /\.(md|markdown)$/i.test(path);

@@ -1,6 +1,6 @@
 import { getClient, resolveModel, runChat, dataDir } from './lib.js';
 import { runMcpServer } from './mcp.js';
-import type { AgentEvent } from '@open-paw/shared';
+import type { AgentEvent } from '@kotrain/shared';
 
 const VERSION = '0.1.5';
 
@@ -21,20 +21,20 @@ function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string
   return { _, flags };
 }
 
-const HELP = `Open Paw CLI (opaw ${VERSION}), drive your local agent from the terminal.
+const HELP = `Kotrain CLI (kotrain ${VERSION}), drive your local agent from the terminal.
 
 Usage:
-  opaw status [--json]              Show providers, model, workspaces, sessions
-  opaw sessions [--json]            List chat sessions
-  opaw chat "<prompt>" [opts]       Run an agent turn (streams the reply)
-  opaw watch [--session <id>]       Tail live agent events (best with --url)
-  opaw mcp                          Start the MCP server (stdio) for other tools
-  opaw --help | --version
+  kotrain status [--json]              Show providers, model, workspaces, sessions
+  kotrain sessions [--json]            List chat sessions
+  kotrain chat "<prompt>" [opts]       Run an agent turn (streams the reply)
+  kotrain watch [--session <id>]       Tail live agent events (best with --url)
+  kotrain mcp                          Start the MCP server (stdio) for other tools
+  kotrain --help | --version
 
 Target (any command):
-  --url <http://host:port>          Talk to a running server (else OPENPAW_URL,
+  --url <http://host:port>          Talk to a running server (else KOTRAIN_URL,
                                     else the local data dir)
-  --token <token>                   Bearer token for a secured server (OPENPAW_TOKEN)
+  --token <token>                   Bearer token for a secured server (KOTRAIN_TOKEN)
 
 chat options:
   --session <id>     Continue an existing session (default: newest, or new)
@@ -43,9 +43,9 @@ chat options:
   --provider <id>    Provider override
   --model <id>       Model override
 
-Local data dir: ${dataDir()}  (override with OPENPAW_DATA_DIR)`;
+Local data dir: ${dataDir()}  (override with KOTRAIN_DATA_DIR)`;
 
-/** Run a CLI invocation. Shared by the `opaw` bin and the bundled `open-paw` package. */
+/** Run a CLI invocation. Shared by the `kotrain` bin and the bundled `kotrain` package. */
 export async function runCli(argv: string[]): Promise<void> {
   const { _, flags } = parseFlags(argv);
   const cmd = _[0];
@@ -70,7 +70,7 @@ export async function runCli(argv: string[]): Promise<void> {
       }, null, 2));
       return;
     }
-    console.log(`Open Paw, ${flags.url || process.env.OPENPAW_URL || dataDir()}`);
+    console.log(`Kotrain, ${flags.url || process.env.KOTRAIN_URL || dataDir()}`);
     console.log(`Providers: ${s.providers.map((p) => `${p.label} (${p.id})`).join(', ') || 'none'}`);
     console.log(`Default model: ${s.defaultModelId ?? '-'}`);
     console.log(`Workspaces: ${s.workspaces.map((w) => w.name).join(', ') || 'none'}`);
@@ -91,7 +91,7 @@ export async function runCli(argv: string[]): Promise<void> {
 
   if (cmd === 'chat') {
     const text = _[1];
-    if (!text) throw new Error('Usage: opaw chat "<prompt>"');
+    if (!text) throw new Error('Usage: kotrain chat "<prompt>"');
     let sessionId = flags.session as string | undefined;
     if (!sessionId && !flags.new) sessionId = (await client.listSessions())[0]?.id;
     if (!sessionId) sessionId = (await client.createSession(flags.workspace as string | undefined)).id;

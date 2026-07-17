@@ -1,4 +1,4 @@
-# Open Paw relay
+# Kotrain relay
 
 A dumb, end-to-end-encrypted pipe that pairs a remote client (your phone) with a
 local agent (your desktop) by room code, so a phone can drive your local model
@@ -6,11 +6,11 @@ with no inbound ports. The relay never sees conversation content, only the
 routing envelope and content-free control frames.
 
 ```bash
-npm run build -w @open-paw/relay
-npm run start -w @open-paw/relay      # ws://0.0.0.0:4400/relay
+npm run build -w @kotrain/relay
+npm run start -w @kotrain/relay      # ws://0.0.0.0:4400/relay
 ```
 
-Env: `OPENPAW_RELAY_PORT` (4400), `OPENPAW_RELAY_HOST` (0.0.0.0).
+Env: `KOTRAIN_RELAY_PORT` (4400), `KOTRAIN_RELAY_HOST` (0.0.0.0).
 
 ## Remote push (optional)
 
@@ -23,7 +23,7 @@ the token the phone registered (`register-push` frame). Configure APNs:
 | `APNS_KEY_P8` | Contents of the APNs auth key `.p8` (PEM, with newlines) |
 | `APNS_KEY_ID` | The key's 10-char Key ID |
 | `APNS_TEAM_ID` | Apple Team ID |
-| `APNS_BUNDLE_ID` | App bundle id (default `dev.nekkolabs.openpaw`) |
+| `APNS_BUNDLE_ID` | App bundle id (default `dev.nekkolabs.kotrain`) |
 | `APNS_PRODUCTION` | `1` for the production APNs host (default: sandbox) |
 
 **Android (FCM)**: set `FCM_SERVICE_ACCOUNT` to the full service-account JSON

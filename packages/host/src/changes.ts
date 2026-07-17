@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
-import type { FileChange } from '@open-paw/shared';
+import type { FileChange } from '@kotrain/shared';
 
 /**
  * Tracks files the agent changes during a session so the user can review and

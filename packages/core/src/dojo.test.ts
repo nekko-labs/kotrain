@@ -11,7 +11,7 @@ import {
   marketWorkflow,
   layoutWorkflow,
   MARKET_SKILLS,
-} from '@open-paw/shared';
+} from '@kotrain/shared';
 
 describe('nekko dojo catalog snapshot', () => {
   it('bundled snapshot is well-formed and offline-marked', () => {
@@ -38,7 +38,7 @@ describe('nekko dojo catalog snapshot', () => {
 });
 
 describe('dojoCategory', () => {
-  it('maps dojo categories onto Open Paw skill categories', () => {
+  it('maps dojo categories onto Kotrain skill categories', () => {
     expect(dojoCategory('research')).toBe('Research & planning');
     expect(dojoCategory('engineering')).toBe('Code quality');
     expect(dojoCategory('delivery')).toBe('Delivery');

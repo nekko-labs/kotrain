@@ -1,4 +1,4 @@
-import type { NekkoApi } from '@open-paw/shared';
+import type { NekkoApi } from '@kotrain/shared';
 
 declare global {
   interface Window {

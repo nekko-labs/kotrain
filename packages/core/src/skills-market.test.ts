@@ -10,7 +10,7 @@ import {
   skillToMarkdown,
   layoutWorkflow,
   SKILLS,
-} from '@open-paw/shared';
+} from '@kotrain/shared';
 
 describe('skills marketplace catalog', () => {
   it('has unique ids and names across the whole catalog', () => {

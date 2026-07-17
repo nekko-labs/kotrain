@@ -1,6 +1,6 @@
 import React from 'react';
-import type { ContextBundle, ContextItem, EffortLevel } from '@open-paw/shared';
-import { formatUSD } from '@open-paw/shared';
+import type { ContextBundle, ContextItem, EffortLevel } from '@kotrain/shared';
+import { formatUSD } from '@kotrain/shared';
 import { useStore } from '../store.js';
 
 const SOURCE_LABEL: Record<string, string> = {

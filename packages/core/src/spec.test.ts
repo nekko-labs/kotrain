@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTasks, toggleTaskLine, getMethodology, SPEC_METHODOLOGIES } from '@open-paw/shared';
+import { parseTasks, toggleTaskLine, getMethodology, SPEC_METHODOLOGIES } from '@kotrain/shared';
 
 const SAMPLE = `# Tasks
 

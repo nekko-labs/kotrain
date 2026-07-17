@@ -1,8 +1,8 @@
 {
-  "name": "@open-paw/mobile",
+  "name": "@kotrain/mobile",
   "version": "0.1.4",
   "private": true,
-  "description": "Open Paw mobile (Capacitor), drive your local model from your phone over the secure relay.",
+  "description": "Kotrain mobile (Capacitor), drive your local model from your phone over the secure relay.",
   "scripts": {
     "sync-web": "node scripts/sync-web.mjs",
     "cap": "cap",

@@ -1,4 +1,4 @@
-import type { ModelInfo, ProviderConfig, ToolCall } from '@open-paw/shared';
+import type { ModelInfo, ProviderConfig, ToolCall } from '@kotrain/shared';
 import type { Provider, ChatRequest, ProviderChunk } from './types.js';
 
 /**
