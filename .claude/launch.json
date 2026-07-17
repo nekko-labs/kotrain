@@ -11,7 +11,7 @@
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "start", "-w", "@open-paw/server"],
-      "port": 4317
+      "port": 1440
     }
   ]
 }

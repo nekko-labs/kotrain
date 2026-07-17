@@ -1,15 +1,15 @@
 # Open Paw, self-hosted web edition in Docker.
 #   docker compose up        (build + run)
-# Then open http://localhost:4317
+# Then open http://localhost:1440
 services:
   nekko:
     build: .
     # Or use a published image instead of building:
     # image: ghcr.io/nekko-labs/open-paw:latest
     # Published to the host's localhost only. To expose on your LAN, change to
-    # "4317:4317" AND set OPENPAW_TOKEN below.
+    # "1440:1440" AND set OPENPAW_TOKEN below.
     ports:
-      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:1440:1440"
     volumes:
       # Codebases the agent may read/edit (workspace-jail sandbox confines it here).
       - ./workspace:/workspace

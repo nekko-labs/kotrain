@@ -26,7 +26,7 @@ FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     OPENPAW_HOST=0.0.0.0 \
-    OPENPAW_PORT=4317 \
+    OPENPAW_PORT=1440 \
     OPENPAW_DATA_DIR=/data
 
 # Copy the pruned install + build outputs, preserving the workspace layout the
@@ -41,7 +41,7 @@ COPY --from=builder /app/apps/desktop/out/renderer ./apps/desktop/out/renderer
 RUN mkdir -p /data /workspace && chown -R node:node /data /workspace /app
 USER node
 
-EXPOSE 4317
+EXPOSE 1440
 VOLUME ["/data", "/workspace"]
 
 CMD ["node", "apps/server/dist/index.js"]

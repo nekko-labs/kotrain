@@ -70,7 +70,7 @@ Selection is by build target / presence of the preload bridge: `window.nekko ??=
 2. Mounts `POST /api/:channel` → `host[method](...args)` (validated against the IPC contract).
 3. Exposes `GET /api/events` (WebSocket) streaming `AgentEvent` + `IndexProgress`.
 4. Serves the built renderer (`apps/desktop` renderer output, or a shared `packages/renderer`) as static files.
-5. Opens the default browser at `http://localhost:4317`.
+5. Opens the default browser at `http://localhost:1440`.
 
 Run paths:
 - `npx open-paw` (published bin) → downloads + starts the server.
@@ -84,7 +84,7 @@ Ship a `Dockerfile` + `docker-compose.yml`:
 services:
   nekko:
     image: ghcr.io/nekko-labs/open-paw:latest    # or build: .
-    ports: ["4317:4317"]
+    ports: ["1440:1440"]
     volumes:
       - ./workspace:/workspace                # codebases the agent may touch
       - nekko-data:/data                      # settings, sessions, memory, usage

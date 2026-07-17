@@ -86,7 +86,7 @@ The desktop, web, and (coming) Docker editions all run the **same engine + same 
 
 ```bash
 npm install
-npm run web        # builds everything, then serves at http://localhost:4317
+npm run web        # builds everything, then serves at http://localhost:1440
 ```
 
 Same app, in your browser, fully offline. It binds to `localhost` by default; set
@@ -99,7 +99,7 @@ exposing it with `OPENPAW_HOST=0.0.0.0`. Data lives in `~/.open-paw` (override w
 ### Run with Docker
 
 ```bash
-docker compose up        # build + run, then open http://localhost:4317
+docker compose up        # build + run, then open http://localhost:1440
 ```
 
 Mount your codebases into `./workspace` (the sandbox confines file tools there),
@@ -156,7 +156,7 @@ your current OS, no need to download the released installer:
 
 ```bash
 npm run local        # build everything + launch the built desktop app (Windows/macOS)
-npm run web          # build + serve the web edition at http://localhost:4317
+npm run web          # build + serve the web edition at http://localhost:1440
 ```
 
 `npm run local` builds the production renderer/main and runs it via
