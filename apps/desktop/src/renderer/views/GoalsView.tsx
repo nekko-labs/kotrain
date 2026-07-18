@@ -27,27 +27,27 @@ export function GoalsView() {
 
   return (
     <div className="flex h-full min-h-0">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--line)]">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-(--line)">
         <div className="flex items-center justify-between px-3 py-2.5">
           <span className="text-[13px] font-semibold">Goals</span>
-          <button className="btn btn-primary !px-2.5 !py-1 text-[12px]" onClick={() => setCreating(true)}>+ New</button>
+          <button className="btn btn-primary px-2.5! py-1! text-[12px]" onClick={() => setCreating(true)}>+ New</button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {mine.length === 0 && (
-            <div className="px-2 py-4 text-[12px] text-[var(--ink-faint)]">
+            <div className="px-2 py-4 text-[12px] text-(--ink-faint)">
               No goals yet. Give the agent a long-running goal and it keeps working, for hours or days, until it's met.
             </div>
           )}
           {mine.map((r) => (
             <button
               key={r.id}
-              className={`mb-1 w-full rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--surface-2)] ${selected?.id === r.id && !creating ? 'bg-[var(--surface-2)]' : ''}`}
+              className={`mb-1 w-full rounded-lg px-2.5 py-2 text-left transition hover:bg-(--surface-2) ${selected?.id === r.id && !creating ? 'bg-(--surface-2)' : ''}`}
               onClick={() => { setSelectedId(r.id); setCreating(false); }}
             >
               <div className="truncate text-[12.5px] font-medium">{r.name}</div>
               <div className="mt-0.5 flex items-center gap-2">
                 <RunStatusChip run={r} />
-                <span className="font-mono text-[10px] text-[var(--ink-faint)]">{formatRuntime(runStats(r).runtimeMs)}</span>
+                <span className="font-mono text-[10px] text-(--ink-faint)">{formatRuntime(runStats(r).runtimeMs)}</span>
               </div>
             </button>
           ))}
@@ -83,30 +83,30 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-lg font-bold tracking-tight">{run.name}</h1>
             <RunStatusChip run={run} />
-            {approach && <span className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[10.5px] text-[var(--ink-soft)]">{approach.label}</span>}
+            {approach && <span className="rounded-full border border-(--line) px-2 py-0.5 text-[10.5px] text-(--ink-soft)">{approach.label}</span>}
           </div>
-          <p className="mt-1 text-[12.5px] text-[var(--ink-soft)]">{run.goal}</p>
+          <p className="mt-1 text-[12.5px] text-(--ink-soft)">{run.goal}</p>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Working for</div>
+          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">Working for</div>
           <div className="text-2xl font-bold tabular-nums" style={{ color: run.status === 'running' ? '#60a5fa' : 'inherit' }}>
             {formatRuntime(s.runtimeMs)}
           </div>
         </div>
         <span className="flex w-full gap-1.5 sm:w-auto">
           {run.status !== 'running' && run.status !== 'completed' && (
-            <button className="btn btn-primary !py-1.5" onClick={() => void window.nekko.startTrainingRun(run.id)}>
+            <button className="btn btn-primary py-1.5!" onClick={() => void window.nekko.startTrainingRun(run.id)}>
               {run.turns ? 'Resume' : 'Start'}
             </button>
           )}
           {run.status === 'running' && (
-            <button className="btn btn-outline !py-1.5" onClick={() => void window.nekko.pauseTrainingRun(run.id)}>Pause</button>
+            <button className="btn btn-outline py-1.5!" onClick={() => void window.nekko.pauseTrainingRun(run.id)}>Pause</button>
           )}
           {(run.status === 'running' || run.status === 'paused') && (
-            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={() => void window.nekko.stopTrainingRun(run.id)}>Stop</button>
+            <button className="btn btn-ghost py-1.5! text-red-400" onClick={() => void window.nekko.stopTrainingRun(run.id)}>Stop</button>
           )}
-          {run.sessionId && <button className="btn btn-outline !py-1.5" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>}
-          <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+          {run.sessionId && <button className="btn btn-outline py-1.5!" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>}
+          <button className="btn btn-ghost py-1.5! text-red-400" onClick={remove}>Delete</button>
         </span>
       </div>
 
@@ -166,13 +166,13 @@ function NewGoalForm({
     <div className="mx-auto max-w-2xl space-y-4">
       <div>
         <h1 className="text-lg font-bold tracking-tight">New goal</h1>
-        <p className="mt-1 text-[12.5px] text-[var(--ink-soft)]">
+        <p className="mt-1 text-[12.5px] text-(--ink-soft)">
           A long-running objective the agent keeps working toward. Watch the idea maze grow, and steer it whenever you like.
         </p>
       </div>
       <div className="card space-y-3.5 p-4">
         <div>
-          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">The goal</label>
+          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">The goal</label>
           <textarea
             className="input min-h-[64px] w-full resize-y text-[13px]"
             placeholder={'e.g. "Get the Kaggle house-prices score above 0.92" or "Reduce the model\'s inference latency below 50ms without losing accuracy"'}
@@ -182,11 +182,11 @@ function NewGoalForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Name (optional)</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Name (optional)</label>
             <input className="input w-full" placeholder="House prices push" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Workspace</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Workspace</label>
             <select className="input w-full" value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)}>
               {workspaces.map((w) => (
                 <option key={w.id} value={w.id}>{w.name ?? w.path}</option>
@@ -196,16 +196,16 @@ function NewGoalForm({
           </div>
         </div>
         <div>
-          <label className="mb-1.5 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Solving approach</label>
+          <label className="mb-1.5 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Solving approach</label>
           <div className="grid gap-2 sm:grid-cols-2">
             {APPROACH_PRESETS.map((a) => (
               <button
                 key={a.id}
-                className={`rounded-xl border px-3 py-2.5 text-left transition ${approachId === a.id ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]' : 'border-[var(--line)] hover:border-[var(--ink-faint)]'}`}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${approachId === a.id ? 'border-(--accent) bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]' : 'border-(--line) hover:border-(--ink-faint)'}`}
                 onClick={() => setApproachId(a.id)}
               >
                 <div className="text-[12.5px] font-semibold">{a.label}</div>
-                <div className="mt-0.5 text-[11px] leading-snug text-[var(--ink-faint)]">{a.blurb}</div>
+                <div className="mt-0.5 text-[11px] leading-snug text-(--ink-faint)">{a.blurb}</div>
               </button>
             ))}
           </div>

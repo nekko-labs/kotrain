@@ -203,7 +203,7 @@ export function CommandCenterView() {
         <div className="mt-7 flex items-center gap-2">
           <h2 className="text-[15px] font-semibold">Active agent work</h2>
           {running.size > 0 && (
-            <span className="chip !text-white" style={{ background: '#4ec98a' }}>
+            <span className="chip text-white!" style={{ background: '#4ec98a' }}>
               <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white align-middle" />{running.size} running
             </span>
           )}
@@ -410,7 +410,7 @@ function AgentCard({
                 <span className="shrink-0 text-[10px] text-ink-faint">{i + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-ink-soft" title={q}>{q}</span>
                 <button
-                  className="shrink-0 rounded p-0.5 text-ink-faint hover:text-red-400"
+                  className="shrink-0 rounded-sm p-0.5 text-ink-faint hover:text-red-400"
                   title="Remove from queue"
                   onClick={async () => { await window.nekko.dequeuePrompt(session.id, i); onRefresh(); }}
                 >
@@ -607,7 +607,7 @@ function StatusPill({ state, onlineLabel = 'online', offlineLabel = 'offline' }:
   if (state === 'checking') return <span className="chip">checking…</span>;
   const online = state === 'online';
   return (
-    <span className="chip !text-white" style={{ background: online ? '#4ec98a' : '#8a8f98' }}>
+    <span className="chip text-white!" style={{ background: online ? '#4ec98a' : '#8a8f98' }}>
       {online && <CheckIcon className="h-3 w-3" />} {online ? onlineLabel : offlineLabel}
     </span>
   );
@@ -862,7 +862,7 @@ function TasksDashboard({ tasks, running, onOpen }: { tasks: AutomationTask[]; r
                     <span className="text-base">{meta.icon}</span>
                     <span className="truncate text-[14px] font-semibold hover:text-accent">{t.title}</span>
                   </button>
-                  <span className="chip !text-white shrink-0" style={{ background: TASK_STATUS_COLOR[t.status] }}>
+                  <span className="chip text-white! shrink-0" style={{ background: TASK_STATUS_COLOR[t.status] }}>
                     {live ? <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white align-middle" /> : null}
                     {live ? 'working' : t.status}
                   </span>
@@ -887,7 +887,7 @@ function TasksDashboard({ tasks, running, onOpen }: { tasks: AutomationTask[]; r
                   {t.lastSessionId && (
                     <button className="btn btn-outline py-1 text-[12px]" onClick={() => onOpen(t.lastSessionId!)}>Open chat →</button>
                   )}
-                  <button className="rounded p-1.5 text-ink-faint hover:text-red-400" title="Delete task" onClick={() => window.nekko.deleteTask(t.id)}><TrashIcon className="h-3.5 w-3.5" /></button>
+                  <button className="rounded-sm p-1.5 text-ink-faint hover:text-red-400" title="Delete task" onClick={() => window.nekko.deleteTask(t.id)}><TrashIcon className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             );

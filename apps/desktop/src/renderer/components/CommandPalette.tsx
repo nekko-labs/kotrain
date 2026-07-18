@@ -56,7 +56,7 @@ export function CommandPalette() {
       <div className="card fade-in w-[520px] overflow-hidden p-0 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <input
           ref={inputRef}
-          className="w-full border-b border-line bg-transparent px-4 py-3 text-[14px] outline-none"
+          className="w-full border-b border-line bg-transparent px-4 py-3 text-[14px] outline-hidden"
           placeholder="Type a command…"
           value={query}
           onChange={(e) => {

@@ -65,7 +65,7 @@ export function RelayPairing() {
 
   if (scanning) {
     return (
-      <Suspense fallback={<div className="fixed inset-0 z-[60] bg-black" />}>
+      <Suspense fallback={<div className="fixed inset-0 z-60 bg-black" />}>
         <QrScanner
           onClose={() => setScanning(false)}
           onResult={(text) => {

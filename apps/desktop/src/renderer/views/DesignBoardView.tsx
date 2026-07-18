@@ -177,7 +177,7 @@ function PageCard({
         <div className="absolute inset-0" />
         {updating && (
           <button
-            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-white shadow"
+            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-white shadow-sm"
             style={{ background: 'var(--accent)' }}
             onClick={(e) => { e.stopPropagation(); onUpdatingClick(); }}
             title="An agent is updating your app, open its chat"
@@ -239,9 +239,9 @@ function PageSheet({
           <div className="truncate text-[13px] font-semibold">{page.label}</div>
           <div className="truncate text-[10.5px] text-ink-faint">{page.url}</div>
         </div>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open in browser pane" onClick={onOpenBrowser}><ExternalIcon className="h-3.5 w-3.5" /></button>
-        <button className="rounded p-1 text-ink-faint hover:text-red-400" title="Remove page" onClick={onRemove}><TrashIcon className="h-3.5 w-3.5" /></button>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Open in browser pane" onClick={onOpenBrowser}><ExternalIcon className="h-3.5 w-3.5" /></button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-red-400" title="Remove page" onClick={onRemove}><TrashIcon className="h-3.5 w-3.5" /></button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="px-3 py-3">

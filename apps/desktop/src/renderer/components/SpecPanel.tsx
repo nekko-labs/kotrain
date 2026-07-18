@@ -214,7 +214,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
                     >
                       <input
                         type="checkbox"
-                        className="mt-0.5 shrink-0 accent-[var(--accent)]"
+                        className="mt-0.5 shrink-0 accent-(--accent)"
                         checked={t.done}
                         onChange={() => toggleTask(t.line)}
                       />

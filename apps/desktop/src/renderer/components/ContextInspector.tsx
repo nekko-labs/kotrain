@@ -445,7 +445,7 @@ function Row({
       {onToggle && (
         <input
           type="checkbox"
-          className="shrink-0 accent-[var(--accent)]"
+          className="shrink-0 accent-(--accent)"
           checked={included !== false}
           aria-label={included === false ? `Include ${title}` : `Exclude ${title}`}
           onClick={(e) => e.stopPropagation()}

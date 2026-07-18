@@ -61,7 +61,7 @@ export function ScheduleTaskModal({
       <div className="card w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-[15px] font-semibold">⚡ Automate this agent</h2>
-          <button className="rounded p-1 text-ink-faint hover:text-ink" onClick={onClose}><CloseIcon className="h-4 w-4" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" onClick={onClose}><CloseIcon className="h-4 w-4" /></button>
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2">

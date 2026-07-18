@@ -83,7 +83,7 @@ export function ConnectorsView() {
                       <p className="text-[12px] text-ink-faint">{meta.description}</p>
                     </div>
                   </div>
-                  {connected && <span className="chip !text-white" style={{ background: '#4ec98a' }}>connected</span>}
+                  {connected && <span className="chip text-white!" style={{ background: '#4ec98a' }}>connected</span>}
                 </div>
 
                 {connected ? (

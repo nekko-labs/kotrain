@@ -1,219 +1,184 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-:root {
-  --paper: #fbfbfd;
-  --surface: #ffffff;
-  --surface-2: #f2f2f7;
-  --ink: #17171d;
-  --ink-soft: #52525e;
-  --ink-faint: #8a8a97;
-  --line: #e8e8ef;
-  --accent: #6d5efc;
-  /* A cyan secondary paired with the indigo-violet accent into a violet→cyan
-     brand gradient (the modern developer-tool look). Derived soft/gradient
-     tokens track --accent (which the user can recolor in Settings). */
-  --accent-2: #06b6d4;
-  --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
-  --brand-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
-  --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.04), 0 2px 8px rgba(20, 20, 30, 0.05);
-  --shadow-md: 0 4px 16px rgba(20, 20, 30, 0.08), 0 1px 3px rgba(20, 20, 30, 0.06);
-  --ring: color-mix(in srgb, var(--accent) 35%, transparent);
-  /* Make native controls (select popups, scrollbars) match the theme so we
-     never get light text on a light system-rendered dropdown. */
-  color-scheme: light;
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@theme {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-[data-theme='dark'] {
-  --paper: #0c0c11;
-  --surface: #16161c;
-  --surface-2: #20202a;
-  --ink: #eceaf3;
-  --ink-soft: #a3a1b0;
-  --ink-faint: #6b6b78;
-  --line: #26262f;
-  --accent: #8b7dff;
-  --accent-2: #22d3ee;
-  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
-  --brand-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
-  --ring: color-mix(in srgb, var(--accent) 45%, transparent);
-  color-scheme: dark;
-}
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
 
-/* Belt-and-suspenders for the native <select> popup list. */
-select.input option {
-  background: var(--surface);
-  color: var(--ink);
-}
-
-/* Color picker: make the chosen color fill the swatch edge-to-edge (browsers
-   otherwise leave native padding so the color floats inside a gray box). */
-input[type='color'] {
-  -webkit-appearance: none;
-  appearance: none;
-  padding: 0;
-  border: 1px solid var(--line);
-  background: transparent;
-  cursor: pointer;
-}
-input[type='color']::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-input[type='color']::-webkit-color-swatch {
-  border: none;
-  border-radius: 7px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  font-family: Inter, system-ui, -apple-system, sans-serif;
-  background: var(--paper);
-  color: var(--ink);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  line-height: 1.55;
-  overflow: hidden;
-}
-
-/* Tighter, more confident headings (Linear/Warp-style). */
-h1, h2, h3 {
-  letter-spacing: -0.012em;
-}
-h1 { letter-spacing: -0.02em; }
-
-/* Brand wordmark / accent text using the warm→cool gradient. */
-.text-gradient {
-  background: var(--brand-grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 8px;
-  border: 2px solid var(--paper);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-faint);
-}
-
-@layer components {
-  .card {
-    @apply rounded-2xl border border-line bg-surface;
-    box-shadow: var(--shadow-sm);
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
   }
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium;
-    transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-  }
-  .btn:active {
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-surface;
+  box-shadow: var(--shadow-sm);
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+  &:active {
     transform: translateY(0.5px);
   }
-  .btn-primary {
-    background: var(--brand-grad);
-    color: #fff;
-    box-shadow: var(--shadow-sm);
-  }
-  .btn-primary:hover {
+}
+
+@utility btn-primary {
+  background: var(--brand-grad);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  &:hover {
     filter: brightness(1.06) saturate(1.05);
   }
-  .btn-ghost {
-    @apply text-ink-soft;
-  }
-  .btn-ghost:hover {
+}
+
+@utility btn-ghost {
+  @apply text-ink-soft;
+  &:hover {
     background: var(--surface-2);
     color: var(--ink);
   }
-  .btn-outline {
-    @apply border border-line text-ink;
-  }
-  .btn-outline:hover {
+}
+
+@utility btn-outline {
+  @apply border border-line text-ink;
+  &:hover {
     background: var(--surface-2);
     border-color: color-mix(in srgb, var(--ink-faint) 40%, var(--line));
   }
-  .input {
-    @apply w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none;
-    color: var(--ink);
-    transition: border-color 0.12s ease, box-shadow 0.12s ease;
-  }
-  .input:focus {
+}
+
+@utility input {
+  @apply w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-hidden;
+  color: var(--ink);
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+  &:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--ring);
   }
+}
+
+@utility composer {
   /* The chat composer: one rounded surface holding the textarea and its
      actions, with the focus ring on the whole card. */
-  .composer {
-    @apply rounded-2xl border border-line bg-surface;
-    box-shadow: var(--shadow-sm);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-  .composer:focus-within {
+  @apply rounded-2xl border border-line bg-surface;
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  &:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--ring), var(--shadow-sm);
+    box-shadow:
+      0 0 0 3px var(--ring),
+      var(--shadow-sm);
   }
-  .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
-    background: var(--surface-2);
-    color: var(--ink-soft);
-  }
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+@utility rail {
   /* The collapsible left rail: 64px of icons at rest; hovering (or keyboard
      focus inside) expands it over the content to reveal the labels. */
-  .rail {
-    width: 64px;
-    transition: width 0.26s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease;
-    will-change: width;
-  }
-  .rail:hover,
-  .rail:has(:focus-visible) {
+  width: 64px;
+  transition:
+    width 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.26s ease;
+  will-change: width;
+  &:hover {
     width: 200px;
     box-shadow: var(--shadow-md);
   }
-  .rail-label {
-    opacity: 0;
-    transform: translateX(-8px);
-    white-space: nowrap;
-    pointer-events: none;
-    transition: opacity 0.16s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  &:has(:focus-visible) {
+    width: 200px;
+    box-shadow: var(--shadow-md);
   }
-  .rail:hover .rail-label,
-  .rail:has(:focus-visible) .rail-label {
+  &:hover .rail-label {
     opacity: 1;
     transform: none;
     transition-delay: 0.05s;
   }
-  .nav-item {
-    @apply relative flex h-11 w-full items-center rounded-xl text-ink-faint;
-    transition: background 0.14s ease, color 0.14s ease;
+  &:has(:focus-visible) .rail-label {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.05s;
   }
-  .nav-item:hover {
+}
+
+@utility rail-label {
+  opacity: 0;
+  transform: translateX(-8px);
+  white-space: nowrap;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  .rail:hover & {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.05s;
+  }
+
+  .rail:has(:focus-visible) & {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.05s;
+  }
+}
+
+@utility nav-item {
+  @apply relative flex h-11 w-full items-center rounded-xl text-ink-faint;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+  &:hover {
     background: var(--surface-2);
     color: var(--ink);
   }
-  .nav-item.active {
+  &.active {
     background: var(--accent-soft);
     color: var(--accent);
   }
   /* A small brand-gradient indicator on the active rail item. */
-  .nav-item.active::before {
+  &.active::before {
     content: '';
     position: absolute;
     left: -0px;
@@ -226,22 +191,176 @@ h1 { letter-spacing: -0.02em; }
   }
   /* Playful motion for the colorful rail icons: a springy scale + wiggle on
      hover, a satisfying squish on press, and a pop when a tab becomes active. */
-  .nav-item svg {
+  & svg {
     opacity: 0.82;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease;
+    transition:
+      transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.15s ease;
     will-change: transform;
   }
-  .nav-item:hover svg {
+  &:hover svg {
     opacity: 1;
     transform: scale(1.16) rotate(-4deg);
   }
-  .nav-item:active svg {
+  &:active svg {
     transform: scale(0.86);
   }
-  .nav-item.active svg {
+  &.active svg {
     opacity: 1;
     animation: nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+}
+
+@utility active {
+  &.nav-item {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  /* A small brand-gradient indicator on the active rail item. */
+  &.nav-item::before {
+    content: '';
+    position: absolute;
+    left: -0px;
+    top: 50%;
+    height: 18px;
+    width: 3px;
+    transform: translateY(-50%);
+    border-radius: 0 3px 3px 0;
+    background: var(--brand-grad);
+  }
+  &.nav-item svg {
+    opacity: 1;
+    animation: nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@layer utilities {
+  :root {
+    --paper: #fbfbfd;
+    --surface: #ffffff;
+    --surface-2: #f2f2f7;
+    --ink: #17171d;
+    --ink-soft: #52525e;
+    --ink-faint: #8a8a97;
+    --line: #e8e8ef;
+    --accent: #6d5efc;
+    /* A cyan secondary paired with the indigo-violet accent into a violet→cyan
+     brand gradient (the modern developer-tool look). Derived soft/gradient
+     tokens track --accent (which the user can recolor in Settings). */
+    --accent-2: #06b6d4;
+    --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
+    --brand-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
+    --shadow-sm:
+      0 1px 2px rgba(20, 20, 30, 0.04), 0 2px 8px rgba(20, 20, 30, 0.05);
+    --shadow-md:
+      0 4px 16px rgba(20, 20, 30, 0.08), 0 1px 3px rgba(20, 20, 30, 0.06);
+    --ring: color-mix(in srgb, var(--accent) 35%, transparent);
+    /* Make native controls (select popups, scrollbars) match the theme so we
+     never get light text on a light system-rendered dropdown. */
+    color-scheme: light;
+  }
+
+  [data-theme='dark'] {
+    --paper: #0c0c11;
+    --surface: #16161c;
+    --surface-2: #20202a;
+    --ink: #eceaf3;
+    --ink-soft: #a3a1b0;
+    --ink-faint: #6b6b78;
+    --line: #26262f;
+    --accent: #8b7dff;
+    --accent-2: #22d3ee;
+    --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+    --brand-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --ring: color-mix(in srgb, var(--accent) 45%, transparent);
+    color-scheme: dark;
+  }
+
+  /* Belt-and-suspenders for the native <select> popup list. */
+  select.input option {
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  /* Color picker: make the chosen color fill the swatch edge-to-edge (browsers
+   otherwise leave native padding so the color floats inside a gray box). */
+  input[type='color'] {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    border: 1px solid var(--line);
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type='color']::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  input[type='color']::-webkit-color-swatch {
+    border: none;
+    border-radius: 7px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    font-family:
+      Inter,
+      system-ui,
+      -apple-system,
+      sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    line-height: 1.55;
+    overflow: hidden;
+  }
+
+  /* Tighter, more confident headings (Linear/Warp-style). */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.012em;
+  }
+  h1 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Brand wordmark / accent text using the warm→cool gradient. */
+  .text-gradient {
+    background: var(--brand-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 8px;
+    border: 2px solid var(--paper);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-faint);
+  }
+}
+
+@layer components {
   @keyframes nav-pop {
     0% { transform: scale(0.7); }
     55% { transform: scale(1.22) rotate(5deg); }

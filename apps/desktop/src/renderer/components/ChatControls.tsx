@@ -120,7 +120,7 @@ export function ChatControls({
 
       {/* Offline */}
       <button
-        className={`chip ${offline ? '!text-white' : 'hover:text-ink'}`}
+        className={`chip ${offline ? 'text-white!' : 'hover:text-ink'}`}
         style={offline ? { background: 'var(--accent)' } : undefined}
         onClick={() => !isCloudModel && patch({ offline: !offline })}
         disabled={isCloudModel}
@@ -131,7 +131,7 @@ export function ChatControls({
 
       {/* Incognito */}
       <button
-        className={`chip ${incognito ? '!text-white' : 'hover:text-ink'}`}
+        className={`chip ${incognito ? 'text-white!' : 'hover:text-ink'}`}
         style={incognito ? { background: '#6b6f76' } : undefined}
         onClick={() => patch({ incognito: !incognito })}
         title="Don't save this chat or update memory"

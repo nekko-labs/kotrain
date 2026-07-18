@@ -103,7 +103,7 @@ function inline(s: string): React.ReactNode {
       nodes.push(<strong key={key++}>{m[2]}</strong>);
     } else if (m[3] !== undefined) {
       nodes.push(
-        <code key={key++} className="rounded px-1 py-0.5 font-mono text-[12.5px]" style={{ background: 'var(--surface-2)' }}>
+        <code key={key++} className="rounded-sm px-1 py-0.5 font-mono text-[12.5px]" style={{ background: 'var(--surface-2)' }}>
           {m[3]}
         </code>,
       );

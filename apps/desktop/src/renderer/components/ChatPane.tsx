@@ -606,7 +606,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   <div key={i} className="flex items-center gap-2 text-[12px]">
                     <span className="shrink-0 text-[10px] text-ink-faint">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-ink-soft" title={q}>{q}</span>
-                    <button className="shrink-0 rounded px-1 text-ink-faint hover:text-red-400" title="Remove from queue" onClick={() => removeQueued(i)}>✕</button>
+                    <button className="shrink-0 rounded-sm px-1 text-ink-faint hover:text-red-400" title="Remove from queue" onClick={() => removeQueued(i)}>✕</button>
                   </div>
                 ))}
               </div>
@@ -714,7 +714,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               )}
               <textarea
                 ref={composerRef}
-                className="max-h-60 min-h-[52px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm text-ink outline-none placeholder:text-ink-faint"
+                className="max-h-60 min-h-[52px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm text-ink outline-hidden placeholder:text-ink-faint"
                 rows={2}
                 placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
                 value={draft}
