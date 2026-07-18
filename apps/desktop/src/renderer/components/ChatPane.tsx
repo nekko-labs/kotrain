@@ -9,7 +9,7 @@ import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { MiniNekko } from './Mascot.js';
-import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon } from '../icons.js';
+import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 
@@ -508,6 +508,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       <section className="flex min-w-0 w-full flex-1 flex-col overflow-x-hidden">
         <header className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="truncate text-[13px] font-medium">{session?.title || 'New chat'}</span>
             {session?.parentSessionId && <span className="chip shrink-0 text-[10px]">sub-agent</span>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -530,8 +531,16 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         <div ref={scrollRef} className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 py-5">
           <div className="mx-auto w-full max-w-3xl space-y-5">
             {!session?.messages.length && !liveText && !liveReasoning && (
-              <div className="fade-in mt-12 text-center text-[13px] text-ink-faint">
-                {hasProvider ? 'Ask a question or give Nekko a task to run in this project.' : 'Connect a model in Models to get started.'}
+              <div className="fade-in mt-16 flex flex-col items-center gap-3 text-center">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl text-2xl" style={{ background: 'var(--accent-soft)' }}>🐾</div>
+                <div>
+                  <h2 className="text-[15px] font-semibold">{hasProvider ? 'What should Nekko work on?' : 'Connect a model to get started'}</h2>
+                  <p className="mx-auto mt-1 max-w-sm text-[12.5px] text-ink-faint">
+                    {hasProvider
+                      ? 'Ask a question or hand over a task. Use / for skills and prompts, @ to attach files, + for photos and folders.'
+                      : 'Add a local server (Ollama, LM Studio, vLLM) or a cloud provider in Models.'}
+                  </p>
+                </div>
               </div>
             )}
             {session?.messages.map((m, i) => (
@@ -604,44 +613,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             </div>
           )}
           <PromptAnalyzer text={draft} />
-          <div className="relative mx-auto flex w-full max-w-3xl items-end gap-2">
-            <div ref={attachMenuRef} className="relative shrink-0">
-              <button className="btn btn-outline px-2.5" onClick={() => setAttachMenuOpen((open) => !open)} title="Attach photo, file, or folder">+</button>
-              {attachMenuOpen && (
-                <div className="card absolute bottom-full left-0 z-40 mb-2 w-44 p-1.5 shadow-lg">
-                  <button
-                    className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                    onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }}
-                  >
-                    Photo
-                  </button>
-                  <button
-                    className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                    onClick={() => { setAttachMenuOpen(false); void addFiles(); }}
-                  >
-                    File
-                  </button>
-                  <button
-                    className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                    onClick={() => { setAttachMenuOpen(false); void window.nekko.addWorkspace(); }}
-                  >
-                    Folder
-                  </button>
-                </div>
-              )}
-              <input
-                ref={imageInputRef}
-                className="hidden"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []);
-                  if (files.length) void addImages(files);
-                  e.target.value = '';
-                }}
-              />
-            </div>
+          <div className="relative mx-auto w-full max-w-3xl">
             {pendingImages.length > 0 && (
               <div className="absolute bottom-full left-0 right-0 mb-2 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface-2 p-2">
                 {pendingImages.map((image, i) => (
@@ -670,7 +642,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               <div className="card absolute bottom-full left-0 z-40 mb-2 w-full max-w-md overflow-hidden p-1.5 shadow-lg">
                 <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint">Attach a file</div>
                 {atMatches.length === 0 ? (
-                  <div className="px-2.5 py-1.5 text-[11px] text-ink-faint">{atFiles.length === 0 ? 'Index this folder in Projects to mention files.' : 'No matching files.'}</div>
+                  <div className="px-2.5 py-1.5 text-[11px] text-ink-faint">{atFiles.length === 0 ? 'Attach a project folder (+ → Folder) to mention its files.' : 'No matching files.'}</div>
                 ) : (
                   atMatches.map((f) => (
                     <button key={f.path} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2" onClick={() => pickFile(f)}>
@@ -722,9 +694,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 )}
               </div>
             )}
-            <div className="min-w-0 flex-1">
+            <div className="composer">
               {activeSkill && (
-                <div className="mb-1.5 flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3.5 pt-2.5">
                   <span className="skill-pill text-[12px]" title={activeSkill.description}>
                     <span className="skill-pill-slash">/</span>{activeSkill.name}
                     <button
@@ -742,8 +714,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               )}
               <textarea
                 ref={composerRef}
-                className="input max-h-60 min-h-[78px] w-full resize-none"
-                rows={3}
+                className="max-h-60 min-h-[52px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm text-ink outline-none placeholder:text-ink-faint"
+                rows={2}
                 placeholder={hasProvider ? 'Message Nekko…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -771,21 +743,75 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 }}
                 disabled={!hasProvider}
               />
+              <div className="flex items-center gap-1 px-2 pb-2 pt-1">
+                <div ref={attachMenuRef} className="relative">
+                  <button
+                    className="grid h-8 w-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+                    onClick={() => setAttachMenuOpen((open) => !open)}
+                    title="Attach photo, file, or folder"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                  {attachMenuOpen && (
+                    <div className="card absolute bottom-full left-0 z-40 mb-2 w-44 p-1.5 shadow-lg">
+                      <button
+                        className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
+                        onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }}
+                      >
+                        Photo
+                      </button>
+                      <button
+                        className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
+                        onClick={() => { setAttachMenuOpen(false); void addFiles(); }}
+                      >
+                        File
+                      </button>
+                      <button
+                        className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
+                        onClick={() => { setAttachMenuOpen(false); void window.nekko.addWorkspace(); }}
+                      >
+                        Folder
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    ref={imageInputRef}
+                    className="hidden"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (files.length) void addImages(files);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+                <div className="flex-1" />
+                {draft.trim() && hasProvider && (
+                  <button
+                    className="btn btn-ghost h-8 px-2.5 py-0 text-[12px]"
+                    onClick={queueDraft}
+                    title={streaming ? 'Queue this to run after the current turn' : 'Queue this to run after any queued items'}
+                  >
+                    Queue
+                  </button>
+                )}
+                {streaming ? (
+                  <button className="btn btn-outline h-8 px-3 py-0 text-[12px]" onClick={() => window.nekko.abortChat(sessionId)}>Stop</button>
+                ) : (
+                  <button
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-white transition-all duration-150 enabled:hover:brightness-110 disabled:opacity-40"
+                    style={{ background: 'var(--brand-grad)' }}
+                    onClick={() => send()}
+                    disabled={(!draft.trim() && pendingImages.length === 0 && !activeSkill) || !hasProvider}
+                    title="Send"
+                  >
+                    <SendIcon />
+                  </button>
+                )}
+              </div>
             </div>
-            {draft.trim() && hasProvider && (
-              <button
-                className="btn btn-outline"
-                onClick={queueDraft}
-                title={streaming ? 'Queue this to run after the current turn' : 'Queue this to run after any queued items'}
-              >
-                Queue
-              </button>
-            )}
-            {streaming ? (
-              <button className="btn btn-outline" onClick={() => window.nekko.abortChat(sessionId)}>Stop</button>
-            ) : (
-              <button className="btn btn-primary" onClick={() => send()} disabled={(!draft.trim() && pendingImages.length === 0 && !activeSkill) || !hasProvider}><SendIcon /></button>
-            )}
           </div>
         </div>
       </section>
