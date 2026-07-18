@@ -62,6 +62,14 @@ Or in any MCP client config:
 | `open_paw_new_session` | Create a session, returns its id. |
 | `open_paw_get_session` | Get a transcript. |
 | `open_paw_status` | Providers, default model, workspaces, session count, relay status. |
+| `open_paw_train_start` | Start a **training run**: a local data-scientist agent benchmarks candidates, fine-tunes, evaluates, and reports experiments with scores. |
+| `open_paw_train_status` | Experiment tree + leader for one run (or a summary of all runs). |
+| `open_paw_train_hint` | Queue guidance the agent folds into its next experiments. |
+| `open_paw_train_stop` | Stop a run. |
+
+So an MCP client can say "train me a model for X": start a run whose goal is
+to benchmark existing models for X (reported as scored experiments, i.e. the
+recommendation step) and then fine-tune to beat the best of them.
 
 **Swarms**: call `open_paw_new_session` a few times and fan out `open_paw_chat`
 across the session ids, each is an independent agent driving your local model.
