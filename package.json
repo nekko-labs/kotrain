@@ -30,7 +30,7 @@
     "dist": "npm run build && npm run dist -w @kotrain/desktop"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
