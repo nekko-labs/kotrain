@@ -66,14 +66,6 @@ export const DesignColorIcon = (p: P) => (
   </Svg>
 );
 
-/** Projects — a two-tone blue folder. */
-export const ProjectsColorIcon = (p: P) => (
-  <Svg {...p}>
-    <path d="M3 6.6a2 2 0 0 1 2-2h3.5a2 2 0 0 1 1.5.7l1.05 1.2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="#1d4ed8" />
-    <path d="M3 10.4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="#3b82f6" />
-  </Svg>
-);
-
 /** Models — a purple CPU / chip with pins. */
 export const ModelsColorIcon = (p: P) => (
   <Svg {...p}>

@@ -95,12 +95,13 @@ export function ChatMetrics({
           </div>
         </div>
 
-        <span className="opacity-40">·</span>
-
-        {/* Throughput */}
-        <span title="Output tokens per second (last turn)">
-          {tps > 0 ? `${tps} tok/s` : '- tok/s'}
-        </span>
+        {/* Throughput (only once a turn has produced tokens) */}
+        {tps > 0 && (
+          <>
+            <span className="opacity-40">·</span>
+            <span title="Output tokens per second (last turn)">{tps} tok/s</span>
+          </>
+        )}
 
         <span className="opacity-40">·</span>
 

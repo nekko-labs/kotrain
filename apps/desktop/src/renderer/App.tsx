@@ -13,7 +13,6 @@ import { TrainingView } from './views/TrainingView.js';
 import { GoalsView } from './views/GoalsView.js';
 import { CommandCenterView } from './views/CommandCenterView.js';
 import { ModelsView } from './views/ModelsView.js';
-import { ProjectsView } from './views/ProjectsView.js';
 import { ConnectorsView } from './views/ConnectorsView.js';
 import { MemoryView } from './views/MemoryView.js';
 import { SettingsView } from './views/SettingsView.js';
@@ -24,7 +23,6 @@ import {
   TrainingColorIcon,
   GoalsColorIcon,
   DesignColorIcon,
-  ProjectsColorIcon,
   ModelsColorIcon,
   ConnectorsColorIcon,
   MemoryColorIcon,
@@ -38,7 +36,6 @@ const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string 
   { view: 'training', labelKey: 'nav.training', Icon: TrainingColorIcon },
   { view: 'goals', labelKey: 'nav.goals', Icon: GoalsColorIcon },
   { view: 'design', labelKey: 'nav.design', Icon: DesignColorIcon },
-  { view: 'projects', labelKey: 'nav.projects', Icon: ProjectsColorIcon },
   { view: 'models', labelKey: 'nav.models', Icon: ModelsColorIcon },
   { view: 'connectors', labelKey: 'nav.connectors', Icon: ConnectorsColorIcon },
   { view: 'memory', labelKey: 'nav.memory', Icon: MemoryColorIcon },
@@ -134,21 +131,28 @@ export function App() {
 
   return (
     <div className="flex h-full w-full" style={{ background: 'var(--paper)' }}>
-      {/* Left rail */}
-      <nav className="flex w-16 flex-col items-center gap-1 border-r border-line py-4">
-        <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
-          <span className="text-lg">🐾</span>
+      {/* Left rail: icon-only at rest, expands over the content on hover to
+          reveal each destination's label. */}
+      <nav className="relative z-40 w-16 shrink-0">
+        <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
+          <div className="mb-3 flex h-9 items-center gap-2.5">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
+              <span className="text-lg">🐾</span>
+            </div>
+            <span className="rail-label text-[14px] font-semibold tracking-tight">Kotrain</span>
+          </div>
+          {NAV.map(({ view: v, labelKey, Icon }) => (
+            <button
+              key={v}
+              className={`nav-item ${view === v ? 'active' : ''}`}
+              aria-label={t(labelKey)}
+              onClick={() => setView(v)}
+            >
+              <span className="grid h-11 w-11 shrink-0 place-items-center"><Icon /></span>
+              <span className="rail-label text-[13px] font-medium">{t(labelKey)}</span>
+            </button>
+          ))}
         </div>
-        {NAV.map(({ view: v, labelKey, Icon }) => (
-          <button
-            key={v}
-            className={`nav-item ${view === v ? 'active' : ''}`}
-            title={t(labelKey)}
-            onClick={() => setView(v)}
-          >
-            <Icon />
-          </button>
-        ))}
       </nav>
 
       {/* Main */}
@@ -169,7 +173,6 @@ export function App() {
         {view === 'goals' && <GoalsView />}
         {view === 'design' && <DesignBoardView />}
         {view === 'models' && <ModelsView />}
-        {view === 'projects' && <ProjectsView />}
         {view === 'connectors' && <ConnectorsView />}
         {view === 'memory' && <MemoryView />}
         {view === 'settings' && <SettingsView />}

@@ -159,13 +159,49 @@ h1 { letter-spacing: -0.02em; }
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--ring);
   }
+  /* The chat composer: one rounded surface holding the textarea and its
+     actions, with the focus ring on the whole card. */
+  .composer {
+    @apply rounded-2xl border border-line bg-surface;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .composer:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--ring), var(--shadow-sm);
+  }
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
     background: var(--surface-2);
     color: var(--ink-soft);
   }
+  /* The collapsible left rail: 64px of icons at rest; hovering (or keyboard
+     focus inside) expands it over the content to reveal the labels. */
+  .rail {
+    width: 64px;
+    transition: width 0.26s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease;
+    will-change: width;
+  }
+  .rail:hover,
+  .rail:has(:focus-visible) {
+    width: 200px;
+    box-shadow: var(--shadow-md);
+  }
+  .rail-label {
+    opacity: 0;
+    transform: translateX(-8px);
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .rail:hover .rail-label,
+  .rail:has(:focus-visible) .rail-label {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.05s;
+  }
   .nav-item {
-    @apply relative flex h-11 w-11 items-center justify-center rounded-xl text-ink-faint;
+    @apply relative flex h-11 w-full items-center rounded-xl text-ink-faint;
     transition: background 0.14s ease, color 0.14s ease;
   }
   .nav-item:hover {
@@ -298,6 +334,19 @@ h1 { letter-spacing: -0.02em; }
 
 .fade-in { animation: fade 0.25s ease; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Smooth expand/collapse for sidebar folder sections (the 0fr→1fr grid trick,
+   which animates to the content's natural height without measuring it). */
+.collapse-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  opacity: 1;
+}
+.collapse-wrap.collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
 
 /* Clean, conversational thread (no bubbles). The user's turn sits in a soft
    rounded block on the right; the assistant's reply is plain full-width prose on

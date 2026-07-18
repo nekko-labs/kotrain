@@ -7,7 +7,7 @@ import { FilePane } from '../components/FilePane.js';
 import { BrowserPane } from '../components/BrowserPane.js';
 import { DiffPane } from '../components/DiffPane.js';
 import { ProjectFiles } from '../components/FileTree.js';
-import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FolderIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
+import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
 
 /** Short label for a pane's tab/title. */
 function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
@@ -296,28 +296,35 @@ export function WorkbenchView() {
               onDrop={(e) => { e.preventDefault(); dropOnBucket(b); }}
             >
               <div
-                className="group flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+                className="group flex items-center gap-1 rounded-lg px-1.5 py-1 hover:bg-surface-2"
                 draggable={!!b.ws}
                 onDragStart={b.ws ? (e) => startDrag(e, { kind: 'project', id: b.ws!.id, ws: b.ws!.id }) : undefined}
                 onDragEnd={endDrag}
                 title={b.ws ? 'Drag to reorder project' : undefined}
               >
-                <button className="flex min-w-0 flex-1 items-center gap-1.5 text-left" onClick={() => toggleCollapse(b.key)}>
-                  <span className="text-[10px] text-ink-faint">{isCollapsed ? '▸' : '▾'}</span>
-                  <FolderIcon className="h-3.5 w-3.5 text-ink-faint" />
-                  <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-ink-soft">{b.name}</span>
+                <button className="flex min-w-0 flex-1 items-center gap-1 py-0.5 text-left" onClick={() => toggleCollapse(b.key)}>
+                  <svg
+                    className={`h-3 w-3 shrink-0 text-ink-faint transition-transform duration-200 ${isCollapsed ? '' : 'rotate-90'}`}
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                  ><path d="M9 6l6 6-6 6" /></svg>
+                  <span className="truncate text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{b.name}</span>
+                  {isCollapsed && chats.length + terms.length > 0 && (
+                    <span className="ml-1 shrink-0 rounded-full bg-surface-2 px-1.5 text-[10px] tabular-nums text-ink-faint">
+                      {chats.length + terms.length}
+                    </span>
+                  )}
                 </button>
                 <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button className="rounded p-1 text-ink-faint hover:text-ink" title="New chat in project"
-                    onClick={() => { if (b.ws) setActiveWorkspace(b.ws.id); newChat(); }}><ChatIcon className="h-3.5 w-3.5" /></button>
-                  <button className="rounded p-1 text-ink-faint hover:text-ink" title="New terminal in project"
+                  <button className="rounded-md p-1 text-ink-faint hover:bg-paper hover:text-ink" title="New chat in project"
+                    onClick={() => { if (b.ws) setActiveWorkspace(b.ws.id); newChat(); }}><PlusIcon className="h-3.5 w-3.5" /></button>
+                  <button className="rounded-md p-1 text-ink-faint hover:bg-paper hover:text-ink" title="New terminal in project"
                     onClick={() => newTerminal(b.ws?.id)}><TerminalIcon className="h-3.5 w-3.5" /></button>
                 </span>
               </div>
-              {!isCollapsed && (
-                <div className="mt-0.5 ml-2 space-y-0.5 border-l border-line bg-surface-2/30 py-0.5">
+              <div className={`collapse-wrap ${isCollapsed ? 'collapsed' : ''}`}>
+                <div className="min-h-0 space-y-px overflow-hidden pb-1">
                   {chats.length === 0 && terms.length === 0 && (
-                    <p className="px-3 py-1 text-[11px] text-ink-faint">Empty, start a chat or terminal.</p>
+                    <p className="px-3.5 py-1 text-[11px] text-ink-faint">No chats yet</p>
                   )}
                   {chats.map((s) => (
                     <div
@@ -347,7 +354,7 @@ export function WorkbenchView() {
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
@@ -525,10 +532,10 @@ function ChatRow({
     <>
       <button
         onClick={() => onOpen(session.id)}
-        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[12.5px] ${
-          isActive ? 'bg-surface-2 font-medium' : 'text-ink-soft hover:bg-surface-2'
+        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[12.5px] transition-colors duration-150 ${
+          isActive ? 'bg-accent-soft font-medium text-ink' : 'text-ink-soft hover:bg-surface-2'
         }`}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: 14 + depth * 16 }}
       >
         {/* Custom hierarchy bullet, filled for top-level chats, a hollow ring for
             nested sub-agents, so nesting reads clearly without per-row icons. */}
@@ -536,8 +543,8 @@ function ChatRow({
           aria-hidden
           className={`shrink-0 rounded-full transition-colors ${
             nested
-              ? `bg-transparent ring-1 ${isActive ? 'ring-ink-soft' : 'ring-ink-faint'}`
-              : isActive ? 'bg-ink-soft' : 'bg-ink-faint'
+              ? `bg-transparent ring-1 ${isActive ? 'ring-accent' : 'ring-ink-faint'}`
+              : isActive ? 'bg-accent' : 'bg-ink-faint'
           }`}
           style={{ width: nested ? 5 : 6, height: nested ? 5 : 6, marginLeft: nested ? 1 : 0 }}
         />
@@ -555,8 +562,8 @@ function TerminalRow({ term, onOpen }: { term: TerminalInfo; onOpen: (id: string
   return (
     <button
       onClick={() => onOpen(term.id)}
-      className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[12.5px] text-ink-soft hover:bg-surface-2"
-      style={{ paddingLeft: 12 }}
+      className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[12.5px] text-ink-soft transition-colors duration-150 hover:bg-surface-2"
+      style={{ paddingLeft: 14 }}
     >
       <TerminalIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
       <span className="min-w-0 flex-1 truncate">{term.title}</span>
