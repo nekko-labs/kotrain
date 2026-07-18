@@ -112,5 +112,5 @@ function Annotated({ text, findings }: { text: string; findings: Finding[] }) {
     lastEnd = r.end;
   }
   if (pos < text.length) segs.push(text.slice(pos));
-  return <span className="whitespace-pre-wrap break-words text-ink-soft">{segs}</span>;
+  return <span className="whitespace-pre-wrap wrap-break-word text-ink-soft">{segs}</span>;
 }

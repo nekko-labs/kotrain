@@ -50,7 +50,7 @@ export function RemoteAccess() {
       <div className="flex items-center gap-2">
         <span className="text-base">📱</span>
         <h2 className="font-semibold">Remote access</h2>
-        {status.enabled && <span className="chip !text-white" style={{ background: '#4ec98a' }}>on</span>}
+        {status.enabled && <span className="chip text-white!" style={{ background: '#4ec98a' }}>on</span>}
       </div>
       <p className="mt-1 text-[12px] text-ink-faint">
         Drive this machine's model from your phone via a relay. End-to-end encrypted, the relay only

@@ -29,27 +29,27 @@ export function TrainingView() {
   return (
     <div className="flex h-full min-h-0">
       {/* run list */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--line)]">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-(--line)">
         <div className="flex items-center justify-between px-3 py-2.5">
           <span className="text-[13px] font-semibold">Training runs</span>
-          <button className="btn btn-primary !px-2.5 !py-1 text-[12px]" onClick={() => setCreating(true)}>+ New</button>
+          <button className="btn btn-primary px-2.5! py-1! text-[12px]" onClick={() => setCreating(true)}>+ New</button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {mine.length === 0 && (
-            <div className="px-2 py-4 text-[12px] text-[var(--ink-faint)]">
+            <div className="px-2 py-4 text-[12px] text-(--ink-faint)">
               No training runs yet. Describe what you want a model for, point at a dataset, and the agent trains it while you watch.
             </div>
           )}
           {mine.map((r) => (
             <button
               key={r.id}
-              className={`mb-1 w-full rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--surface-2)] ${selected?.id === r.id && !creating ? 'bg-[var(--surface-2)]' : ''}`}
+              className={`mb-1 w-full rounded-lg px-2.5 py-2 text-left transition hover:bg-(--surface-2) ${selected?.id === r.id && !creating ? 'bg-(--surface-2)' : ''}`}
               onClick={() => { setSelectedId(r.id); setCreating(false); }}
             >
               <div className="truncate text-[12.5px] font-medium">{r.name}</div>
               <div className="mt-0.5 flex items-center gap-2">
                 <RunStatusChip run={r} />
-                <span className="font-mono text-[10px] text-[var(--ink-faint)]">{r.experiments.length} exp</span>
+                <span className="font-mono text-[10px] text-(--ink-faint)">{r.experiments.length} exp</span>
               </div>
             </button>
           ))}
@@ -87,26 +87,26 @@ function RunDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (sess
         <RunStatusChip run={run} />
         <span className="ml-auto flex gap-1.5">
           {run.status !== 'running' && run.status !== 'completed' && (
-            <button className="btn btn-primary !py-1.5" onClick={start}>{run.turns ? 'Resume' : 'Start training'}</button>
+            <button className="btn btn-primary py-1.5!" onClick={start}>{run.turns ? 'Resume' : 'Start training'}</button>
           )}
-          {run.status === 'running' && <button className="btn btn-outline !py-1.5" onClick={pause}>Pause</button>}
+          {run.status === 'running' && <button className="btn btn-outline py-1.5!" onClick={pause}>Pause</button>}
           {(run.status === 'running' || run.status === 'paused') && (
-            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={stop}>Stop</button>
+            <button className="btn btn-ghost py-1.5! text-red-400" onClick={stop}>Stop</button>
           )}
           {run.sessionId && (
-            <button className="btn btn-outline !py-1.5" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>
+            <button className="btn btn-outline py-1.5!" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>
           )}
-          <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+          <button className="btn btn-ghost py-1.5! text-red-400" onClick={remove}>Delete</button>
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--ink-soft)]">
-        <span className="max-w-full"><b className="text-[var(--ink)]">Purpose:</b> {run.goal}</span>
-        {cfg.dataset?.id && <span><b className="text-[var(--ink)]">Dataset:</b> {cfg.dataset.source}:{cfg.dataset.id}</span>}
-        {cfg.baseModel?.id && cfg.baseModel.source !== 'none' && <span><b className="text-[var(--ink)]">Base model:</b> {cfg.baseModel.id}</span>}
-        {cfg.metric && <span><b className="text-[var(--ink)]">Metric:</b> {cfg.metric}{cfg.minimizeMetric ? ' ↓' : ' ↑'}</span>}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-(--ink-soft)">
+        <span className="max-w-full"><b className="text-(--ink)">Purpose:</b> {run.goal}</span>
+        {cfg.dataset?.id && <span><b className="text-(--ink)">Dataset:</b> {cfg.dataset.source}:{cfg.dataset.id}</span>}
+        {cfg.baseModel?.id && cfg.baseModel.source !== 'none' && <span><b className="text-(--ink)">Base model:</b> {cfg.baseModel.id}</span>}
+        {cfg.metric && <span><b className="text-(--ink)">Metric:</b> {cfg.metric}{cfg.minimizeMetric ? ' ↓' : ' ↑'}</span>}
         {(cfg.harness?.agentsMd || cfg.harness?.skill || cfg.harness?.spec) && (
-          <span><b className="text-[var(--ink)]">Harness:</b> {[cfg.harness.agentsMd && 'agent file', cfg.harness.skill && 'skill', cfg.harness.spec && 'spec'].filter(Boolean).join(', ')}</span>
+          <span><b className="text-(--ink)">Harness:</b> {[cfg.harness.agentsMd && 'agent file', cfg.harness.skill && 'skill', cfg.harness.spec && 'spec'].filter(Boolean).join(', ')}</span>
         )}
       </div>
 
@@ -185,14 +185,14 @@ function NewRunForm({
   };
 
   const L = ({ children }: { children: React.ReactNode }) => (
-    <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">{children}</label>
+    <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">{children}</label>
   );
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div>
         <h1 className="text-lg font-bold tracking-tight">New training run</h1>
-        <p className="mt-1 text-[12.5px] text-[var(--ink-soft)]">
+        <p className="mt-1 text-[12.5px] text-(--ink-soft)">
           Say what the model is for; the agent handles the rest. Every attempt shows up live in the idea maze, and you can steer it mid-run.
         </p>
       </div>
@@ -259,7 +259,7 @@ function NewRunForm({
             <L>Metric (optional)</L>
             <div className="flex items-center gap-2">
               <input className="input w-full" placeholder="accuracy, f1, r2, rmse…" value={metric} onChange={(e) => setMetric(e.target.value)} />
-              <label className="flex shrink-0 items-center gap-1.5 text-[11.5px] text-[var(--ink-soft)]">
+              <label className="flex shrink-0 items-center gap-1.5 text-[11.5px] text-(--ink-soft)">
                 <input type="checkbox" checked={minimize} onChange={(e) => setMinimize(e.target.checked)} /> lower is better
               </label>
             </div>
@@ -281,8 +281,8 @@ function NewRunForm({
           </div>
         </div>
 
-        <details className="rounded-lg border border-[var(--line)] px-3 py-2">
-          <summary className="cursor-pointer select-none font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">
+        <details className="rounded-lg border border-(--line) px-3 py-2">
+          <summary className="cursor-pointer select-none font-mono text-[10.5px] uppercase tracking-[0.14em] text-(--ink-faint)">
             Expert levers
           </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -316,7 +316,7 @@ function NewRunForm({
           </button>
           {onCancel && <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>}
         </div>
-        <p className="text-[11px] text-[var(--ink-faint)]">
+        <p className="text-[11px] text-(--ink-faint)">
           Uses your default provider/model (change it later from the run's chat). Hugging Face datasets load via the datasets library; Kaggle needs your KAGGLE credentials configured on this machine.
         </p>
       </div>

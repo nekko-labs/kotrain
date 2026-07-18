@@ -322,7 +322,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
           <p className="text-[11px] text-ink-faint">Chats, settings, memory, and usage analytics.</p>
         </div>
         <button
-          className="btn py-1.5 text-[12px] !text-white"
+          className="btn py-1.5 text-[12px] text-white!"
           style={{ background: '#e0574a' }}
           disabled={busy}
           onClick={wipe}
@@ -424,7 +424,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
             Optional: <span className="font-medium text-ink-soft">NekkoMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
           </p>
           <button
-            className="btn btn-ghost ml-auto shrink-0 !px-2 !py-0.5 text-[11px] text-accent"
+            className="btn btn-ghost ml-auto shrink-0 px-2! py-0.5! text-[11px] text-accent"
             onClick={() => window.nekko.openPath('https://github.com/nekko-labs/nekko-mcp')}
           >
             Get NekkoMCP ↗
@@ -441,7 +441,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
                 <input className="input py-1 text-[12.5px]" style={{ maxWidth: 160 }} value={s.name} onChange={(e) => edit(s.id, { name: e.target.value })} />
                 <span className="chip">{s.url != null ? 'http' : 'stdio'}</span>
                 {st && (
-                  <span className="chip !text-white" style={{ background: st.connected ? '#4ec98a' : '#e0574a' }} title={st.error}>
+                  <span className="chip text-white!" style={{ background: st.connected ? '#4ec98a' : '#e0574a' }} title={st.error}>
                     {st.connected ? `${st.tools.length} tools` : 'offline'}
                   </span>
                 )}
@@ -668,7 +668,7 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
       style={{ background: on ? 'var(--accent)' : 'var(--line)' }}
     >
       <span
-        className="inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+        className="inline-block h-5 w-5 rounded-full bg-white shadow-xs transition-transform"
         style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
       />
     </button>

@@ -143,7 +143,7 @@ function LibraryTab() {
                       <div className="flex items-center gap-1.5">
                         {s.highlighted && <StarIcon className="h-3.5 w-3.5 text-accent" filled />}
                         <span className="font-mono text-[13px] font-medium">/{s.name}</span>
-                        {installedIds.has(s.id) && <span className="chip !px-1.5 !py-0 text-[9px]">installed</span>}
+                        {installedIds.has(s.id) && <span className="chip px-1.5! py-0! text-[9px]">installed</span>}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-[11.5px] text-ink-soft">{s.description}</p>
                     </button>
@@ -178,7 +178,7 @@ function LibraryTab() {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-[11px] text-ink-faint">Tools:</span>
                   {selected.tools.map((t) => (
-                    <span key={t} className="rounded px-1.5 py-0.5 font-mono text-[10.5px]" style={{ background: 'var(--surface-2)', color: 'var(--ink-soft)' }}>
+                    <span key={t} className="rounded-sm px-1.5 py-0.5 font-mono text-[10.5px]" style={{ background: 'var(--surface-2)', color: 'var(--ink-soft)' }}>
                       {t}
                     </span>
                   ))}
@@ -409,7 +409,7 @@ function MarketplaceTab() {
                           {SOURCE_META[s.source].label}
                         </span>
                         <TierChip tier={s.tier} />
-                        {installs.length > 0 && <span className="chip !px-1.5 !py-0 text-[9px]">✓ {installs.length}</span>}
+                        {installs.length > 0 && <span className="chip px-1.5! py-0! text-[9px]">✓ {installs.length}</span>}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-[11.5px] text-ink-soft">{s.description}</p>
                       <div className="mt-1 flex items-center gap-2 text-[10px] text-ink-faint">
@@ -462,7 +462,7 @@ function MarketplaceTab() {
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] text-ink-faint">Tools:</span>
                     {selected.tools.map((t) => (
-                      <span key={t} className="rounded px-1.5 py-0.5 font-mono text-[10.5px]" style={{ background: 'var(--surface-2)', color: 'var(--ink-soft)' }}>
+                      <span key={t} className="rounded-sm px-1.5 py-0.5 font-mono text-[10.5px]" style={{ background: 'var(--surface-2)', color: 'var(--ink-soft)' }}>
                         {t}
                       </span>
                     ))}
@@ -489,11 +489,11 @@ function MarketplaceTab() {
                     <span className="text-[12px] font-medium">{t.label}</span>
                     <span className="text-[10px] text-ink-faint" title={t.dir ?? ''}>{t.hint}</span>
                     {installed ? (
-                      <button className="btn btn-ghost !px-2 !py-0.5 text-[11px] text-red-400" disabled={busy} onClick={() => uninstall(t.id)}>
+                      <button className="btn btn-ghost px-2! py-0.5! text-[11px] text-red-400" disabled={busy} onClick={() => uninstall(t.id)}>
                         Remove
                       </button>
                     ) : t.available ? (
-                      <button className="btn btn-outline !px-2 !py-0.5 text-[11px]" disabled={busy} onClick={() => install(t.id)}>
+                      <button className="btn btn-outline px-2! py-0.5! text-[11px]" disabled={busy} onClick={() => install(t.id)}>
                         Install
                       </button>
                     ) : (
@@ -705,7 +705,7 @@ function NodeCard({
   const k = KIND[node.kind];
   return (
     <button
-      className="card absolute flex flex-col justify-center overflow-hidden px-3 py-2 text-left shadow-sm transition"
+      className="card absolute flex flex-col justify-center overflow-hidden px-3 py-2 text-left shadow-xs transition"
       style={{
         left: node.x,
         top: node.y,

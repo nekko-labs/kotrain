@@ -231,7 +231,7 @@ export function WorkbenchView() {
         <span className="text-sm font-semibold">Workbench</span>
         <div className="relative" ref={newMenuRef}>
           <button
-            className={`rounded p-1.5 ${filesPaneOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
+            className={`rounded-sm p-1.5 ${filesPaneOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
             title={filesPaneOpen ? 'Close Files pane' : 'Open Files pane'}
             aria-label={filesPaneOpen ? 'Close Files pane' : 'Open Files pane'}
             onClick={toggleFilesPane}
@@ -475,13 +475,13 @@ function FilesSidePane({
         <FileIcon className="h-3.5 w-3.5 text-ink-faint" />
         <span className="min-w-0 flex-1 text-[12px] font-semibold">Files</span>
         <button
-          className="rounded p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
+          className="rounded-sm p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
           title={`Dock Files on the ${side === 'left' ? 'right' : 'left'}`}
           onClick={() => onSideChange(side === 'left' ? 'right' : 'left')}
         >
           <span className="text-[13px]">{side === 'left' ? '→' : '←'}</span>
         </button>
-        <button className="rounded p-1 text-ink-faint hover:bg-surface-2 hover:text-ink" title="Close Files pane" onClick={onClose}>
+        <button className="rounded-sm p-1 text-ink-faint hover:bg-surface-2 hover:text-ink" title="Close Files pane" onClick={onClose}>
           <CloseIcon className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -594,7 +594,7 @@ function PaneGroupView({
               key={p.id}
               onClick={() => onSelect(p.id)}
               className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] ${
-                isActiveTab ? 'bg-paper font-medium shadow-sm' : 'text-ink-soft hover:bg-paper/50'
+                isActiveTab ? 'bg-paper font-medium shadow-xs' : 'text-ink-soft hover:bg-paper/50'
               }`}
               style={isActiveTab ? { background: 'var(--paper)' } : undefined}
             >
@@ -602,7 +602,7 @@ function PaneGroupView({
               <span className="max-w-[140px] truncate">{titleFor(p)}</span>
               {status && <StatusDot status={status} />}
               <button
-                className="ml-0.5 rounded p-0.5 text-ink-faint opacity-0 hover:text-ink group-hover:opacity-100"
+                className="ml-0.5 rounded-sm p-0.5 text-ink-faint opacity-0 hover:text-ink group-hover:opacity-100"
                 title="Close tab"
                 onClick={(e) => { e.stopPropagation(); onClose(p.id); }}
               >
@@ -612,10 +612,10 @@ function PaneGroupView({
           );
         })}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="New chat" onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="New terminal" onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="New chat" onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="New terminal" onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
           {canSplit && group.panes.length > 1 && active && (
-            <button className="rounded p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
+            <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
           )}
         </div>
       </div>

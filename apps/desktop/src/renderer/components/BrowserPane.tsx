@@ -49,9 +49,9 @@ export function BrowserPane({ url: initial }: { url: string }) {
   return (
     <div className="flex h-full flex-col overflow-hidden" style={{ background: 'var(--paper)' }}>
       <div className="flex items-center gap-1 border-b border-line px-2 py-1.5">
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Back" onClick={back}>‹</button>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Forward" onClick={forward}>›</button>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Reload" onClick={reload}>⟳</button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Back" onClick={back}>‹</button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Forward" onClick={forward}>›</button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Reload" onClick={reload}>⟳</button>
         <input
           className="input min-w-0 flex-1 px-2 py-1 text-[12px]"
           placeholder="Enter a URL or search…"
@@ -60,7 +60,7 @@ export function BrowserPane({ url: initial }: { url: string }) {
           onChange={(e) => setAddress(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') go(); }}
         />
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open in external browser"
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Open in external browser"
           onClick={() => url !== 'about:blank' && window.nekko.openPath(url)}><ExternalIcon className="h-3.5 w-3.5" /></button>
       </div>
       <div className="min-h-0 flex-1">

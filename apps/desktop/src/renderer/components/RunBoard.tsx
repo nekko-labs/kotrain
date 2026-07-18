@@ -53,9 +53,9 @@ export function RunStatTiles({ run }: { run: TrainingRun }) {
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
       {tiles.map((t) => (
         <div key={t.label} className="card px-3 py-2.5">
-          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">{t.label}</div>
+          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">{t.label}</div>
           <div className="mt-0.5 text-lg font-bold tabular-nums" style={t.color ? { color: t.color } : undefined}>{t.value}</div>
-          {t.sub && <div className="truncate text-[10px] text-[var(--ink-faint)]">{t.sub}</div>}
+          {t.sub && <div className="truncate text-[10px] text-(--ink-faint)">{t.sub}</div>}
         </div>
       ))}
     </div>
@@ -72,7 +72,7 @@ export function ChampionCard({ run }: { run: TrainingRun }) {
         Current champion{best.approach ? ` · ${best.approach}` : ''}
       </div>
       <div className="mt-1 font-mono text-[12.5px] font-semibold text-emerald-300">{best.title}</div>
-      {best.note && <div className="mt-1 text-[11.5px] leading-snug text-[var(--ink-soft)]">{best.note}</div>}
+      {best.note && <div className="mt-1 text-[11.5px] leading-snug text-(--ink-soft)">{best.note}</div>}
     </div>
   );
 }
@@ -114,7 +114,7 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
 
   if (nodes.length === 0) {
     return (
-      <div className="card flex h-40 items-center justify-center text-[12.5px] text-[var(--ink-faint)]">
+      <div className="card flex h-40 items-center justify-center text-[12.5px] text-(--ink-faint)">
         No experiments yet — they appear here live as the agent tries ideas.
       </div>
     );
@@ -122,11 +122,11 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
 
   return (
     <div className="card overflow-hidden">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-[var(--line)] px-3.5 py-2">
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--ink-faint)]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-(--line) px-3.5 py-2">
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-(--ink-faint)">
           The idea maze — every idea the agent tried, growing over time
         </span>
-        <span className="ml-auto flex items-center gap-3 font-mono text-[9.5px] text-[var(--ink-faint)]">
+        <span className="ml-auto flex items-center gap-3 font-mono text-[9.5px] text-(--ink-faint)">
           <span><i className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: 'color-mix(in srgb, var(--ink-faint) 65%, transparent)' }} />tried</span>
           <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-green-400 align-middle" />got better</span>
           <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400 align-middle" />best so far</span>
@@ -135,7 +135,7 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
         </span>
       </div>
       {lastLog && (
-        <div className="border-b border-[var(--line)] px-3.5 py-1.5 font-mono text-[11px] text-[var(--ink-soft)]">
+        <div className="border-b border-(--line) px-3.5 py-1.5 font-mono text-[11px] text-(--ink-soft)">
           {lastLog.text}
         </div>
       )}
@@ -205,15 +205,15 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
         </svg>
       </div>
       {sel && (
-        <div className="border-t border-[var(--line)] px-3.5 py-2.5 text-[12px]">
+        <div className="border-t border-(--line) px-3.5 py-2.5 text-[12px]">
           <div className="flex flex-wrap items-baseline gap-x-3">
             <b className="font-mono">{sel.title}</b>
-            <span className="font-mono text-[10.5px] uppercase text-[var(--ink-faint)]">{sel.status}</span>
+            <span className="font-mono text-[10.5px] uppercase text-(--ink-faint)">{sel.status}</span>
             {sel.score != null && <span className="font-mono text-cyan-400">{fmtScore(sel.score)}{sel.metric ? ` ${sel.metric}` : ''}</span>}
-            {sel.approach && <span className="text-[var(--ink-faint)]">family: {sel.approach}</span>}
-            {sel.parentId && <span className="text-[var(--ink-faint)]">branched from {sel.parentId}</span>}
+            {sel.approach && <span className="text-(--ink-faint)">family: {sel.approach}</span>}
+            {sel.parentId && <span className="text-(--ink-faint)">branched from {sel.parentId}</span>}
           </div>
-          {sel.note && <div className="mt-1 text-[var(--ink-soft)]">{sel.note}</div>}
+          {sel.note && <div className="mt-1 text-(--ink-soft)">{sel.note}</div>}
         </div>
       )}
     </div>
@@ -232,7 +232,7 @@ export function HintComposer({ run, placeholder }: { run: TrainingRun; placehold
   };
   return (
     <div className="card px-3.5 py-3">
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Guide the agent</div>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">Guide the agent</div>
       <div className="mt-2 flex gap-2">
         <textarea
           className="input min-h-[38px] flex-1 resize-y py-2 text-[12.5px]"
@@ -260,7 +260,7 @@ export function HintComposer({ run, placeholder }: { run: TrainingRun; placehold
           ))}
         </div>
       )}
-      <div className="mt-1.5 text-[10.5px] text-[var(--ink-faint)]">
+      <div className="mt-1.5 text-[10.5px] text-(--ink-faint)">
         Hints are folded into the agent's next turn: new approaches to try, course corrections, or pointers to new data.
       </div>
     </div>
@@ -274,11 +274,11 @@ export function RunLog({ run, max = 60 }: { run: TrainingRun; max?: number }) {
   if (!entries.length) return null;
   return (
     <div className="card max-h-64 overflow-y-auto px-3.5 py-2.5">
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Activity</div>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">Activity</div>
       <div className="mt-1.5 space-y-1">
         {entries.map((l, i) => (
           <div key={`${l.at}-${i}`} className="flex gap-2 text-[11.5px] leading-snug">
-            <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--ink-faint)]">
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-(--ink-faint)">
               {new Date(l.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
             <span style={{ color: KIND_COLOR[l.kind] }}>{l.text}</span>

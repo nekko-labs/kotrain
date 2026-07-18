@@ -155,7 +155,7 @@ function FileDiff({ sessionId, change, onChanged }: { sessionId: string; change:
                 return (
                   <div key={i} className="flex">
                     <span className="w-5 shrink-0 select-none text-center text-ink-faint"> </span>
-                    <span className="whitespace-pre-wrap break-words text-ink-soft">{op.text || ' '}</span>
+                    <span className="whitespace-pre-wrap wrap-break-word text-ink-soft">{op.text || ' '}</span>
                   </div>
                 );
               }
@@ -172,7 +172,7 @@ function FileDiff({ sessionId, change, onChanged }: { sessionId: string; change:
                   <span className="w-5 shrink-0 select-none text-center" style={{ color: add ? '#4ec98a' : '#e0574a' }}>
                     {add ? '+' : '-'}
                   </span>
-                  <span className={`whitespace-pre-wrap break-words ${reverted ? 'line-through' : ''}`} style={{ color: add ? '#4ec98a' : '#e0574a' }}>
+                  <span className={`whitespace-pre-wrap wrap-break-word ${reverted ? 'line-through' : ''}`} style={{ color: add ? '#4ec98a' : '#e0574a' }}>
                     {op.text || ' '}
                   </span>
                 </div>

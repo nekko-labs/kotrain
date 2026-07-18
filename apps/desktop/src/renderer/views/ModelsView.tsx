@@ -161,7 +161,7 @@ function AddProvider({ onDone }: { onDone: () => void }) {
               <button
                 key={k}
                 onClick={() => pick(k)}
-                className={`chip ${kind === k ? '!text-white' : ''}`}
+                className={`chip ${kind === k ? 'text-white!' : ''}`}
                 style={kind === k ? { background: 'var(--accent)' } : undefined}
               >
                 {PROVIDER_DEFAULTS[k].label}
@@ -246,12 +246,12 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold">{provider.label}</h3>
             {conn.state === 'ok' && (
-              <span className="chip !text-white" style={{ background: '#4ec98a' }}>
+              <span className="chip text-white!" style={{ background: '#4ec98a' }}>
                 <CheckIcon className="h-3 w-3" /> Connected
               </span>
             )}
             {conn.state === 'fail' && (
-              <span className="chip !text-white" style={{ background: '#e0574a' }} title={conn.message}>Offline</span>
+              <span className="chip text-white!" style={{ background: '#e0574a' }} title={conn.message}>Offline</span>
             )}
             {conn.state === 'testing' && <span className="chip">checking…</span>}
             {provider.discovered && <span className="chip">discovered</span>}
@@ -302,7 +302,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
               {m.sizeBytes && <span className="text-[10px] text-ink-faint">{(m.sizeBytes / 1e9).toFixed(1)} GB</span>}
               {isOllama && (
                 m.loaded ? (
-                  <button className="chip !text-white" style={{ background: '#4ec98a' }} onClick={async () => { await window.nekko.unloadModel(provider.id, m.id); load(); }}>
+                  <button className="chip text-white!" style={{ background: '#4ec98a' }} onClick={async () => { await window.nekko.unloadModel(provider.id, m.id); load(); }}>
                     <CheckIcon className="h-3 w-3" /> loaded
                   </button>
                 ) : (

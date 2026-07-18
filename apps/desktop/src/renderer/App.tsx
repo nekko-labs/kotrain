@@ -29,7 +29,7 @@ import {
   SettingsColorIcon,
 } from './navIcons.js';
 
-const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string }) => JSX.Element }> = [
+const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string }) => React.JSX.Element }> = [
   { view: 'command', labelKey: 'nav.command', Icon: CommandHudIcon },
   { view: 'chat', labelKey: 'nav.chat', Icon: ChatColorIcon },
   { view: 'skills', labelKey: 'nav.skills', Icon: SkillsColorIcon },
