@@ -2,7 +2,7 @@
 
 # 🐾 Kotrain
 
-**Local-first AI coding & cowork, chat, cowork, and code in one calm window.**
+**Local-first AI chat, cowork, and coding in one calm window.**
 
 Open source · MIT · first-class support for the models you run yourself.
 
@@ -10,13 +10,20 @@ Open source · MIT · first-class support for the models you run yourself.
 
 ---
 
-Kotrain is a desktop assistant (Electron + React) that unifies conversation and
-coding into a single surface. Its headline feature is **first-class local model
-support**, point it at Ollama, LM Studio, or vLLM in one click, alongside every
-major cloud provider. It ships with a context-provenance inspector, default
-guardrails for risky commands, an out-of-the-box sandbox, multi-folder code
-indexing, memory management, connectors, and an 8-bit cat mascot that makes
-biscuits while the model thinks.
+## Overview
+
+Kotrain is an open-source desktop assistant (Electron + React) that unifies
+conversation and coding into a single surface. Its headline feature is
+**first-class local model support**: point it at Ollama, LM Studio, or vLLM in
+one click, alongside every major cloud provider. It ships with a
+context-provenance inspector, default guardrails for risky commands, an
+out-of-the-box sandbox, multi-folder code indexing, memory management,
+connectors, and an 8-bit cat mascot that makes biscuits while the model thinks.
+
+Built by [Nekko Labs](https://nekkolabs.com) and MIT-licensed, Kotrain is a
+real, shipping product developed in the open. Contributions are welcome, from
+first issues to features; see [CONTRIBUTING.md](CONTRIBUTING.md) to get
+started.
 
 > **Verified working** end-to-end against a live LM Studio server (`google/gemma-4-31b-qat`):
 > connect, model listing, streaming, **reasoning models**, and the full tool-calling
