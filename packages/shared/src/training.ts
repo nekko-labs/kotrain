@@ -1,12 +1,15 @@
 /**
  * Model training runs + long-running goal runs, one shared engine.
  *
- * A run drives a dedicated agent session (the "data-scientist agent") through
- * repeated turns. The agent registers every attempt via the report_experiment
- * tool, which builds the run's experiment tree (the "idea maze"). The user can
- * inject hints, new approaches, or new data mid-run; unconsumed hints are folded
- * into the next turn's prompt. Pure helpers here (stats, maze layout, presets)
- * are unit-tested and shared by the host service and both views.
+ * A run drives a dedicated agent session through repeated turns. Training runs
+ * (the "data-scientist agent") register every attempt via the report_experiment
+ * tool, which builds the run's experiment tree (the "idea maze"). Goal runs are
+ * plan-first: the agent writes an execution plan via the update_plan tool, then
+ * executes it step by step, revising and iterating until the goal is finished.
+ * The user can inject hints, new approaches, or new data mid-run; unconsumed
+ * hints are folded into the next turn's prompt. Pure helpers here (stats, maze
+ * layout, plan progress) are unit-tested and shared by the host service and
+ * both views.
  */
 
 export type RunKind = 'training' | 'goal';
@@ -29,6 +32,21 @@ export interface ExperimentNode {
   /** Metric name, e.g. "cv r2", "accuracy". */
   metric?: string;
   /** The agent's one-line takeaway. */
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Status of one step in a goal run's execution plan. */
+export type PlanStepStatus = 'pending' | 'active' | 'done' | 'skipped';
+
+/** One step of the execution plan a goal agent builds before working. */
+export interface PlanStep {
+  id: string;
+  /** Concrete, verifiable step, e.g. "Wire the CSV parser + unit tests". */
+  title: string;
+  status: PlanStepStatus;
+  /** One-line outcome, blocker, or the reason a step was skipped. */
   note?: string;
   createdAt: number;
   updatedAt: number;
@@ -96,6 +114,8 @@ export interface TrainingRun {
   sessionId?: string;
   workspaceId?: string;
   experiments: ExperimentNode[];
+  /** Goal runs: the execution plan the agent builds first, then works through. */
+  plan?: PlanStep[];
   hints: RunHint[];
   log: RunLogEntry[];
   bestExperimentId?: string;
@@ -232,6 +252,25 @@ export function runStats(run: TrainingRun, now = Date.now()): RunStats {
     runtimeMs: (run.runtimeMs ?? 0) + live,
     turns: run.turns ?? 0,
   };
+}
+
+/** Plan progress for the Goals dashboard (done + skipped count toward completion). */
+export interface PlanProgress {
+  total: number;
+  done: number;
+  skipped: number;
+  /** The step being worked now: the first 'active' step, else the first 'pending'. */
+  current?: PlanStep;
+  /** Completion 0..1 ((done + skipped) / total); 0 while there is no plan. */
+  ratio: number;
+}
+
+export function planProgress(plan: PlanStep[] | undefined): PlanProgress {
+  const steps = plan ?? [];
+  const done = steps.filter((s) => s.status === 'done').length;
+  const skipped = steps.filter((s) => s.status === 'skipped').length;
+  const current = steps.find((s) => s.status === 'active') ?? steps.find((s) => s.status === 'pending');
+  return { total: steps.length, done, skipped, current, ratio: steps.length ? (done + skipped) / steps.length : 0 };
 }
 
 /** A node placed on the idea-maze canvas (column/row grid coordinates). */

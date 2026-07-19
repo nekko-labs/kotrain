@@ -124,3 +124,37 @@ export const REPORT_EXPERIMENT_TOOL: ToolSpec = {
     required: ['title', 'status'],
   },
 };
+
+/**
+ * Extra tool offered only to sessions driven by a training/goal run: goal runs
+ * are plan-first, so the agent maintains its execution plan here (build it
+ * before working, keep step statuses current, revise it when reality
+ * disagrees). Drives the plan checklist on the Goals dashboard. Executed in
+ * the host.
+ */
+export const UPDATE_PLAN_TOOL: ToolSpec = {
+  name: 'update_plan',
+  description:
+    'Create or update this run\'s execution plan. Call it with replace=true and the full ordered step list to write the initial plan (do this BEFORE any execution work) or to re-plan. Without replace, steps are upserted by id: mark the step you are working "active", mark it "done" the moment it is verifiably complete (add a one-line note), or "skipped" with the reason. Keep the plan current every turn; the tool result echoes the plan so you know each step\'s id.',
+  parameters: {
+    type: 'object',
+    properties: {
+      replace: { type: 'boolean', description: 'Replace the whole plan with `steps` (initial plan or a re-plan).' },
+      steps: {
+        type: 'array',
+        description: 'Plan steps, in execution order when replace=true.',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Step id to update (omit to create a new step).' },
+            title: { type: 'string', description: 'Concrete, verifiable step, e.g. "Wire the CSV parser + unit tests".' },
+            status: { type: 'string', enum: ['pending', 'active', 'done', 'skipped'] },
+            note: { type: 'string', description: 'One-line outcome, blocker, or skip reason.' },
+          },
+          required: ['title'],
+        },
+      },
+    },
+    required: ['steps'],
+  },
+};

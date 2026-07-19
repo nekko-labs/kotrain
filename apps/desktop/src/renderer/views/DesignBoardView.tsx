@@ -4,11 +4,17 @@ import { useStore } from '../store.js';
 import { PlusIcon, CloseIcon, ExternalIcon, TrashIcon } from '../icons.js';
 
 /**
- * Design board, the app's UI pages laid out like a Figma board. Each card is a
- * live, scaled-down "snapshot" (a read-only preview) of a page; click one to pin
- * persistent notes or leave a comment the agent picks up (Add to prompt / Run
- * now). As an agent edits the UI the previews reload so you watch the design
- * update live, and an "updating" badge links back to the agent doing the work.
+ * Design board: create designs two ways, both first-class.
+ * 1) DRAW: sketch a rough layout on a pen/touch-friendly canvas (built for
+ *    iPad/iPhone use in the web edition) and it gets turned into a working,
+ *    self-contained HTML code prototype.
+ * 2) DESCRIBE: write a prompt and watch a design pop up, then refine it
+ *    iteratively with follow-up prompts (a Claude Design-style loop).
+ * Generated concepts are mirrored into the workspace's kotrain-designs/ folder
+ * as real HTML files, so agents (and you) keep iterating on them as code.
+ * The board still holds live snapshots of the app's real pages: each is a
+ * scaled read-only preview that reloads as agents edit the UI, with notes and
+ * comments that feed the prompt (Add to prompt / Run now).
  */
 export function DesignBoardView() {
   const { settings, sessions, activeWorkspaceId, setActiveWorkspace, sendToChat, openChatPane } = useStore();
@@ -20,7 +26,9 @@ export function DesignBoardView() {
   const [board, setBoard] = useState<DesignBoard | null>(null);
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [mode, setMode] = useState<'sketch' | 'prompt' | 'live' | null>(null);
+  const [busy, setBusy] = useState<{ label: string; pageId?: string } | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   // Sessions in this workspace whose agent is actively working (→ "updating").
   const [working, setWorking] = useState<Set<string>>(new Set());
@@ -43,9 +51,10 @@ export function DesignBoardView() {
         else n.add(e.sessionId);
         return n;
       });
-      if (e.type === 'done') setReloadNonce((x) => x + 1);
+      if (e.type === 'done') { setReloadNonce((x) => x + 1); load(); }
     });
     return off;
+    // eslint-disable-next-line
   }, [wsSessionIds]);
   useEffect(() => {
     const off = window.nekko.onChangesUpdated((e) => { if (wsSessionIds.has(e.sessionId)) setReloadNonce((x) => x + 1); });
@@ -59,10 +68,37 @@ export function DesignBoardView() {
   const pages = board?.pages ?? [];
   const selectedPage = pages.find((p) => p.id === selected) ?? null;
 
+  /** Generate a new concept (from a prompt or a sketch) or refine an existing one. */
+  const generate = async (input: { prompt: string; sketchDataUrl?: string; pageId?: string; label?: string }) => {
+    if (!wsId) return;
+    setGenError(null);
+    setBusy({
+      label: input.pageId
+        ? pages.find((p) => p.id === input.pageId)?.label ?? 'Refining…'
+        : input.label || input.prompt.slice(0, 42) || 'Sketch concept',
+      pageId: input.pageId,
+    });
+    setMode(null);
+    try {
+      const next = await window.nekko.generateDesign(wsId, input);
+      setBoard(next);
+      // Surface the fresh card's sheet so refine/notes are one tap away.
+      if (!input.pageId) {
+        const before = new Set(pages.map((p) => p.id));
+        const fresh = next.pages.find((p) => !before.has(p.id));
+        if (fresh) setSelected(fresh.id);
+      }
+    } catch (e) {
+      setGenError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const addPage = async (label: string, url: string) => {
     if (!wsId || !url.trim()) return;
     setBoard(await window.nekko.addDesignPage(wsId, label, url));
-    setAdding(false);
+    setMode(null);
   };
   const removePage = async (pageId: string) => {
     if (!wsId) return;
@@ -74,8 +110,8 @@ export function DesignBoardView() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
         <div className="grid h-14 w-14 place-items-center rounded-2xl text-3xl" style={{ background: 'var(--accent-soft)' }}>🎨</div>
-        <h2 className="text-lg font-semibold">Design board</h2>
-        <p className="max-w-sm text-[13px] text-ink-faint">Add a project in <b>Projects</b> first, the design board shows your app's pages as a Figma-style board of live snapshots.</p>
+        <h2 className="text-lg font-semibold">Design</h2>
+        <p className="max-w-sm text-[13px] text-ink-faint">Add a project folder first (from a chat's <b>+</b> menu). Then sketch or describe a design here and watch it become a working prototype.</p>
       </div>
     );
   }
@@ -95,22 +131,28 @@ export function DesignBoardView() {
           </button>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-[11px] text-ink-faint">
+          <label className="hidden items-center gap-1.5 text-[11px] text-ink-faint sm:flex">
             Zoom
             <input type="range" min={0.5} max={1.5} step={0.1} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
           </label>
           <button className="btn btn-ghost px-2 py-1 text-[12px]" title="Reload all previews" onClick={() => setReloadNonce((x) => x + 1)}>↻</button>
-          <button className="btn btn-primary px-2.5 py-1 text-[12px]" onClick={() => setAdding(true)}><PlusIcon className="h-3.5 w-3.5" /> Add page</button>
+          <button className="btn btn-outline px-2.5 py-1 text-[12px]" onClick={() => setMode('live')}><PlusIcon className="h-3.5 w-3.5" /> Live page</button>
+          <button className="btn btn-outline px-2.5 py-1 text-[12px]" onClick={() => setMode('sketch')}>✏️ Sketch</button>
+          <button className="btn btn-primary px-2.5 py-1 text-[12px]" onClick={() => setMode('prompt')}>✨ Generate</button>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 flex-1 overflow-auto p-5" style={{ background: 'var(--surface-2)' }}>
-          {adding && <AddPageForm onAdd={addPage} onCancel={() => setAdding(false)} />}
-          {pages.length === 0 && !adding ? (
-            <div className="mt-16 text-center text-[13px] text-ink-faint">
-              No pages yet. <button className="text-accent hover:underline" onClick={() => setAdding(true)}>Add a page</button> (a label + the URL it runs at, e.g. <code className="font-mono">http://localhost:3000</code>).
+          {genError && (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-400/40 bg-red-400/10 px-3 py-2 text-[12.5px] text-red-300">
+              <span>{genError}</span>
+              <button className="shrink-0 text-red-300 hover:text-red-200" onClick={() => setGenError(null)}>✕</button>
             </div>
+          )}
+          {mode === 'live' && <AddPageForm onAdd={addPage} onCancel={() => setMode(null)} />}
+          {pages.length === 0 && !busy && mode !== 'live' ? (
+            <EmptyBoard onSketch={() => setMode('sketch')} onPrompt={() => setMode('prompt')} onLive={() => setMode('live')} />
           ) : (
             <div className="flex flex-wrap gap-5">
               {pages.map((p) => (
@@ -121,10 +163,12 @@ export function DesignBoardView() {
                   reloadNonce={reloadNonce}
                   updating={updating}
                   active={selected === p.id}
+                  busy={busy?.pageId === p.id}
                   onOpen={() => setSelected(p.id)}
                   onUpdatingClick={goToAgent}
                 />
               ))}
+              {busy && !busy.pageId && <BusyCard label={busy.label} zoom={zoom} />}
             </div>
           )}
         </div>
@@ -133,30 +177,101 @@ export function DesignBoardView() {
           <PageSheet
             key={selectedPage.id}
             page={selectedPage}
+            refining={busy?.pageId === selectedPage.id}
             onClose={() => setSelected(null)}
             onRemove={() => removePage(selectedPage.id)}
             onOpenBrowser={() => { useStore.getState().openBrowserPane(selectedPage.url); useStore.getState().setView('chat'); }}
+            onOpenFile={selectedPage.file ? () => { useStore.getState().openFilePane(selectedPage.file!); useStore.getState().setView('chat'); } : undefined}
+            onRefine={(text) => generate({ prompt: text, pageId: selectedPage.id })}
             onAddNote={async (text) => { if (wsId) setBoard(await window.nekko.addDesignNote(wsId, selectedPage.id, text)); }}
             onResolveNote={async (id) => { if (wsId) setBoard(await window.nekko.resolveDesignNote(wsId, selectedPage.id, id)); }}
-            onComment={(text, run) => sendToChat(`Re design page "${selectedPage.label}" (${selectedPage.url}), ${text}`, run)}
+            onComment={(text, run) => sendToChat(
+              selectedPage.kind === 'concept'
+                ? `Re the design concept "${selectedPage.label}"${selectedPage.file ? ` (prototype file: ${selectedPage.file})` : ''}, ${text}`
+                : `Re design page "${selectedPage.label}" (${selectedPage.url}), ${text}`,
+              run,
+            )}
           />
         )}
+      </div>
+
+      {mode === 'sketch' && (
+        <SketchStudio
+          onCancel={() => setMode(null)}
+          onGenerate={(dataUrl, note) => generate({ prompt: note, sketchDataUrl: dataUrl, label: note.slice(0, 42) || 'Sketch concept' })}
+        />
+      )}
+      {mode === 'prompt' && (
+        <PromptStudio onCancel={() => setMode(null)} onGenerate={(prompt, label) => generate({ prompt, label })} />
+      )}
+    </div>
+  );
+}
+
+/** First-run hero: the two ways to create, front and center. */
+function EmptyBoard({ onSketch, onPrompt, onLive }: { onSketch: () => void; onPrompt: () => void; onLive: () => void }) {
+  return (
+    <div className="mx-auto mt-10 max-w-3xl">
+      <h2 className="text-center text-xl font-bold tracking-tight">Design something</h2>
+      <p className="mx-auto mt-1.5 max-w-md text-center text-[13px] text-ink-faint">
+        Two ways in. Both end as a working HTML prototype in your workspace that you (or an agent) can keep iterating on.
+      </p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <button className="card group p-5 text-left transition hover:border-[var(--accent)]" onClick={onSketch}>
+          <div className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: 'var(--accent-soft)' }}>✏️</div>
+          <div className="mt-3 text-[14.5px] font-semibold">Draw it</div>
+          <p className="mt-1 text-[12.5px] leading-snug text-ink-faint">
+            Sketch boxes, arrows, and labels with a finger, mouse, or Apple Pencil. Your rough drawing becomes a real code prototype.
+          </p>
+        </button>
+        <button className="card group p-5 text-left transition hover:border-[var(--accent)]" onClick={onPrompt}>
+          <div className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: 'var(--accent-soft)' }}>✨</div>
+          <div className="mt-3 text-[14.5px] font-semibold">Describe it</div>
+          <p className="mt-1 text-[12.5px] leading-snug text-ink-faint">
+            Write what you want and watch a design pop up. Refine it with follow-up prompts until it's right.
+          </p>
+        </button>
+      </div>
+      <p className="mt-5 text-center text-[12px] text-ink-faint">
+        or <button className="text-accent hover:underline" onClick={onLive}>add a live page</button> from your running app to review it here
+      </p>
+    </div>
+  );
+}
+
+/** Placeholder card shown while a concept is generating. */
+function BusyCard({ label, zoom }: { label: string; zoom: number }) {
+  const W = Math.round(340 * zoom);
+  const H = Math.round(W * 0.64);
+  return (
+    <div className="card overflow-hidden p-0" style={{ width: W }}>
+      <div className="relative animate-pulse" style={{ height: H, background: 'var(--surface-2)' }}>
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="flex items-center gap-2 text-[12px] text-ink-faint">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-accent" /> Designing…
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-line px-2.5 py-1.5">
+        <div className="truncate text-[12.5px] font-medium">{label}</div>
+        <div className="truncate text-[10.5px] text-ink-faint">generating</div>
       </div>
     </div>
   );
 }
 
-/** A scaled live preview of one page, plus its label and an "updating" badge. */
+/** A scaled preview of one page: live URL iframe, or the generated concept HTML. */
 function PageCard({
-  page, zoom, reloadNonce, updating, active, onOpen, onUpdatingClick,
+  page, zoom, reloadNonce, updating, active, busy, onOpen, onUpdatingClick,
 }: {
-  page: DesignPage; zoom: number; reloadNonce: number; updating: boolean; active: boolean;
+  page: DesignPage; zoom: number; reloadNonce: number; updating: boolean; active: boolean; busy?: boolean;
   onOpen: () => void; onUpdatingClick: () => void;
 }) {
   const W = Math.round(340 * zoom);
   const H = Math.round(W * 0.64);
   const LOGICAL = 1280; // render the page at desktop width, then scale to fit
   const scale = W / LOGICAL;
+  const concept = page.kind === 'concept';
   return (
     <div
       className={`card overflow-hidden p-0 transition-shadow ${active ? 'ring-2 ring-accent' : ''}`}
@@ -165,9 +280,9 @@ function PageCard({
       <div className="relative cursor-pointer" style={{ height: H, background: '#fff' }} onClick={onOpen} title="Open notes & comments">
         <iframe
           key={`${page.id}:${reloadNonce}`}
-          src={page.url}
+          {...(concept ? { srcDoc: page.html ?? '' } : { src: page.url })}
           title={page.label}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox={concept ? 'allow-scripts' : 'allow-scripts allow-same-origin'}
           style={{
             width: LOGICAL, height: Math.round(H / scale), border: 0,
             transform: `scale(${scale})`, transformOrigin: 'top left', pointerEvents: 'none',
@@ -175,7 +290,14 @@ function PageCard({
         />
         {/* Click-catcher so the read-only preview opens the sheet instead of interacting. */}
         <div className="absolute inset-0" />
-        {updating && (
+        {busy && (
+          <div className="absolute inset-0 grid place-items-center bg-black/30">
+            <span className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> refining…
+            </span>
+          </div>
+        )}
+        {updating && !concept && (
           <button
             className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-white shadow"
             style={{ background: 'var(--accent)' }}
@@ -189,7 +311,9 @@ function PageCard({
       <div className="flex items-center gap-2 border-t border-line px-2.5 py-1.5">
         <button className="min-w-0 flex-1 text-left" onClick={onOpen}>
           <div className="truncate text-[12.5px] font-medium">{page.label}</div>
-          <div className="truncate text-[10.5px] text-ink-faint">{page.url}</div>
+          <div className="truncate text-[10.5px] text-ink-faint">
+            {concept ? `${page.origin === 'sketch' ? '✏️ from a sketch' : '✨ from a prompt'}` : page.url}
+          </div>
         </button>
         {page.notes.length > 0 && <span className="chip text-[10px]" title={`${page.notes.length} note(s)`}>📌 {page.notes.length}</span>}
       </div>
@@ -197,13 +321,13 @@ function PageCard({
   );
 }
 
-/** Add-a-page inline form. */
+/** Add-a-live-page inline form. */
 function AddPageForm({ onAdd, onCancel }: { onAdd: (label: string, url: string) => void; onCancel: () => void }) {
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('http://localhost:3000');
   return (
     <div className="card mb-5 max-w-lg p-3">
-      <div className="mb-2 text-[12px] font-semibold">Add a page</div>
+      <div className="mb-2 text-[12px] font-semibold">Add a live page</div>
       <div className="flex flex-col gap-2">
         <input className="input text-[12.5px]" placeholder="Label (e.g. Home)" value={label} onChange={(e) => setLabel(e.target.value)} autoFocus />
         <input className="input font-mono text-[12px]" placeholder="http://localhost:3000/path" value={url} onChange={(e) => setUrl(e.target.value)}
@@ -217,34 +341,278 @@ function AddPageForm({ onAdd, onCancel }: { onAdd: (label: string, url: string) 
   );
 }
 
-/** Right drawer for a page: bigger preview, persistent notes, and a comment box. */
+// ---------------------------------------------------------------------------
+// Sketch studio: a pen/touch-first canvas (iPad/iPhone friendly) whose drawing
+// is handed to a vision model and returned as a working HTML prototype.
+// ---------------------------------------------------------------------------
+
+type Stroke = { color: string; size: number; erase: boolean; points: Array<[number, number]> };
+
+const SKETCH_COLORS = ['#111827', '#6d5efc', '#ef4444', '#2563eb', '#059669'];
+const SKETCH_SIZES = [2, 4, 8];
+
+function SketchStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenerate: (dataUrl: string, note: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const strokesRef = useRef<Stroke[]>([]);
+  const liveRef = useRef<Stroke | null>(null);
+  const [color, setColor] = useState(SKETCH_COLORS[0]);
+  const [size, setSize] = useState(4);
+  const [erasing, setErasing] = useState(false);
+  const [note, setNote] = useState('');
+  const [strokeCount, setStrokeCount] = useState(0);
+
+  // Size the canvas to its container once, honoring devicePixelRatio.
+  useEffect(() => {
+    const canvas = canvasRef.current, wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = wrap.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.scale(dpr, dpr);
+  }, []);
+
+  const redraw = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    for (const s of [...strokesRef.current, ...(liveRef.current ? [liveRef.current] : [])]) drawStroke(ctx, s);
+  };
+
+  const drawStroke = (ctx: CanvasRenderingContext2D, s: Stroke) => {
+    ctx.globalCompositeOperation = s.erase ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.erase ? s.size * 4 : s.size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    s.points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    if (s.points.length === 1) ctx.lineTo(s.points[0][0] + 0.1, s.points[0][1] + 0.1);
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  const pos = (e: React.PointerEvent): [number, number] => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return [e.clientX - rect.left, e.clientY - rect.top];
+  };
+
+  const down = (e: React.PointerEvent) => {
+    e.preventDefault();
+    canvasRef.current?.setPointerCapture(e.pointerId);
+    liveRef.current = { color, size, erase: erasing, points: [pos(e)] };
+    redraw();
+  };
+  const move = (e: React.PointerEvent) => {
+    if (!liveRef.current) return;
+    e.preventDefault();
+    liveRef.current.points.push(pos(e));
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) drawStroke(ctx, { ...liveRef.current, points: liveRef.current.points.slice(-2) });
+  };
+  const up = () => {
+    if (!liveRef.current) return;
+    strokesRef.current.push(liveRef.current);
+    liveRef.current = null;
+    setStrokeCount(strokesRef.current.length);
+    redraw();
+  };
+
+  const undo = () => { strokesRef.current.pop(); setStrokeCount(strokesRef.current.length); redraw(); };
+  const clear = () => { strokesRef.current = []; setStrokeCount(0); redraw(); };
+
+  const generate = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || strokesRef.current.length === 0) return;
+    // Export on a white background so the model sees paper, not transparency.
+    const out = document.createElement('canvas');
+    out.width = canvas.width;
+    out.height = canvas.height;
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, 0, 0);
+    onGenerate(out.toDataURL('image/png'), note.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--paper)' }}>
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+        <span className="text-[13px] font-semibold">✏️ Sketch a design</span>
+        <span className="hidden text-[11px] text-ink-faint md:inline">boxes + labels are enough, the model fills in the design</span>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {SKETCH_COLORS.map((c) => (
+            <button
+              key={c}
+              className="h-6 w-6 rounded-full border-2 transition"
+              style={{ background: c, borderColor: !erasing && color === c ? 'var(--accent)' : 'transparent' }}
+              onClick={() => { setColor(c); setErasing(false); }}
+              title={`Pen ${c}`}
+            />
+          ))}
+          <span className="mx-1 h-5 w-px bg-[var(--line)]" />
+          {SKETCH_SIZES.map((s) => (
+            <button
+              key={s}
+              className={`grid h-6 w-6 place-items-center rounded-full border ${size === s ? 'border-[var(--accent)]' : 'border-transparent'}`}
+              onClick={() => setSize(s)}
+              title={`Stroke ${s}px`}
+            >
+              <span className="rounded-full bg-current" style={{ width: s + 2, height: s + 2 }} />
+            </button>
+          ))}
+          <span className="mx-1 h-5 w-px bg-[var(--line)]" />
+          <button className={`btn px-2 py-1 text-[12px] ${erasing ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setErasing((v) => !v)}>Eraser</button>
+          <button className="btn btn-ghost px-2 py-1 text-[12px]" disabled={!strokeCount} onClick={undo}>Undo</button>
+          <button className="btn btn-ghost px-2 py-1 text-[12px]" disabled={!strokeCount} onClick={clear}>Clear</button>
+        </div>
+      </div>
+
+      <div ref={wrapRef} className="min-h-0 flex-1 p-3" style={{ background: 'var(--surface-2)' }}>
+        <canvas
+          ref={canvasRef}
+          className="h-full w-full rounded-xl shadow-sm"
+          style={{ background: '#ffffff', touchAction: 'none', cursor: 'crosshair' }}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2">
+        <input
+          className="input min-w-0 flex-1 text-[12.5px]"
+          placeholder='Optional notes for the model: "mobile app, dark theme", "the big box is a video player"…'
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button className="btn btn-ghost py-1.5 text-[12.5px]" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-primary py-1.5 text-[12.5px]" disabled={!strokeCount} onClick={generate}>
+          Generate prototype →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Prompt studio: describe it, watch it appear.
+// ---------------------------------------------------------------------------
+
+const PROMPT_IDEAS = [
+  'A landing page for a sushi delivery startup, warm and appetizing',
+  'A mobile budgeting app home screen with a spending ring and recent transactions',
+  'A dark analytics dashboard with a big line chart and four stat tiles',
+];
+
+function PromptStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenerate: (prompt: string, label?: string) => void }) {
+  const [prompt, setPrompt] = useState('');
+  const [label, setLabel] = useState('');
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onCancel}>
+      <div className="card w-full max-w-xl p-5" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-bold tracking-tight">✨ Describe it. Watch it appear.</h2>
+        <p className="mt-1 text-[12.5px] text-ink-faint">
+          One prompt in, a working design out. Refine it afterwards with follow-ups, you're the designer, the model just drafts fast.
+        </p>
+        <textarea
+          className="input mt-3 min-h-[88px] w-full resize-y text-[13px]"
+          placeholder="What should it be? Audience, vibe, key sections…"
+          value={prompt}
+          autoFocus
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim(), label.trim() || undefined); }}
+        />
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {PROMPT_IDEAS.map((idea) => (
+            <button key={idea} className="chip max-w-full truncate text-[11px] hover:text-ink" onClick={() => setPrompt(idea)}>
+              {idea}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <input className="input flex-1 text-[12px]" placeholder="Card label (optional)" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <button className="btn btn-ghost py-1.5 text-[12.5px]" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-primary py-1.5 text-[12.5px]" disabled={!prompt.trim()} onClick={() => onGenerate(prompt.trim(), label.trim() || undefined)}>
+            Generate →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Right drawer for a page: refine (concepts), persistent notes, and comments. */
 function PageSheet({
-  page, onClose, onRemove, onOpenBrowser, onAddNote, onResolveNote, onComment,
+  page, refining, onClose, onRemove, onOpenBrowser, onOpenFile, onRefine, onAddNote, onResolveNote, onComment,
 }: {
   page: DesignPage;
+  refining?: boolean;
   onClose: () => void;
   onRemove: () => void;
   onOpenBrowser: () => void;
+  onOpenFile?: () => void;
+  onRefine: (text: string) => void | Promise<void>;
   onAddNote: (text: string) => void | Promise<void>;
   onResolveNote: (id: string) => void | Promise<void>;
   onComment: (text: string, run: boolean) => void | Promise<void>;
 }) {
   const [note, setNote] = useState('');
   const [comment, setComment] = useState('');
+  const [refineText, setRefineText] = useState('');
   const noteRef = useRef<HTMLInputElement>(null);
+  const concept = page.kind === 'concept';
+  const refine = () => {
+    if (!refineText.trim() || refining) return;
+    void onRefine(refineText.trim());
+    setRefineText('');
+  };
   return (
     <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-line" style={{ background: 'var(--paper)' }}>
       <div className="flex items-center gap-2 border-b border-line px-3 py-2">
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-semibold">{page.label}</div>
-          <div className="truncate text-[10.5px] text-ink-faint">{page.url}</div>
+          <div className="truncate text-[10.5px] text-ink-faint">{concept ? (page.origin === 'sketch' ? 'concept · from a sketch' : 'concept · from a prompt') : page.url}</div>
         </div>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open in browser pane" onClick={onOpenBrowser}><ExternalIcon className="h-3.5 w-3.5" /></button>
+        {concept && onOpenFile && (
+          <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open the prototype file" onClick={onOpenFile}><ExternalIcon className="h-3.5 w-3.5" /></button>
+        )}
+        {!concept && (
+          <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open in browser pane" onClick={onOpenBrowser}><ExternalIcon className="h-3.5 w-3.5" /></button>
+        )}
         <button className="rounded p-1 text-ink-faint hover:text-red-400" title="Remove page" onClick={onRemove}><TrashIcon className="h-3.5 w-3.5" /></button>
         <button className="rounded p-1 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="px-3 py-3">
+        {concept && (
+          <>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Refine</div>
+            {page.prompt && <p className="mb-1.5 line-clamp-2 text-[11px] italic text-ink-faint">"{page.prompt}"</p>}
+            <textarea
+              className="input min-h-[52px] w-full resize-none text-[12.5px]"
+              rows={2}
+              placeholder='"Make the hero darker", "add a pricing section", "more whitespace"…'
+              value={refineText}
+              onChange={(e) => setRefineText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) refine(); }}
+            />
+            <div className="mt-1.5 flex justify-end">
+              <button className="btn btn-primary py-1 text-[12px]" disabled={!refineText.trim() || refining} onClick={refine}>
+                {refining ? 'Refining…' : 'Refine design'}
+              </button>
+            </div>
+            <div className="my-3 h-px bg-[var(--line)]" />
+          </>
+        )}
+
         {/* Notes, persistent */}
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Notes</div>
         {page.notes.length === 0 && <p className="mb-2 text-[12px] text-ink-faint">No notes yet, pin design intent that sticks with this page.</p>}

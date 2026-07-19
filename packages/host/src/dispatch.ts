@@ -100,6 +100,7 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.designRemovePage]: ([wid, pid]) => host.removeDesignPage(wid, pid),
     [C.designAddNote]: ([wid, pid, text]) => host.addDesignNote(wid, pid, text),
     [C.designResolveNote]: ([wid, pid, nid]) => host.resolveDesignNote(wid, pid, nid),
+    [C.designGenerate]: ([wid, input]) => host.generateDesign(wid, input),
 
     [C.skillsInstalled]: () => host.listInstalledSkills(),
     [C.skillsTargets]: () => host.skillTargets(),

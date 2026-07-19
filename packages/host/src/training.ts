@@ -1,20 +1,22 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { AgentEvent, ExperimentNode, NewTrainingRun, TrainingRun } from '@kotrain/shared';
-import { RUN_DONE_TOKEN, bestExperiment, getApproach, isBetterScore, runStats } from '@kotrain/shared';
+import type { AgentEvent, ExperimentNode, NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
+import { RUN_DONE_TOKEN, bestExperiment, isBetterScore, planProgress, runStats } from '@kotrain/shared';
 import { dataDir, getSettings } from './store.js';
 import { getSession, saveSession, createSession, deleteSession } from './sessions.js';
 import { sendChat } from './chat.js';
 
 /**
  * Training/goal runs: one engine drives both the Training tab (train a model
- * for a purpose, full expert levers) and the Goals tab (long-running goal
- * solving with an approach preset). A run owns a dedicated chat session; each
- * "turn" the agent plans + executes experiments with the normal tool loop and
- * registers them via the report_experiment tool (handled here). Hints the user
- * adds mid-run are folded into the next turn. State persists to training.json
- * so runs survive restarts (running runs resume on boot).
+ * for a purpose, full expert levers) and the Goals tab (plan-first long-running
+ * goal solving: the agent writes an execution plan, then executes and iterates
+ * on it until the goal is finished). A run owns a dedicated chat session; each
+ * "turn" the agent works with the normal tool loop, registering experiments via
+ * report_experiment and maintaining the goal plan via update_plan (both handled
+ * here). Hints the user adds mid-run are folded into the next turn. State
+ * persists to training.json so runs survive restarts (running runs resume on
+ * boot).
  */
 
 const TURN_DELAY_MS = 4_000;
@@ -236,6 +238,75 @@ export function reportExperiment(sessionId: string, input: Record<string, unknow
   return reply;
 }
 
+/**
+ * Handle an update_plan tool call from a run's agent session (routed here by
+ * chat.ts). Replaces or upserts plan steps, logs milestones as steps complete,
+ * and echoes the plan back so the agent knows each step's id.
+ */
+export function updateRunPlan(sessionId: string, input: Record<string, unknown>): string {
+  const runs = load();
+  const run = runs.find((r) => r.sessionId === sessionId);
+  if (!run) return 'No active run is linked to this session; the plan was not recorded.';
+
+  const raw = Array.isArray(input.steps) ? (input.steps as Array<Record<string, unknown>>) : [];
+  if (!raw.length) return 'Pass at least one step.';
+  const valid: PlanStep['status'][] = ['pending', 'active', 'done', 'skipped'];
+  const now = Date.now();
+  const hadPlan = (run.plan ?? []).length > 0;
+  const replace = input.replace === true || !hadPlan;
+  const next: PlanStep[] = replace ? [] : [...(run.plan ?? [])];
+
+  const freshId = () => {
+    let n = next.length + 1;
+    while (next.some((s) => s.id === `step_${n}`)) n++;
+    return `step_${n}`;
+  };
+  for (const r of raw) {
+    const title = String(r.title ?? '').trim().slice(0, 160);
+    const id = typeof r.id === 'string' && r.id.trim() ? r.id.trim() : '';
+    const status = typeof r.status === 'string' && valid.includes(r.status as PlanStep['status'])
+      ? (r.status as PlanStep['status'])
+      : undefined;
+    const note = typeof r.note === 'string' && r.note.trim() ? r.note.trim().slice(0, 240) : undefined;
+    let step = id ? next.find((s) => s.id === id) : undefined;
+    if (!step && !replace && title) step = next.find((s) => s.title.toLowerCase() === title.toLowerCase());
+    if (step) {
+      const was = step.status;
+      if (title) step.title = title;
+      if (status) step.status = status;
+      if (note) step.note = note;
+      step.updatedAt = now;
+      if (status === 'done' && was !== 'done') log(run, 'milestone', `Plan step done: ${step.title}${note ? ` (${note})` : ''}`);
+      else if (status === 'skipped' && was !== 'skipped') log(run, 'info', `Plan step skipped: ${step.title}${note ? ` (${note})` : ''}`);
+    } else if (title) {
+      next.push({ id: id || freshId(), title, status: status ?? 'pending', note, createdAt: now, updatedAt: now });
+    }
+  }
+  if (!next.length) return 'The plan cannot be empty; pass the full step list.';
+
+  run.plan = next;
+  if (replace) log(run, hadPlan ? 'info' : 'milestone', hadPlan ? `Plan revised: ${next.length} steps.` : `Plan created: ${next.length} steps.`);
+  run.updatedAt = now;
+  save(runs);
+
+  const p = planProgress(next);
+  const lines = next.map((s, i) => `${i + 1}. [${s.status}] ${s.id}: ${s.title}`);
+  return `Plan saved (${p.done}/${p.total} done${p.skipped ? `, ${p.skipped} skipped` : ''}):\n${lines.join('\n')}`;
+}
+
+/** Workspace-safe folder name for a run's artifacts. */
+function folderSlug(run: TrainingRun): string {
+  return run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8);
+}
+
+/** Compact plan summary the goal agent sees each turn. */
+function planBrief(run: TrainingRun): string {
+  if (!run.plan?.length) return 'No plan yet. Build one with update_plan (replace=true) before doing any execution work.';
+  const p = planProgress(run.plan);
+  const lines = run.plan.map((s, i) => `${i + 1}. [${s.status}] ${s.title}${s.note ? ` (${s.note})` : ''}`);
+  return `Plan, ${p.done}/${p.total} done${p.skipped ? ` (${p.skipped} skipped)` : ''}:\n${lines.join('\n')}`;
+}
+
 /** Compact tree summary the agent sees each turn (title, lineage, score). */
 function treeBrief(run: TrainingRun): string {
   if (run.experiments.length === 0) return 'No experiments recorded yet.';
@@ -276,22 +347,30 @@ function turnPrompt(run: TrainingRun, hints: string[]): string {
       const h = cfg.harness ?? {};
       const artifacts = [h.agentsMd && 'an AGENTS.md agent file describing how an agent should use the model', h.skill && 'a SKILL.md skill wrapping common usage', h.spec && 'a SPEC.md describing the model, its data, metrics, and intended use'].filter(Boolean);
       if (artifacts.length) parts.push(`HARNESS: when the run completes, also produce ${artifacts.join('; ')} in the output folder, tailored to the purpose.`);
+      parts.push(
+        `RULES: (1) Work in small, measurable experiments. Call report_experiment when an attempt STARTS (status "running") and when it ENDS (succeeded/failed/repaired, with score when measurable), using parent_id to show what you branched from and "approach" to name the idea family. (2) If something breaks, fix it and mark the experiment "repaired" rather than silently retrying. (3) Keep artifacts in a "kotrain-training/${folderSlug(run)}" folder in the workspace. (4) Between turns you lose nothing: this chat keeps your context. (5) When the purpose is fulfilled (model trained + artifacts written)${cfg.maxExperiments ? `, or you have exhausted ~${cfg.maxExperiments} experiments` : ''}${cfg.timeBudgetMin ? `, or the ~${cfg.timeBudgetMin} minute budget` : ''}, summarize the outcome and end your reply with ${RUN_DONE_TOKEN}.`,
+      );
+      if (cfg.extra) parts.push(`EXPERT NOTES: ${cfg.extra}`);
+      parts.push(`Start now: profile the task, form a short plan, and run your first experiments.`);
     } else {
       parts.push(
-        `You are Kotrain's goal-solver agent. You own a long-running goal and work it in iterations until it is genuinely met, working hands-on in the workspace with your tools.`,
+        `You are Kotrain's goal agent. You own a long-running goal and drive it to FINISHED, working hands-on in the workspace with your tools. You work in three phases: PLAN first, then EXECUTE, then ITERATE until it is genuinely done.`,
         `GOAL: ${run.goal}`,
+        `PHASE 1, PLAN FIRST: investigate the goal and the workspace, then call update_plan (replace=true) with an ordered list of 4-12 concrete, independently verifiable steps that take the goal to finished. Do this before any execution work.`,
+        `PHASE 2, EXECUTE: work the plan step by step. Mark the step you start "active"; mark it "done" the moment it is verifiably complete, with a one-line note of the outcome. Never claim a step is done without having verified it.`,
+        `PHASE 3, ITERATE: when reality disagrees with the plan (a step fails, new work surfaces, the approach is wrong), revise the plan via update_plan (upsert steps, or replace=true to rewrite it) and keep executing. Repeat until every step is done or skipped AND the goal itself is verifiably met.`,
+        `RULES: (1) The plan is the contract; keep step statuses current via update_plan every turn. (2) When an attempt is worth measuring, you may also record it with report_experiment. (3) If something breaks, fix it; note blockers on the affected step. (4) Keep artifacts in a "kotrain-goal/${folderSlug(run)}" folder in the workspace unless the goal is about existing files. (5) Between turns you lose nothing: this chat keeps your context. (6) End your reply with ${RUN_DONE_TOKEN} only when the goal is genuinely finished and verified, never merely planned${cfg.timeBudgetMin ? `, or when the ~${cfg.timeBudgetMin} minute budget is exhausted` : ''}.`,
       );
-      const approach = getApproach(run.approachId);
-      if (approach?.hint) parts.push(`APPROACH: ${approach.label} — ${approach.hint}`);
+      if (cfg.extra) parts.push(`CONTEXT & CONSTRAINTS FROM THE USER: ${cfg.extra}`);
+      parts.push(`Start now: study the goal, then write the plan with update_plan before executing anything.`);
     }
-    parts.push(
-      `RULES: (1) Work in small, measurable experiments. Call report_experiment when an attempt STARTS (status "running") and when it ENDS (succeeded/failed/repaired, with score when measurable), using parent_id to show what you branched from and "approach" to name the idea family. (2) If something breaks, fix it and mark the experiment "repaired" rather than silently retrying. (3) Keep artifacts in a "${run.kind === 'training' ? 'kotrain-training' : 'kotrain-goal'}/${run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8)}" folder in the workspace. (4) Between turns you lose nothing: this chat keeps your context. (5) When the ${run.kind === 'training' ? 'purpose is fulfilled (model trained + artifacts written)' : 'goal is fully met'}${cfg.maxExperiments ? `, or you have exhausted ~${cfg.maxExperiments} experiments` : ''}${cfg.timeBudgetMin ? `, or the ~${cfg.timeBudgetMin} minute budget` : ''}, summarize the outcome and end your reply with ${RUN_DONE_TOKEN}.`,
-    );
-    if (cfg.extra) parts.push(`EXPERT NOTES: ${cfg.extra}`);
-    parts.push(`Start now: profile the task, form a short plan, and run your first experiments.`);
+  } else if (run.kind === 'goal') {
+    parts.push(`Continue working the goal. ${planBrief(run)}`);
+    if (run.experiments.length) parts.push(`Experiment tree:\n${treeBrief(run)}`);
+    parts.push(`Execute the next steps and keep statuses current via update_plan (active when you start, done with a note when verified). Revise the plan if the work demands it. End with ${RUN_DONE_TOKEN} only when every step is done or skipped and the goal is verifiably finished.`);
   } else {
     parts.push(`Continue the run. Current experiment tree:\n${treeBrief(run)}`);
-    parts.push(`Push the leader further: iterate on what works, branch new idea families when progress stalls, repair failures. Keep calling report_experiment. End with ${RUN_DONE_TOKEN} only when the ${run.kind === 'training' ? 'purpose' : 'goal'} is genuinely met or budgets are exhausted.`);
+    parts.push(`Push the leader further: iterate on what works, branch new idea families when progress stalls, repair failures. Keep calling report_experiment. End with ${RUN_DONE_TOKEN} only when the purpose is genuinely met or budgets are exhausted.`);
   }
 
   if (hints.length) {
