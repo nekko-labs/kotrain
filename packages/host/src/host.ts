@@ -19,6 +19,7 @@ import type {
   LineComment,
   DesignBoard,
   DesignPage,
+  GenerateDesignInput,
   AutomationTask,
   NewTask,
   TrainingRun,
@@ -63,6 +64,7 @@ import {
   removeDesignPage,
   addDesignNote,
   resolveDesignNote,
+  generateDesign,
 } from './design.js';
 import { listInstalledSkills, skillTargets, installSkill, uninstallSkill } from './skills.js';
 import { getDojoCatalog, getDojoSkillMd } from './dojo.js';
@@ -216,6 +218,7 @@ export interface Host {
   removeDesignPage(workspaceId: string, pageId: string): DesignBoard;
   addDesignNote(workspaceId: string, pageId: string, text: string): DesignBoard;
   resolveDesignNote(workspaceId: string, pageId: string, noteId: string): DesignBoard;
+  generateDesign(workspaceId: string, input: GenerateDesignInput): Promise<DesignBoard>;
 
   /** Skills marketplace installs. */
   listInstalledSkills(): InstalledSkillRecord[];
@@ -449,6 +452,7 @@ export function createHost(opts: { dataDir: string }): Host {
     removeDesignPage,
     addDesignNote,
     resolveDesignNote,
+    generateDesign,
     listInstalledSkills,
     skillTargets,
     installSkill,

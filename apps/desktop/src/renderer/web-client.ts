@@ -262,6 +262,7 @@ function makeWebClient(): NekkoApi {
     removeDesignPage: (workspaceId, pageId) => call(IpcChannels.designRemovePage, workspaceId, pageId),
     addDesignNote: (workspaceId, pageId, text) => call(IpcChannels.designAddNote, workspaceId, pageId, text),
     resolveDesignNote: (workspaceId, pageId, noteId) => call(IpcChannels.designResolveNote, workspaceId, pageId, noteId),
+    generateDesign: (workspaceId, input) => call(IpcChannels.designGenerate, workspaceId, input),
 
     listInstalledSkills: () => call(IpcChannels.skillsInstalled),
     skillTargets: () => call(IpcChannels.skillsTargets),

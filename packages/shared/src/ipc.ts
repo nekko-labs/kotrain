@@ -8,7 +8,7 @@ import type { ContextBundle } from './context.js';
 import type { MemoryEntry, MemoryScope } from './memory.js';
 import type { WorkspaceFolder, IndexStatus, SearchHit, IndexedFile } from './workspace.js';
 import type { DirEntry, FileContent, FileChange, LineComment } from './files.js';
-import type { DesignBoard, DesignPage } from './design.js';
+import type { DesignBoard, DesignPage, GenerateDesignInput } from './design.js';
 import type { AutomationTask, NewTask } from './tasks.js';
 import type { TrainingRun, NewTrainingRun } from './training.js';
 import type { ConnectorConfig, ConnectorKind, ConnectorResource } from './connectors.js';
@@ -108,6 +108,7 @@ export const IpcChannels = {
   designRemovePage: 'design:removePage',
   designAddNote: 'design:addNote',
   designResolveNote: 'design:resolveNote',
+  designGenerate: 'design:generate',
 
   skillsInstalled: 'skills:installed',
   skillsTargets: 'skills:targets',
@@ -294,6 +295,8 @@ export interface NekkoApi {
   removeDesignPage(workspaceId: string, pageId: string): Promise<DesignBoard>;
   addDesignNote(workspaceId: string, pageId: string, text: string): Promise<DesignBoard>;
   resolveDesignNote(workspaceId: string, pageId: string, noteId: string): Promise<DesignBoard>;
+  /** Generate (or refine) an AI design concept from a prompt and/or a sketch. */
+  generateDesign(workspaceId: string, input: GenerateDesignInput): Promise<DesignBoard>;
 
   /** Skills marketplace: what's installed, where installs can go, install/remove. */
   listInstalledSkills(): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
