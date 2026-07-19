@@ -13,3 +13,8 @@ coverage/
 *.tsbuildinfo
 release/
 cli-dist/
+# runtime artifacts written by training/goal/design runs when this repo is
+# itself used as a Kotrain workspace (dogfooding)
+kotrain-training/
+kotrain-goal/
+kotrain-designs/

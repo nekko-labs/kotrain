@@ -1,12 +1,14 @@
-import React, { useMemo, useRef, useState } from 'react';
-import type { ExperimentNode, MazeNode, TrainingRun } from '@kotrain/shared';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { ExperimentNode, MazeNode, ModelInfo, TrainingRun } from '@kotrain/shared';
 import { formatRuntime, layoutMaze, runStats } from '@kotrain/shared';
+import { useStore } from '../store.js';
 
 /**
  * Shared building blocks for the Training and Goals dashboards: the stats
  * header tiles, the experiment "idea maze" (every idea the agent tried, growing
- * over time), the guidance composer, and the activity log. Pure presentation;
- * all data flows in as a TrainingRun.
+ * over time), the guidance composer, the activity log, and the run model
+ * picker used by both new-run forms. Mostly pure presentation; all dashboard
+ * data flows in as a TrainingRun.
  */
 
 const STATUS_COLOR: Record<TrainingRun['status'], string> = {
@@ -285,6 +287,69 @@ export function RunLog({ run, max = 60 }: { run: TrainingRun; max?: number }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Optional agent-model override for a new run: which provider + model drive the
+ * run's dedicated agent session. Left on "App default", the run uses the
+ * global default model. Picking a provider loads its live model list (with a
+ * free-text fallback when the provider can't list models). Both fields must be
+ * chosen for the override to apply; the forms only send a complete pair.
+ */
+export function RunModelPicker({
+  providerId, modelId, onChange,
+}: {
+  providerId: string;
+  modelId: string;
+  onChange: (next: { providerId: string; modelId: string }) => void;
+}) {
+  const { settings } = useStore();
+  const providers = (settings?.providers ?? []).filter((p) => p.enabled);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!providerId) { setModels([]); return; }
+    let alive = true;
+    setLoading(true);
+    window.nekko.listModels(providerId)
+      .then((ms) => { if (alive) setModels(ms); })
+      .catch(() => { if (alive) setModels([]); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [providerId]);
+
+  return (
+    <div className="grid gap-1.5 sm:grid-cols-2">
+      <select
+        className="input w-full"
+        value={providerId}
+        onChange={(e) => onChange({ providerId: e.target.value, modelId: '' })}
+      >
+        <option value="">App default</option>
+        {providers.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+      </select>
+      {!providerId ? (
+        <input className="input w-full" disabled placeholder="(uses the default model)" />
+      ) : models.length > 0 ? (
+        <select
+          className="input w-full"
+          value={modelId}
+          onChange={(e) => onChange({ providerId, modelId: e.target.value })}
+        >
+          <option value="">Pick a model…</option>
+          {models.map((m) => <option key={m.id} value={m.id}>{m.name || m.id}</option>)}
+        </select>
+      ) : (
+        <input
+          className="input w-full"
+          placeholder={loading ? 'Loading models…' : 'model id, e.g. qwen3:14b'}
+          value={modelId}
+          onChange={(e) => onChange({ providerId, modelId: e.target.value })}
+        />
+      )}
     </div>
   );
 }

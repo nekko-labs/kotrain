@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { DatasetRef, BaseModelRef, NewTrainingRun, TrainingConfig, TrainingRun } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { ChampionCard, HintComposer, IdeaMaze, RunLog, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
+import { ChampionCard, HintComposer, IdeaMaze, RunLog, RunModelPicker, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
 
 /**
  * The Training tab: train a model in a simple UI that abstracts the complexity
@@ -150,6 +150,8 @@ function NewRunForm({
   const [maxExp, setMaxExp] = useState('');
   const [budget, setBudget] = useState('');
   const [extra, setExtra] = useState('');
+  const [providerId, setProviderId] = useState('');
+  const [modelId, setModelId] = useState('');
   const [busy, setBusy] = useState(false);
 
   const create = async (startNow: boolean) => {
@@ -174,6 +176,7 @@ function NewRunForm({
       goal: goal.trim(),
       config,
       workspaceId: workspaceId || undefined,
+      ...(providerId && modelId.trim() ? { providerId, modelId: modelId.trim() } : {}),
     };
     try {
       const run = await window.nekko.createTrainingRun(input);
@@ -199,7 +202,7 @@ function NewRunForm({
 
       <div className="card space-y-3.5 p-4">
         <div>
-          <L>Purpose — what should this model do?</L>
+          <L>Purpose: what should this model do?</L>
           <textarea
             className="input min-h-[64px] w-full resize-y text-[13px]"
             placeholder='e.g. "Classify customer support tickets by urgency" or "Predict house prices from the tabular features"'
@@ -221,6 +224,11 @@ function NewRunForm({
               {workspaces.length === 0 && <option value="">(add a folder in Projects first)</option>}
             </select>
           </div>
+        </div>
+        <div>
+          <L>Data-scientist model (optional)</L>
+          <RunModelPicker providerId={providerId} modelId={modelId} onChange={(n) => { setProviderId(n.providerId); setModelId(n.modelId); }} />
+          <p className="mt-1 text-[10.5px] text-[var(--ink-faint)]">The model that runs the experiments (not the model being trained). Leave on App default to use your default model.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -317,7 +325,7 @@ function NewRunForm({
           {onCancel && <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>}
         </div>
         <p className="text-[11px] text-[var(--ink-faint)]">
-          Uses your default provider/model (change it later from the run's chat). Hugging Face datasets load via the datasets library; Kaggle needs your KAGGLE credentials configured on this machine.
+          Hugging Face datasets load via the datasets library; Kaggle needs your KAGGLE credentials configured on this machine. You can also switch the agent's model later from the run's chat.
         </p>
       </div>
     </div>

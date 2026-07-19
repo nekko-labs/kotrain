@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
 import { formatRuntime, planProgress, runStats } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { HintComposer, RunLog, RunStatusChip } from '../components/RunBoard.js';
+import { HintComposer, RunLog, RunModelPicker, RunStatusChip } from '../components/RunBoard.js';
 
 /**
  * The Goals tab: hand the agent a long-running goal and it works plan-first,
@@ -258,17 +258,21 @@ function NewGoalForm({
   const [name, setName] = useState('');
   const [context, setContext] = useState('');
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id ?? '');
+  const [providerId, setProviderId] = useState('');
+  const [modelId, setModelId] = useState('');
   const [busy, setBusy] = useState(false);
 
   const create = async (startNow: boolean) => {
     if (!goal.trim()) return;
     setBusy(true);
+    const override = providerId && modelId.trim() ? { providerId, modelId: modelId.trim() } : {};
     const input: NewTrainingRun = {
       kind: 'goal',
       name: name.trim() || undefined,
       goal: goal.trim(),
       workspaceId: workspaceId || undefined,
       config: context.trim() ? { extra: context.trim() } : undefined,
+      ...override,
     };
     try {
       const run = await window.nekko.createTrainingRun(input);
@@ -329,6 +333,11 @@ function NewGoalForm({
               {workspaces.length === 0 && <option value="">(add a folder from a chat's + menu first)</option>}
             </select>
           </div>
+        </div>
+        <div>
+          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Agent model (optional)</label>
+          <RunModelPicker providerId={providerId} modelId={modelId} onChange={(n) => { setProviderId(n.providerId); setModelId(n.modelId); }} />
+          <p className="mt-1 text-[10.5px] text-[var(--ink-faint)]">The model that drives this goal for hours or days. Leave on App default unless this goal needs a stronger (or cheaper) one.</p>
         </div>
         <div>
           <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Context & constraints (optional)</label>
