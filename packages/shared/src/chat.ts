@@ -138,4 +138,11 @@ export interface SendOptions {
   /** Re-answer the last user turn: drop trailing assistant/tool messages and
    *  don't append a new user message. */
   regenerate?: boolean;
+  /**
+   * Only send the last N user-turn groups to the model (the full transcript is
+   * still persisted). Used by long-running run-driven turns (Goals/Training) so
+   * a loop that spans hundreds of turns doesn't replay its whole ever-growing
+   * history to the model each turn. Omitted for normal chats (full history).
+   */
+  maxHistoryTurns?: number;
 }

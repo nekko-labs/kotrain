@@ -17,12 +17,35 @@ export interface RunAgentOptions {
   maxIterations?: number;
   /** Sampling temperature (from the effort setting). */
   temperature?: number;
+  /**
+   * When set, only the last N user-turn groups of `history` are sent to the
+   * model (new messages are still appended to the full `history` array so the
+   * caller persists the whole transcript). Cutting on user-message boundaries
+   * keeps tool_use/tool_result pairs intact. Used by long-running run-driven
+   * loops so they don't replay an ever-growing transcript every turn.
+   */
+  maxHistoryTurns?: number;
 }
 
 let counter = 0;
 function id(prefix: string): string {
   counter = (counter + 1) % Number.MAX_SAFE_INTEGER;
   return `${prefix}_${Date.now().toString(36)}_${counter}`;
+}
+
+/**
+ * Window `history` to the last `turns` user-turn groups for sending to the
+ * model. Cuts on a user-message boundary so the window always starts on a user
+ * message and never splits a tool_use from its tool_result. Returns `history`
+ * unchanged when `turns` is falsy or there are no more than `turns` user
+ * messages, so normal chats (no limit) are unaffected.
+ */
+export function windowHistory(history: ChatMessage[], turns?: number): ChatMessage[] {
+  if (!turns || turns < 1) return history;
+  const userIdx: number[] = [];
+  for (let i = 0; i < history.length; i++) if (history[i].role === 'user') userIdx.push(i);
+  if (userIdx.length <= turns) return history;
+  return history.slice(userIdx[userIdx.length - turns]);
 }
 
 /**
@@ -52,7 +75,7 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
     try {
       for await (const chunk of opts.provider.chat({
         model: opts.model,
-        messages: opts.history,
+        messages: windowHistory(opts.history, opts.maxHistoryTurns),
         system: opts.system,
         tools,
         temperature: opts.temperature,

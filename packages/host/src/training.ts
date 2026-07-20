@@ -21,6 +21,17 @@ import { sendChat } from './chat.js';
 
 const TURN_DELAY_MS = 4_000;
 const MAX_LOG = 400;
+/** Only the last N turn-groups are replayed to the model each turn; the run's
+ *  brief re-injects the plan/tree, so old turns aren't needed and the loop
+ *  never sends an ever-growing transcript (the "goal is just a huge chat" bug). */
+const RUN_HISTORY_TURNS = 4;
+/** Pause a run after this many consecutive turns with no measurable progress
+ *  AND a repeating output (the "thousands of iterations, going nowhere" case). */
+const STALL_LIMIT = 8;
+/** Fail a run after this many consecutive turns that error out. */
+const ERROR_LIMIT = 5;
+/** Default safety backstop on total turns; resuming past it grants another leg. */
+const DEFAULT_MAX_TURNS = 400;
 
 let trainingSender: ((e: AgentEvent) => void) | null = null;
 let notify: ((runs: TrainingRun[]) => void) | null = null;
@@ -139,6 +150,14 @@ export function startTrainingRun(id: string): TrainingRun[] {
     if (!r.endedAt && r.turns === 0) log(r, 'info', 'Run started.');
     else log(r, 'info', 'Run resumed.');
     r.endedAt = undefined;
+    // A fresh leg: clear the stall/error counters so a resume actually retries,
+    // and grant another turn budget if we're already at/over the backstop.
+    r.stallTurns = 0;
+    r.errorTurns = 0;
+    const cap = r.config?.maxTurns ?? DEFAULT_MAX_TURNS;
+    if ((r.turns ?? 0) >= cap) {
+      r.config = { ...(r.config ?? {}), maxTurns: (r.turns ?? 0) + DEFAULT_MAX_TURNS };
+    }
   });
   if (run) void tickRun(id);
   return listTrainingRuns();
@@ -171,6 +190,8 @@ export function addTrainingHint(id: string, text: string): TrainingRun[] {
     persistRun(id, (r) => {
       r.hints.push({ id: randomUUID(), text: trimmed, at: Date.now() });
       log(r, 'hint', `Hint queued: ${trimmed.slice(0, 120)}`);
+      // A new steer is fresh input; let a stalled run try again on it.
+      r.stallTurns = 0;
     });
   }
   return listTrainingRuns();
@@ -294,6 +315,25 @@ export function updateRunPlan(sessionId: string, input: Record<string, unknown>)
   return `Plan saved (${p.done}/${p.total} done${p.skipped ? `, ${p.skipped} skipped` : ''}):\n${lines.join('\n')}`;
 }
 
+/**
+ * A fingerprint of the run's measurable progress: plan completion + a signature
+ * of each step's status, and the experiment count + a signature of each node's
+ * status/score. When this is identical two turns running, the turn advanced
+ * nothing real (no step completed/revised, no experiment added or changed).
+ */
+function progressSignature(run: TrainingRun): string {
+  const p = planProgress(run.plan);
+  const planSig = (run.plan ?? []).map((s) => `${s.id}:${s.status}`).join(',');
+  const expSig = run.experiments.map((e) => `${e.id}:${e.status}:${e.score ?? ''}`).join(',');
+  return `${p.done + p.skipped}/${p.total}|${planSig}|${run.experiments.length}|${expSig}`;
+}
+
+/** Cheap fingerprint of a turn's final answer, to catch verbatim repetition. */
+function outputSignature(text: string): string {
+  const norm = text.replace(RUN_DONE_TOKEN, '').replace(/\s+/g, ' ').trim();
+  return `${norm.length}:${norm.slice(0, 240)}`;
+}
+
 /** Workspace-safe folder name for a run's artifacts. */
 function folderSlug(run: TrainingRun): string {
   return run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8);
@@ -365,11 +405,17 @@ function turnPrompt(run: TrainingRun, hints: string[]): string {
       parts.push(`Start now: study the goal, then write the plan with update_plan before executing anything.`);
     }
   } else if (run.kind === 'goal') {
-    parts.push(`Continue working the goal. ${planBrief(run)}`);
+    // Self-contained each turn: only the last few turns are replayed to the
+    // model, so restate the goal + constraints rather than relying on turn 0.
+    parts.push(`Continue working toward this goal until it is verifiably finished.`, `GOAL: ${run.goal}`);
+    if (cfg.extra) parts.push(`CONSTRAINTS: ${cfg.extra}`);
+    parts.push(planBrief(run));
     if (run.experiments.length) parts.push(`Experiment tree:\n${treeBrief(run)}`);
-    parts.push(`Execute the next steps and keep statuses current via update_plan (active when you start, done with a note when verified). Revise the plan if the work demands it. End with ${RUN_DONE_TOKEN} only when every step is done or skipped and the goal is verifiably finished.`);
+    parts.push(`Do the next concrete work now (don't just re-plan): mark the step you start "active" via update_plan, and "done" with a one-line note once you have VERIFIED it. Revise the plan only when reality demands it. End your reply with ${RUN_DONE_TOKEN} only when every step is done or skipped and the goal is verifiably met, never merely planned.`);
   } else {
-    parts.push(`Continue the run. Current experiment tree:\n${treeBrief(run)}`);
+    parts.push(`Continue the run toward its purpose until met.`, `PURPOSE: ${run.goal}`);
+    if (cfg.extra) parts.push(`CONSTRAINTS: ${cfg.extra}`);
+    parts.push(`Current experiment tree:\n${treeBrief(run)}`);
     parts.push(`Push the leader further: iterate on what works, branch new idea families when progress stalls, repair failures. Keep calling report_experiment. End with ${RUN_DONE_TOKEN} only when the purpose is genuinely met or budgets are exhausted.`);
   }
 
@@ -398,6 +444,29 @@ async function tickRun(id: string): Promise<void> {
     return;
   }
 
+  // Pre-turn safety guards, so a run can never spin forever. These stop the
+  // loop (status flips away from 'running', so it won't re-arm below).
+  const budgetMin = run.config?.timeBudgetMin;
+  if (budgetMin && runStats(run).runtimeMs >= budgetMin * 60_000) {
+    persistRun(id, (r) => {
+      stopClock(r);
+      r.status = 'stopped';
+      r.endedAt = Date.now();
+      log(r, 'info', `Stopped: reached the ~${budgetMin} minute time budget after ${r.turns ?? 0} turns. Resume to keep going, or raise the budget.`);
+    });
+    return;
+  }
+  const turnCap = run.config?.maxTurns ?? DEFAULT_MAX_TURNS;
+  if ((run.turns ?? 0) >= turnCap) {
+    persistRun(id, (r) => {
+      stopClock(r);
+      r.status = 'stopped';
+      r.endedAt = Date.now();
+      log(r, 'error', `Stopped at the ${turnCap}-turn safety cap. It hasn't finished on its own, so it may be stuck. Add a hint to redirect it, then Resume (which grants a fresh turn budget).`);
+    });
+    return;
+  }
+
   // Consume pending hints into this turn.
   const hints: string[] = [];
   persistRun(id, (r) => {
@@ -418,27 +487,58 @@ async function tickRun(id: string): Promise<void> {
     r.turns = (r.turns ?? 0) + 1;
   });
   try {
-    await sendChat({ sessionId: session.id, providerId, modelId, text: prompt }, (e) => trainingSender?.(e));
+    // Only the last few turns are replayed to the model (the brief re-injects
+    // the plan/tree), so the loop never grows into an unbounded transcript.
+    await sendChat(
+      { sessionId: session.id, providerId, modelId, text: prompt, maxHistoryTurns: RUN_HISTORY_TURNS },
+      (e) => trainingSender?.(e),
+    );
     const done = getSession(session.id);
     const last = [...(done?.messages ?? [])].reverse().find((m) => m.role === 'assistant' && m.content.trim());
     const finished = !!last?.content.includes(RUN_DONE_TOKEN);
     persistRun(id, (r) => {
-      if (finished && r.status === 'running') {
+      r.errorTurns = 0;
+      if (finished) {
+        if (r.status === 'running') {
+          stopClock(r);
+          r.status = 'completed';
+          r.endedAt = Date.now();
+          log(r, 'milestone', `Run completed: ${last!.content.replace(RUN_DONE_TOKEN, '').trim().slice(0, 200)}`);
+        }
+        return;
+      }
+      // Stall detection: a turn that advanced nothing measurable AND repeated
+      // the previous answer (and wasn't given a fresh hint) counts toward a
+      // stall; enough in a row and we pause and ask the user to steer.
+      const progressKey = progressSignature(r);
+      const outputSig = outputSignature(last?.content ?? '');
+      const stalled = hints.length === 0 && r.lastProgressKey === progressKey && r.lastOutputSig === outputSig;
+      r.lastProgressKey = progressKey;
+      r.lastOutputSig = outputSig;
+      r.stallTurns = stalled ? (r.stallTurns ?? 0) + 1 : 0;
+      if ((r.stallTurns ?? 0) >= STALL_LIMIT && r.status === 'running') {
         stopClock(r);
-        r.status = 'completed';
-        r.endedAt = Date.now();
-        log(r, 'milestone', `Run completed: ${last!.content.replace(RUN_DONE_TOKEN, '').trim().slice(0, 200)}`);
+        r.status = 'paused';
+        r.stallTurns = 0;
+        log(r, 'error', `Paused after ${STALL_LIMIT} turns with no measurable progress (no plan step completed or revised, and the agent kept repeating itself). Add a hint to redirect it, then Resume.`);
       }
     });
   } catch (e) {
     persistRun(id, (r) => {
+      r.errorTurns = (r.errorTurns ?? 0) + 1;
       log(r, 'error', `Turn failed: ${(e as Error).message}`);
+      if ((r.errorTurns ?? 0) >= ERROR_LIMIT && r.status === 'running') {
+        stopClock(r);
+        r.status = 'failed';
+        r.endedAt = Date.now();
+        log(r, 'error', `Stopped after ${ERROR_LIMIT} failed turns in a row. Check the model/provider, then Resume.`);
+      }
     });
   } finally {
     inFlight.delete(id);
   }
 
-  // Re-arm while still running (pause/stop flips status mid-turn).
+  // Re-arm while still running (pause/stop/complete/fail flips status mid-turn).
   const after = load().find((r) => r.id === id);
   if (after?.status === 'running') {
     const t = setTimeout(() => void tickRun(id), TURN_DELAY_MS);
