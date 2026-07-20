@@ -345,3 +345,10 @@ export function formatRuntime(ms: number): string {
 
 /** Token the agent uses to declare the whole run finished. */
 export const RUN_DONE_TOKEN = '⟦RUN_DONE⟧';
+
+/**
+ * Default safety backstop on total agent turns for a run (overridable per run
+ * via config.maxTurns). The host stops a run at this cap; resuming grants a
+ * fresh leg. Shared so the dashboard can show the budget the loop enforces.
+ */
+export const RUN_MAX_TURNS_DEFAULT = 400;

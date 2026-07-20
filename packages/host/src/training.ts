@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import type { AgentEvent, ExperimentNode, NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
-import { RUN_DONE_TOKEN, bestExperiment, isBetterScore, planProgress, runStats } from '@kotrain/shared';
+import { RUN_DONE_TOKEN, RUN_MAX_TURNS_DEFAULT, bestExperiment, isBetterScore, planProgress, runStats } from '@kotrain/shared';
 import { dataDir, getSettings } from './store.js';
 import { getSession, saveSession, createSession, deleteSession } from './sessions.js';
 import { sendChat } from './chat.js';
@@ -31,7 +31,7 @@ const STALL_LIMIT = 8;
 /** Fail a run after this many consecutive turns that error out. */
 const ERROR_LIMIT = 5;
 /** Default safety backstop on total turns; resuming past it grants another leg. */
-const DEFAULT_MAX_TURNS = 400;
+const DEFAULT_MAX_TURNS = RUN_MAX_TURNS_DEFAULT;
 
 let trainingSender: ((e: AgentEvent) => void) | null = null;
 let notify: ((runs: TrainingRun[]) => void) | null = null;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
-import { formatRuntime, planProgress, runStats } from '@kotrain/shared';
+import { RUN_MAX_TURNS_DEFAULT, formatRuntime, planProgress, runStats } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { HintComposer, RunLog, RunModelPicker, RunStatusChip } from '../components/RunBoard.js';
 
@@ -117,7 +117,15 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
           {(run.status === 'running' || run.status === 'paused') && (
             <button className="btn btn-ghost !py-1.5 text-red-400" onClick={() => void window.nekko.stopTrainingRun(run.id)}>Stop</button>
           )}
-          {run.sessionId && <button className="btn btn-outline !py-1.5" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>}
+          {run.sessionId && (
+            <button
+              className="btn btn-ghost !py-1.5 text-[var(--ink-soft)]"
+              title="View the raw agent transcript for this mission"
+              onClick={() => onOpenChat(run.sessionId!)}
+            >
+              Transcript
+            </button>
+          )}
           <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
         </span>
       </div>
@@ -137,11 +145,46 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
               {p.current.note && <div className="mt-1 text-[11.5px] leading-snug text-[var(--ink-soft)]">{p.current.note}</div>}
             </div>
           )}
-          <HintComposer
-            run={run}
-            placeholder='e.g. "skip the docs step for now", "the staging server moved to :4000", "prioritize the failing tests"'
-          />
+          <MissionMeta run={run} />
         </div>
+      </div>
+
+      {/* Steer the mission: a course-correction folded into the next iteration.
+          Deliberately not a chat, one nudge at a time, full-width so it reads
+          as a mission console rather than a cramped reply box. */}
+      <HintComposer
+        run={run}
+        title="Steer the mission"
+        buttonLabel="Steer"
+        helper="Not a chat, one course-correction at a time. It folds into the agent's next iteration: redirect a step, add a constraint, or point it at something new."
+        placeholder='e.g. "skip the docs step for now", "the staging server moved to :4000", "prioritize the failing tests"'
+      />
+    </div>
+  );
+}
+
+/** Compact mission meta: the loop guardrails made visible (phase, turn budget,
+ *  time budget) so a long-running goal reads as bounded, not a runaway chat. */
+function MissionMeta({ run }: { run: TrainingRun }) {
+  const s = runStats(run);
+  const cap = run.config?.maxTurns ?? RUN_MAX_TURNS_DEFAULT;
+  const rows: Array<{ k: string; v: string }> = [
+    { k: 'Turn budget', v: `${s.turns} / ${cap}` },
+    { k: 'Time budget', v: run.config?.timeBudgetMin ? `${formatRuntime(s.runtimeMs)} / ~${run.config.timeBudgetMin}m` : formatRuntime(s.runtimeMs) },
+  ];
+  return (
+    <div className="card px-3.5 py-3">
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Mission control</div>
+      <div className="mt-2 space-y-1.5">
+        {rows.map((r) => (
+          <div key={r.k} className="flex items-baseline justify-between gap-3 text-[11.5px]">
+            <span className="text-[var(--ink-faint)]">{r.k}</span>
+            <span className="font-mono tabular-nums text-[var(--ink-soft)]">{r.v}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 text-[10.5px] leading-snug text-[var(--ink-faint)]">
+        The agent stops itself if it stalls or hits a budget, so it can't loop forever. Resume grants a fresh turn budget.
       </div>
     </div>
   );
