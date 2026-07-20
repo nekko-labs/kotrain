@@ -222,8 +222,25 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
   );
 }
 
-/** Guidance composer: queue a hint / new approach / data pointer mid-run. */
-export function HintComposer({ run, placeholder }: { run: TrainingRun; placeholder: string }) {
+/**
+ * Guidance composer: fold a course-correction into the run's next turn. Not a
+ * chat, one steer at a time, queued as a pending hint and consumed on the next
+ * iteration. `title`/`helper`/`buttonLabel` let a surface frame it its own way
+ * (Goals presents it full-width as "Steer the mission").
+ */
+export function HintComposer({
+  run,
+  placeholder,
+  title = 'Guide the agent',
+  helper = "Folded into the agent's next turn: new approaches to try, course corrections, or pointers to new data.",
+  buttonLabel = 'Send',
+}: {
+  run: TrainingRun;
+  placeholder: string;
+  title?: string;
+  helper?: string;
+  buttonLabel?: string;
+}) {
   const [text, setText] = useState('');
   const pending = run.hints.filter((h) => !h.consumedAt);
   const send = async () => {
@@ -234,11 +251,11 @@ export function HintComposer({ run, placeholder }: { run: TrainingRun; placehold
   };
   return (
     <div className="card px-3.5 py-3">
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Guide the agent</div>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">{title}</div>
       <div className="mt-2 flex gap-2">
         <textarea
-          className="input min-h-[38px] flex-1 resize-y py-2 text-[12.5px]"
-          rows={1}
+          className="input min-h-[44px] flex-1 resize-y py-2 text-[12.5px]"
+          rows={2}
           placeholder={placeholder}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -250,7 +267,7 @@ export function HintComposer({ run, placeholder }: { run: TrainingRun; placehold
           }}
         />
         <button className="btn btn-primary self-end" onClick={() => void send()} disabled={!text.trim()}>
-          Send
+          {buttonLabel}
         </button>
       </div>
       {pending.length > 0 && (
@@ -262,9 +279,7 @@ export function HintComposer({ run, placeholder }: { run: TrainingRun; placehold
           ))}
         </div>
       )}
-      <div className="mt-1.5 text-[10.5px] text-[var(--ink-faint)]">
-        Hints are folded into the agent's next turn: new approaches to try, course corrections, or pointers to new data.
-      </div>
+      <div className="mt-1.5 text-[10.5px] text-[var(--ink-faint)]">{helper}</div>
     </div>
   );
 }

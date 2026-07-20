@@ -94,6 +94,8 @@ export interface TrainingConfig {
   learningRate?: number;
   maxExperiments?: number;
   timeBudgetMin?: number;
+  /** Safety backstop on total agent turns; resuming past it grants another leg. */
+  maxTurns?: number;
   /** Free-form expert notes appended verbatim to the agent brief. */
   extra?: string;
   /** Harness artifacts to produce beside the model for the use case. */
@@ -127,6 +129,17 @@ export interface TrainingRun {
   runtimeMs?: number;
   /** Count of agent turns taken so far. */
   turns?: number;
+  /**
+   * Engine loop bookkeeping for stall detection (not user-facing): a fingerprint
+   * of measurable progress (plan + experiments), a fingerprint of the last
+   * turn's output, and the count of consecutive turns that made neither. Reset
+   * whenever the run makes progress, consumes a hint, or is (re)started.
+   */
+  lastProgressKey?: string;
+  lastOutputSig?: string;
+  stallTurns?: number;
+  /** Consecutive turns that ended in an error (guards against error loops). */
+  errorTurns?: number;
 }
 
 export interface NewTrainingRun {
@@ -332,3 +345,10 @@ export function formatRuntime(ms: number): string {
 
 /** Token the agent uses to declare the whole run finished. */
 export const RUN_DONE_TOKEN = '⟦RUN_DONE⟧';
+
+/**
+ * Default safety backstop on total agent turns for a run (overridable per run
+ * via config.maxTurns). The host stops a run at this cap; resuming grants a
+ * fresh leg. Shared so the dashboard can show the budget the loop enforces.
+ */
+export const RUN_MAX_TURNS_DEFAULT = 400;

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runAgent } from './loop.js';
-import type { Provider, ProviderChunk } from '../providers/types.js';
+import { runAgent, windowHistory } from './loop.js';
+import type { ChatRequest, Provider, ProviderChunk } from '../providers/types.js';
 import type { ChatMessage, ToolCall, ToolResult } from '@kotrain/shared';
+
+/** A user/assistant message pair helper for building histories. */
+function msg(role: ChatMessage['role'], content: string): ChatMessage {
+  return { id: `${role}_${content}`, role, content, createdAt: 0 };
+}
 
 /** A scripted provider: each call to chat() yields the next pre-set chunk list. */
 function scriptedProvider(rounds: ProviderChunk[][]): Provider {
@@ -93,5 +98,60 @@ describe('runAgent', () => {
       events.push(e);
     }
     expect(events.some((e) => e.type === 'reasoning' && (e as any).delta === 'thinking')).toBe(true);
+  });
+
+  it('sends only the last N user-turn groups when maxHistoryTurns is set', async () => {
+    let seen: ChatMessage[] = [];
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        seen = req.messages;
+        yield { type: 'text', delta: 'ok' } as ProviderChunk;
+        yield { type: 'done' } as ProviderChunk;
+      },
+    };
+    // Three prior turns (user→assistant) plus a fresh 4th user turn.
+    const history: ChatMessage[] = [
+      msg('user', 'u1'), msg('assistant', 'a1'),
+      msg('user', 'u2'), msg('assistant', 'a2'),
+      msg('user', 'u3'), msg('assistant', 'a3'),
+      msg('user', 'u4'),
+    ];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, maxHistoryTurns: 2,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) { /* drain */ }
+    // Window keeps the last 2 user groups (u3,a3,u4); the new assistant is
+    // appended to the FULL history, which still holds all four turns.
+    expect(seen.map((m) => m.content)).toEqual(['u3', 'a3', 'u4']);
+    expect(history.map((m) => m.role)).toEqual(['user', 'assistant', 'user', 'assistant', 'user', 'assistant', 'user', 'assistant']);
+  });
+});
+
+describe('windowHistory', () => {
+  const h: ChatMessage[] = [
+    msg('user', 'u1'), msg('assistant', 'a1'),
+    msg('user', 'u2'), msg('assistant', 'a2'), msg('tool', 't2'), msg('assistant', 'a2b'),
+    msg('user', 'u3'), msg('assistant', 'a3'),
+  ];
+
+  it('returns history unchanged with no limit (normal chats)', () => {
+    expect(windowHistory(h, undefined)).toBe(h);
+    expect(windowHistory(h, 0)).toBe(h);
+  });
+
+  it('returns history unchanged when there are fewer user turns than the limit', () => {
+    expect(windowHistory(h, 5)).toBe(h);
+    expect(windowHistory(h, 3)).toBe(h);
+  });
+
+  it('cuts on a user boundary, keeping complete turn groups', () => {
+    // Last 2 user groups: u2 (with its assistant/tool/assistant) and u3.
+    expect(windowHistory(h, 2).map((m) => m.content)).toEqual(['u2', 'a2', 't2', 'a2b', 'u3', 'a3']);
+    // The window always begins on a user message (never a stranded tool result).
+    expect(windowHistory(h, 2)[0].role).toBe('user');
+    expect(windowHistory(h, 1).map((m) => m.content)).toEqual(['u3', 'a3']);
   });
 });

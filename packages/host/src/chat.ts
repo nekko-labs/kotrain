@@ -370,6 +370,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
             });
       },
       temperature: EFFORT_TEMPERATURE[settings.effort ?? 'normal'],
+      maxHistoryTurns: opts.maxHistoryTurns,
       signal: abort.signal,
     })) {
       if (event.type === 'usage') {
