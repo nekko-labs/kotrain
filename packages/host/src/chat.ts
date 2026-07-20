@@ -12,9 +12,10 @@ import {
   getConnector,
   BUILTIN_TOOLS,
   REPORT_EXPERIMENT_TOOL,
+  REPORT_ARTIFACT_TOOL,
   UPDATE_PLAN_TOOL,
 } from '@kotrain/core';
-import { reportExperiment, updateRunPlan } from './training.js';
+import { reportExperiment, reportArtifact, updateRunPlan } from './training.js';
 import { getSettings } from './store.js';
 import { getSession, saveSession, createSession } from './sessions.js';
 import { executeTool } from './tools.js';
@@ -260,7 +261,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     tools = [...BUILTIN_TOOLS, ...mcpToolSpecs()].filter((t) => !disabled.has(t.name));
     // Run-driven sessions can register experiments into their run's idea maze
     // and (goal runs) maintain their execution plan.
-    if (session.trainingRunId) tools.push(REPORT_EXPERIMENT_TOOL, UPDATE_PLAN_TOOL);
+    if (session.trainingRunId) tools.push(REPORT_EXPERIMENT_TOOL, REPORT_ARTIFACT_TOOL, UPDATE_PLAN_TOOL);
   }
   // Persist only when not incognito. Preserve any prompts queued mid-run (they
   // land on disk via queuePrompt) so a normal save doesn't clobber them.
@@ -341,6 +342,14 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
             return Promise.resolve({ toolCallId: call.id, output });
           } catch (e) {
             return Promise.resolve({ toolCallId: call.id, output: `Failed to record: ${(e as Error).message}`, isError: true });
+          }
+        }
+        if (call.name === 'report_artifact' && session.trainingRunId) {
+          try {
+            const output = reportArtifact(opts.sessionId, call.input as Record<string, unknown>);
+            return Promise.resolve({ toolCallId: call.id, output });
+          } catch (e) {
+            return Promise.resolve({ toolCallId: call.id, output: `Failed to record the artifact: ${(e as Error).message}`, isError: true });
           }
         }
         if (call.name === 'update_plan' && session.trainingRunId) {

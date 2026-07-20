@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { ExperimentNode, MazeNode, ModelInfo, TrainingRun } from '@kotrain/shared';
-import { formatRuntime, layoutMaze, runStats } from '@kotrain/shared';
+import type { ArtifactKind, ExperimentNode, MazeNode, ModelInfo, TrainingRun } from '@kotrain/shared';
+import { formatRuntime, layoutMaze, runOutputDir, runStats } from '@kotrain/shared';
 import { useStore } from '../store.js';
 
 /**
@@ -75,6 +75,116 @@ export function ChampionCard({ run }: { run: TrainingRun }) {
       </div>
       <div className="mt-1 font-mono text-[12.5px] font-semibold text-emerald-300">{best.title}</div>
       {best.note && <div className="mt-1 text-[11.5px] leading-snug text-[var(--ink-soft)]">{best.note}</div>}
+    </div>
+  );
+}
+
+const ARTIFACT_META: Record<ArtifactKind, { icon: string; label: string }> = {
+  model: { icon: '🧠', label: 'Model' },
+  'agents-md': { icon: '📄', label: 'Agent file' },
+  skill: { icon: '🧩', label: 'Skill' },
+  spec: { icon: '📐', label: 'Spec' },
+  dataset: { icon: '🗂️', label: 'Dataset' },
+  code: { icon: '💻', label: 'Code' },
+  report: { icon: '📊', label: 'Report' },
+  other: { icon: '📦', label: 'Artifact' },
+};
+
+function isAbsolutePath(p: string): boolean {
+  return /^(?:[a-zA-Z]:[\\/]|\/|\\\\)/.test(p);
+}
+
+/** Resolve an artifact path (relative to the workspace, or already absolute). */
+function joinPath(base: string | undefined, rel: string): string {
+  if (!base || isAbsolutePath(rel)) return rel;
+  const sep = base.includes('\\') ? '\\' : '/';
+  return `${base.replace(/[\\/]+$/, '')}${sep}${rel.replace(/^[\\/]+/, '')}`;
+}
+
+/**
+ * The Artifacts card: exactly what the run produced (the trained model + its
+ * harness files), where each lives, and how to use it. Every path opens in the
+ * OS file manager, and the run's output folder is one click away, so a finished
+ * run answers "what did I get, and where is it?" at a glance.
+ */
+export function ArtifactsCard({ run }: { run: TrainingRun }) {
+  const { settings } = useStore();
+  const wsPath = settings?.workspaces?.find((w) => w.id === run.workspaceId)?.path ?? settings?.workspaces?.[0]?.path;
+  const outDir = runOutputDir(run);
+  const artifacts = run.artifacts ?? [];
+  const open = (rel: string) => void window.nekko.openPath(joinPath(wsPath, rel));
+  return (
+    <div className="card px-3.5 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">
+          Artifacts{artifacts.length ? ` · ${artifacts.length}` : ''}
+        </div>
+        <button
+          className="font-mono text-[10.5px] text-[var(--accent)] hover:underline"
+          onClick={() => open(outDir)}
+          title={joinPath(wsPath, outDir)}
+        >
+          Open output folder →
+        </button>
+      </div>
+      {artifacts.length === 0 ? (
+        <p className="mt-2 text-[11.5px] leading-snug text-[var(--ink-faint)]">
+          Nothing yet. As the agent produces the model and its harness files, each one lands here, saved under{' '}
+          <span className="font-mono text-[var(--ink-soft)]">{outDir}</span>.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {artifacts.map((a) => {
+            const m = ARTIFACT_META[a.kind] ?? ARTIFACT_META.other;
+            return (
+              <li key={a.id} className="flex items-start gap-2">
+                <span className="mt-px text-[13px] leading-5" title={m.label}>{m.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <button
+                    className="block max-w-full truncate text-left text-[12.5px] font-medium hover:text-[var(--accent)]"
+                    onClick={() => open(a.path)}
+                    title={`Open ${joinPath(wsPath, a.path)}`}
+                  >
+                    {a.title}
+                  </button>
+                  <div className="truncate font-mono text-[10px] text-[var(--ink-faint)]">{a.path}</div>
+                  {a.note && <div className="mt-0.5 text-[11px] leading-snug text-[var(--ink-soft)]">{a.note}</div>}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A live "what's happening right now" strip, shown while a run is in flight so
+ * the page always answers "what is it doing?". Calls out the very start
+ * explicitly (the empty-dashboard moment right after you hit start), then the
+ * currently-running experiment and the latest activity line.
+ */
+export function RunNowStrip({ run }: { run: TrainingRun }) {
+  if (run.status !== 'running') return null;
+  const lastLog = [...run.log].reverse().find((l) => l.kind !== 'hint');
+  const activeExp = run.experiments.find((e) => e.status === 'running');
+  const starting = (run.turns ?? 0) === 0 && run.experiments.length === 0;
+  const headline = starting
+    ? 'Starting up… the agent is spinning up its first experiment'
+    : activeExp
+      ? `Running: ${activeExp.title}`
+      : 'Working…';
+  return (
+    <div className="card flex items-center gap-2.5 border border-blue-500/25 px-3.5 py-2.5">
+      <span className="relative flex h-2.5 w-2.5 shrink-0">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-400" />
+      </span>
+      <div className="min-w-0">
+        <div className="truncate text-[12.5px] font-semibold text-blue-300">{headline}</div>
+        {lastLog && <div className="truncate text-[11px] text-[var(--ink-soft)]">{lastLog.text}</div>}
+      </div>
     </div>
   );
 }

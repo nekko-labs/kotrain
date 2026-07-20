@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { AgentEvent, ExperimentNode, NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
-import { RUN_DONE_TOKEN, RUN_MAX_TURNS_DEFAULT, bestExperiment, isBetterScore, planProgress, runStats } from '@kotrain/shared';
+import type { AgentEvent, ArtifactKind, ExperimentNode, NewTrainingRun, PlanStep, RunArtifact, TrainingRun } from '@kotrain/shared';
+import { RUN_DONE_TOKEN, RUN_MAX_TURNS_DEFAULT, bestExperiment, isBetterScore, planProgress, runStats, runOutputDir } from '@kotrain/shared';
 import { dataDir, getSettings } from './store.js';
 import { getSession, saveSession, createSession, deleteSession } from './sessions.js';
 import { sendChat } from './chat.js';
@@ -109,6 +109,7 @@ export function createTrainingRun(input: NewTrainingRun): TrainingRun {
     sessionId: session.id,
     workspaceId: input.workspaceId,
     experiments: [],
+    artifacts: [],
     hints: [],
     log: [{ at: now, kind: 'info', text: 'Run created.' }],
     createdAt: now,
@@ -260,6 +261,43 @@ export function reportExperiment(sessionId: string, input: Record<string, unknow
 }
 
 /**
+ * Handle a report_artifact tool call from a run's agent session (routed here by
+ * chat.ts). Upserts the artifact by path so the dashboard can show what the run
+ * built, where it lives, and how to use it. Logs a milestone the first time an
+ * artifact is registered.
+ */
+export function reportArtifact(sessionId: string, input: Record<string, unknown>): string {
+  const runs = load();
+  const run = runs.find((r) => r.sessionId === sessionId);
+  if (!run) return 'No active run is linked to this session; the artifact was not recorded.';
+
+  const path = typeof input.path === 'string' ? input.path.trim() : '';
+  if (!path) return 'Pass the artifact path (relative to the workspace).';
+  const title = typeof input.title === 'string' && input.title.trim() ? input.title.trim().slice(0, 120) : path.split(/[\\/]/).pop() ?? path;
+  const validKinds: ArtifactKind[] = ['model', 'agents-md', 'skill', 'spec', 'dataset', 'code', 'report', 'other'];
+  const kind = validKinds.includes(input.kind as ArtifactKind) ? (input.kind as ArtifactKind) : 'other';
+  const note = typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 300) : undefined;
+
+  const now = Date.now();
+  if (!run.artifacts) run.artifacts = [];
+  let art = run.artifacts.find((a) => a.path === path);
+  const isNew = !art;
+  if (!art) {
+    art = { id: `art_${run.artifacts.length + 1}`, kind, title, path, createdAt: now, updatedAt: now };
+    run.artifacts.push(art);
+  }
+  art.kind = kind;
+  art.title = title;
+  if (note !== undefined) art.note = note;
+  art.updatedAt = now;
+
+  if (isNew) log(run, 'milestone', `Artifact ready: ${title} (${path})`);
+  run.updatedAt = now;
+  save(runs);
+  return `Recorded artifact "${title}" at ${path}. It now shows on the run's Artifacts card.`;
+}
+
+/**
  * Handle an update_plan tool call from a run's agent session (routed here by
  * chat.ts). Replaces or upserts plan steps, logs milestones as steps complete,
  * and echoes the plan back so the agent knows each step's id.
@@ -334,11 +372,6 @@ function outputSignature(text: string): string {
   return `${norm.length}:${norm.slice(0, 240)}`;
 }
 
-/** Workspace-safe folder name for a run's artifacts. */
-function folderSlug(run: TrainingRun): string {
-  return run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8);
-}
-
 /** Compact plan summary the goal agent sees each turn. */
 function planBrief(run: TrainingRun): string {
   if (!run.plan?.length) return 'No plan yet. Build one with update_plan (replace=true) before doing any execution work.';
@@ -388,7 +421,7 @@ function turnPrompt(run: TrainingRun, hints: string[]): string {
       const artifacts = [h.agentsMd && 'an AGENTS.md agent file describing how an agent should use the model', h.skill && 'a SKILL.md skill wrapping common usage', h.spec && 'a SPEC.md describing the model, its data, metrics, and intended use'].filter(Boolean);
       if (artifacts.length) parts.push(`HARNESS: when the run completes, also produce ${artifacts.join('; ')} in the output folder, tailored to the purpose.`);
       parts.push(
-        `RULES: (1) Work in small, measurable experiments. Call report_experiment when an attempt STARTS (status "running") and when it ENDS (succeeded/failed/repaired, with score when measurable), using parent_id to show what you branched from and "approach" to name the idea family. (2) If something breaks, fix it and mark the experiment "repaired" rather than silently retrying. (3) Keep artifacts in a "kotrain-training/${folderSlug(run)}" folder in the workspace. (4) Between turns you lose nothing: this chat keeps your context. (5) When the purpose is fulfilled (model trained + artifacts written)${cfg.maxExperiments ? `, or you have exhausted ~${cfg.maxExperiments} experiments` : ''}${cfg.timeBudgetMin ? `, or the ~${cfg.timeBudgetMin} minute budget` : ''}, summarize the outcome and end your reply with ${RUN_DONE_TOKEN}.`,
+        `RULES: (1) Work in small, measurable experiments. Call report_experiment when an attempt STARTS (status "running") and when it ENDS (succeeded/failed/repaired, with score when measurable), using parent_id to show what you branched from and "approach" to name the idea family. (2) If something breaks, fix it and mark the experiment "repaired" rather than silently retrying. (3) Keep every artifact in the "${runOutputDir(run)}" folder in the workspace, and the moment one exists on disk call report_artifact for it (kind "model" for the trained model itself, plus each harness file you produce) so the user can see what was built. (4) Between turns you lose nothing: this chat keeps your context. (5) When the purpose is fulfilled (model trained, artifacts written AND registered via report_artifact)${cfg.maxExperiments ? `, or you have exhausted ~${cfg.maxExperiments} experiments` : ''}${cfg.timeBudgetMin ? `, or the ~${cfg.timeBudgetMin} minute budget` : ''}, summarize the outcome and end your reply with ${RUN_DONE_TOKEN}.`,
       );
       if (cfg.extra) parts.push(`EXPERT NOTES: ${cfg.extra}`);
       parts.push(`Start now: profile the task, form a short plan, and run your first experiments.`);
@@ -399,7 +432,7 @@ function turnPrompt(run: TrainingRun, hints: string[]): string {
         `PHASE 1, PLAN FIRST: investigate the goal and the workspace, then call update_plan (replace=true) with an ordered list of 4-12 concrete, independently verifiable steps that take the goal to finished. Do this before any execution work.`,
         `PHASE 2, EXECUTE: work the plan step by step. Mark the step you start "active"; mark it "done" the moment it is verifiably complete, with a one-line note of the outcome. Never claim a step is done without having verified it.`,
         `PHASE 3, ITERATE: when reality disagrees with the plan (a step fails, new work surfaces, the approach is wrong), revise the plan via update_plan (upsert steps, or replace=true to rewrite it) and keep executing. Repeat until every step is done or skipped AND the goal itself is verifiably met.`,
-        `RULES: (1) The plan is the contract; keep step statuses current via update_plan every turn. (2) When an attempt is worth measuring, you may also record it with report_experiment. (3) If something breaks, fix it; note blockers on the affected step. (4) Keep artifacts in a "kotrain-goal/${folderSlug(run)}" folder in the workspace unless the goal is about existing files. (5) Between turns you lose nothing: this chat keeps your context. (6) End your reply with ${RUN_DONE_TOKEN} only when the goal is genuinely finished and verified, never merely planned${cfg.timeBudgetMin ? `, or when the ~${cfg.timeBudgetMin} minute budget is exhausted` : ''}.`,
+        `RULES: (1) The plan is the contract; keep step statuses current via update_plan every turn. (2) When an attempt is worth measuring, you may also record it with report_experiment. (3) If something breaks, fix it; note blockers on the affected step. (4) Keep new artifacts in a "${runOutputDir(run)}" folder in the workspace unless the goal is about existing files, and call report_artifact for each concrete deliverable you produce so it shows on the dashboard. (5) Between turns you lose nothing: this chat keeps your context. (6) End your reply with ${RUN_DONE_TOKEN} only when the goal is genuinely finished and verified, never merely planned${cfg.timeBudgetMin ? `, or when the ~${cfg.timeBudgetMin} minute budget is exhausted` : ''}.`,
       );
       if (cfg.extra) parts.push(`CONTEXT & CONSTRAINTS FROM THE USER: ${cfg.extra}`);
       parts.push(`Start now: study the goal, then write the plan with update_plan before executing anything.`);
