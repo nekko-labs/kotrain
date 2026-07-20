@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { DatasetRef, BaseModelRef, NewTrainingRun, TrainingConfig, TrainingRun } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { ChampionCard, HintComposer, IdeaMaze, RunLog, RunModelPicker, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
+import { ArtifactsCard, ChampionCard, HintComposer, IdeaMaze, RunLog, RunModelPicker, RunNowStrip, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
 
 /**
  * The Training tab: train a model in a simple UI that abstracts the complexity
@@ -61,7 +61,13 @@ export function TrainingView() {
         {creating || !selected ? (
           <NewRunForm
             workspaces={settings?.workspaces ?? []}
-            onCreated={(run) => { setSelectedId(run.id); setCreating(false); }}
+            onCreated={(run) => {
+              // Show the run's dashboard right away, even before the live list
+              // refresh lands, so starting a run takes you straight to watching it.
+              setRuns((prev) => (prev.some((r) => r.id === run.id) ? prev : [run, ...prev]));
+              setSelectedId(run.id);
+              setCreating(false);
+            }}
             onCancel={mine.length ? () => setCreating(false) : undefined}
           />
         ) : (
@@ -80,25 +86,40 @@ function RunDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (sess
     if (confirm(`Delete run "${run.name}"? The experiment history is lost.`)) void window.nekko.deleteTrainingRun(run.id);
   };
   const cfg = run.config ?? {};
+  // Run controls live in one cluster (Start · Pause · Stop); Open chat + Delete
+  // sit in a separate, set-apart group so the primary actions stay together and
+  // the destructive one isn't mixed in with them.
+  const showRunControls = run.status !== 'completed';
   return (
     <div className="mx-auto max-w-5xl space-y-3">
       <div className="flex flex-wrap items-center gap-2.5">
         <h1 className="mr-1 text-lg font-bold tracking-tight">{run.name}</h1>
         <RunStatusChip run={run} />
-        <span className="ml-auto flex gap-1.5">
-          {run.status !== 'running' && run.status !== 'completed' && (
-            <button className="btn btn-primary !py-1.5" onClick={start}>{run.turns ? 'Resume' : 'Start training'}</button>
+        <span className="ml-auto flex items-center gap-2">
+          {showRunControls && (
+            <span className="flex items-center gap-1.5">
+              {run.status !== 'running' && (
+                <button className="btn btn-primary !py-1.5" onClick={start}>{run.turns ? 'Resume' : 'Start training'}</button>
+              )}
+              {run.status === 'running' && <button className="btn btn-outline !py-1.5" onClick={pause}>Pause</button>}
+              {(run.status === 'running' || run.status === 'paused') && (
+                <button className="btn btn-outline !py-1.5 !border-red-400/40 !text-red-400" onClick={stop}>Stop</button>
+              )}
+            </span>
           )}
-          {run.status === 'running' && <button className="btn btn-outline !py-1.5" onClick={pause}>Pause</button>}
-          {(run.status === 'running' || run.status === 'paused') && (
-            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={stop}>Stop</button>
-          )}
-          {run.sessionId && (
-            <button className="btn btn-outline !py-1.5" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>
-          )}
-          <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+          <span className={`flex items-center gap-1.5 ${showRunControls ? 'border-l border-[var(--line)] pl-2' : ''}`}>
+            {run.sessionId && (
+              <button className="btn btn-ghost !py-1.5" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>
+            )}
+            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+          </span>
         </span>
       </div>
+
+      <p className="text-[12px] leading-snug text-[var(--ink-faint)]">
+        A data-scientist agent trains a model for this purpose: it runs experiments (each dot in the maze), keeps the best one,
+        and saves the trained model plus its harness files as artifacts. Watch it live below, or steer it with a hint.
+      </p>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--ink-soft)]">
         <span className="max-w-full"><b className="text-[var(--ink)]">Purpose:</b> {run.goal}</span>
@@ -110,11 +131,13 @@ function RunDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (sess
         )}
       </div>
 
+      <RunNowStrip run={run} />
       <RunStatTiles run={run} />
       <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
         <IdeaMaze run={run} />
         <div className="space-y-3">
           <ChampionCard run={run} />
+          <ArtifactsCard run={run} />
           <HintComposer run={run} placeholder='e.g. "try gradient boosting", "the date column leaks the target", "more augmentation"' />
         </div>
       </div>

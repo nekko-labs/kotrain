@@ -37,6 +37,28 @@ export interface ExperimentNode {
   updatedAt: number;
 }
 
+/** What a produced artifact is, so the dashboard can label and icon it. */
+export type ArtifactKind = 'model' | 'agents-md' | 'skill' | 'spec' | 'dataset' | 'code' | 'report' | 'other';
+
+/**
+ * A concrete thing a run produced: the trained model, a harness file (agent
+ * file / skill / spec), a dataset card, etc. Registered by the agent via the
+ * report_artifact tool so the dashboard can show exactly what was built, where
+ * it lives, and how to use it, rather than leaving it buried in the log.
+ */
+export interface RunArtifact {
+  id: string;
+  kind: ArtifactKind;
+  /** Human label, e.g. "Trained model (transformer)", "AGENTS.md". */
+  title: string;
+  /** Where it lives: a path relative to the workspace, or absolute. */
+  path: string;
+  /** One-line description of what it is / how to use it. */
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** Status of one step in a goal run's execution plan. */
 export type PlanStepStatus = 'pending' | 'active' | 'done' | 'skipped';
 
@@ -116,6 +138,8 @@ export interface TrainingRun {
   sessionId?: string;
   workspaceId?: string;
   experiments: ExperimentNode[];
+  /** Concrete outputs the run produced (model, harness files, reports). */
+  artifacts?: RunArtifact[];
   /** Goal runs: the execution plan the agent builds first, then works through. */
   plan?: PlanStep[];
   hints: RunHint[];
@@ -332,6 +356,20 @@ export function layoutMaze(run: Pick<TrainingRun, 'experiments' | 'config' | 'be
   };
   for (const root of byParent.get(undefined) ?? []) walk(root, 0);
   return out;
+}
+
+/** Workspace-safe folder name for a run's artifacts (shared by host + UI). */
+export function runFolderSlug(run: Pick<TrainingRun, 'name' | 'id'>): string {
+  return run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8);
+}
+
+/**
+ * The workspace-relative folder a run keeps its artifacts in. Training runs use
+ * "kotrain-training/<slug>"; goal runs use "kotrain-goal/<slug>". The host tells
+ * the agent to work here, and the dashboard shows/opens it, so both agree.
+ */
+export function runOutputDir(run: Pick<TrainingRun, 'name' | 'id' | 'kind'>): string {
+  return `${run.kind === 'goal' ? 'kotrain-goal' : 'kotrain-training'}/${runFolderSlug(run)}`;
 }
 
 /** Short human runtime, e.g. "15h", "2d 4h", "34m". */

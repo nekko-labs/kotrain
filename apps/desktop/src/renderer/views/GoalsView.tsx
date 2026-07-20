@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
 import { RUN_MAX_TURNS_DEFAULT, formatRuntime, planProgress, runStats } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { HintComposer, RunLog, RunModelPicker, RunStatusChip } from '../components/RunBoard.js';
+import { ArtifactsCard, HintComposer, RunLog, RunModelPicker, RunStatusChip } from '../components/RunBoard.js';
 
 /**
  * The Goals tab: hand the agent a long-running goal and it works plan-first,
@@ -70,7 +70,13 @@ export function GoalsView() {
         {creating || !selected ? (
           <NewGoalForm
             workspaces={settings?.workspaces ?? []}
-            onCreated={(run) => { setSelectedId(run.id); setCreating(false); }}
+            onCreated={(run) => {
+              // Jump straight to the goal's dashboard, even before the live list
+              // refresh lands, so starting it takes you to watching it run.
+              setRuns((prev) => (prev.some((r) => r.id === run.id) ? prev : [run, ...prev]));
+              setSelectedId(run.id);
+              setCreating(false);
+            }}
             onCancel={mine.length ? () => setCreating(false) : undefined}
           />
         ) : (
@@ -105,28 +111,34 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
             {formatRuntime(s.runtimeMs)}
           </div>
         </div>
-        <span className="flex w-full gap-1.5 sm:w-auto">
-          {run.status !== 'running' && run.status !== 'completed' && (
-            <button className="btn btn-primary !py-1.5" onClick={() => void window.nekko.startTrainingRun(run.id)}>
-              {run.turns ? 'Resume' : 'Start'}
-            </button>
+        <span className="flex w-full items-center gap-2 sm:w-auto">
+          {run.status !== 'completed' && (
+            <span className="flex items-center gap-1.5">
+              {run.status !== 'running' && (
+                <button className="btn btn-primary !py-1.5" onClick={() => void window.nekko.startTrainingRun(run.id)}>
+                  {run.turns ? 'Resume' : 'Start'}
+                </button>
+              )}
+              {run.status === 'running' && (
+                <button className="btn btn-outline !py-1.5" onClick={() => void window.nekko.pauseTrainingRun(run.id)}>Pause</button>
+              )}
+              {(run.status === 'running' || run.status === 'paused') && (
+                <button className="btn btn-outline !py-1.5 !border-red-400/40 !text-red-400" onClick={() => void window.nekko.stopTrainingRun(run.id)}>Stop</button>
+              )}
+            </span>
           )}
-          {run.status === 'running' && (
-            <button className="btn btn-outline !py-1.5" onClick={() => void window.nekko.pauseTrainingRun(run.id)}>Pause</button>
-          )}
-          {(run.status === 'running' || run.status === 'paused') && (
-            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={() => void window.nekko.stopTrainingRun(run.id)}>Stop</button>
-          )}
-          {run.sessionId && (
-            <button
-              className="btn btn-ghost !py-1.5 text-[var(--ink-soft)]"
-              title="View the raw agent transcript for this mission"
-              onClick={() => onOpenChat(run.sessionId!)}
-            >
-              Transcript
-            </button>
-          )}
-          <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+          <span className={`flex items-center gap-1.5 ${run.status !== 'completed' ? 'border-l border-[var(--line)] pl-2' : ''}`}>
+            {run.sessionId && (
+              <button
+                className="btn btn-ghost !py-1.5 text-[var(--ink-soft)]"
+                title="View the raw agent transcript for this mission"
+                onClick={() => onOpenChat(run.sessionId!)}
+              >
+                Transcript
+              </button>
+            )}
+            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+          </span>
         </span>
       </div>
 
@@ -145,6 +157,7 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
               {p.current.note && <div className="mt-1 text-[11.5px] leading-snug text-[var(--ink-soft)]">{p.current.note}</div>}
             </div>
           )}
+          <ArtifactsCard run={run} />
           <MissionMeta run={run} />
         </div>
       </div>
