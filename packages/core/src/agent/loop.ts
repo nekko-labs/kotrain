@@ -17,6 +17,8 @@ export interface RunAgentOptions {
   maxIterations?: number;
   /** Sampling temperature (from the effort setting). */
   temperature?: number;
+  /** Reasoning toggle passed to the provider (true/false/undefined = default). */
+  think?: boolean;
   /**
    * When set, only the last N user-turn groups of `history` are sent to the
    * model (new messages are still appended to the full `history` array so the
@@ -79,6 +81,7 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
         system: opts.system,
         tools,
         temperature: opts.temperature,
+        think: opts.think,
         signal: opts.signal,
       })) {
         switch (chunk.type) {

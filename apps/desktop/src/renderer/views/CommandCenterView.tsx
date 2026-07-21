@@ -5,6 +5,7 @@ import { estimateCostUSD, formatUSD, optimizationTips, MODEL_PRICING, taskCadenc
 import type { OptimizationTip, AgentType } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { ChatIcon, FolderIcon, ServerIcon, PlusIcon, CheckIcon, TerminalIcon, RobotIcon, TrashIcon } from '../icons.js';
+import { useGpuStats, VramPanel } from '../components/GpuStats.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 const MIN = 60_000;
@@ -25,6 +26,7 @@ export function CommandCenterView() {
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [tasks, setTasks] = useState<AutomationTask[]>([]);
   const [, setTick] = useState(0);
+  const gpu = useGpuStats();
   const now = Date.now();
 
   useEffect(() => {
@@ -209,6 +211,9 @@ export function CommandCenterView() {
             </div>
           ))}
         </div>
+
+        {/* GPU / VRAM: total, used, and free across the machine's GPUs */}
+        {gpu && <VramPanel stats={gpu} />}
 
         {/* Fleet: what kinds of agents are out there right now */}
         {fleet.total > 0 && (

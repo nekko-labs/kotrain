@@ -82,6 +82,12 @@ export interface Session {
   autoModel?: boolean;
   /** Tool-execution policy for this chat. */
   mode?: ChatMode;
+  /**
+   * Per-chat reasoning toggle for models that support it: `true` forces thinking
+   * on, `false` suppresses it, `undefined` leaves the model's default. Only
+   * offered in the UI when the selected model is reasoning-capable.
+   */
+  thinking?: boolean;
   /** Tool names the user disabled for this chat (subset of the builtins). */
   disabledTools?: string[];
   /** Offline: no tool calls, no connectors/internet (local models only). */

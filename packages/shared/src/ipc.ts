@@ -31,6 +31,8 @@ export const IpcChannels = {
   modelPull: 'model:pull',
   modelLoad: 'model:load',
   modelUnload: 'model:unload',
+  serverStop: 'server:stop',
+  gpuStats: 'gpu:stats',
 
   sessionsList: 'sessions:list',
   sessionCreate: 'session:create',
@@ -185,6 +187,10 @@ export interface NekkoApi {
   pullModel(providerId: string, model: string): Promise<{ ok: boolean; message: string }>;
   loadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
   unloadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
+  /** Stop the local model server backing a provider (ollama/lmstudio/vllm/…). */
+  stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
+  /** GPU/VRAM stats for the metrics bar + Command Center (null if unavailable). */
+  getGpuStats(): Promise<import('./models.js').GpuStats | null>;
 
   listSessions(): Promise<Session[]>;
   createSession(workspaceId?: string): Promise<Session>;
@@ -240,7 +246,7 @@ export interface NekkoApi {
   specPath(sessionId: string): Promise<string | null>;
   setSessionOptions(
     id: string,
-    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'order' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel'>>,
+    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'order' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel' | 'thinking'>>,
   ): Promise<Session | null>;
   truncateSession(id: string, messageId: string): Promise<Session | null>;
   /** Delete chats within a window; returns how many were removed. */

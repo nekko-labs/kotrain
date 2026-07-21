@@ -19,13 +19,14 @@ export class OllamaProvider implements Provider {
       fetch(`${this.base()}/api/tags`).then((r) => r.json() as Promise<any>).catch(() => ({ models: [] as any[] })),
       fetch(`${this.base()}/api/ps`).then((r) => r.json() as Promise<any>).catch(() => ({ models: [] as any[] })),
     ]);
-    const loaded = new Set<string>((ps.models ?? []).map((m: any) => m.name));
+    const vramByName = new Map<string, number>((ps.models ?? []).map((m: any) => [m.name, m.size_vram ?? 0]));
     return (tags.models ?? []).map((m: any) => ({
       id: m.name,
       providerId: this.config.id,
       name: m.name,
-      loaded: loaded.has(m.name),
+      loaded: vramByName.has(m.name),
       sizeBytes: m.size,
+      vramBytes: vramByName.get(m.name) || undefined,
       details: m.details ? { family: m.details.family, quant: m.details.quantization_level } : undefined,
     }));
   }
@@ -81,6 +82,9 @@ export class OllamaProvider implements Provider {
       model: req.model,
       stream: true,
       options: { temperature: req.temperature ?? 0.7 },
+      // Ollama's native reasoning toggle (thinking models only). Left off the
+      // body when undefined so non-reasoning models are unaffected.
+      ...(req.think !== undefined ? { think: req.think } : {}),
       messages: this.toOllamaMessages(req),
       tools: req.tools?.map((t) => ({
         type: 'function',
@@ -112,6 +116,7 @@ export class OllamaProvider implements Provider {
         } catch {
           continue;
         }
+        if (msg.message?.thinking) yield { type: 'reasoning', delta: msg.message.thinking as string };
         if (msg.message?.content) yield { type: 'text', delta: msg.message.content };
         if (msg.message?.tool_calls) {
           for (const tc of msg.message.tool_calls) {

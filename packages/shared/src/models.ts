@@ -31,12 +31,59 @@ export interface ModelInfo {
   name: string;
   /** Context window in tokens, if known. */
   contextLength?: number;
-  /** Whether this model is currently loaded into memory (ollama/lmstudio). */
+  /** Whether this model is currently loaded into memory (ollama/lmstudio/vllm). */
   loaded?: boolean;
   /** Approximate size on disk in bytes, if known. */
   sizeBytes?: number;
+  /** VRAM currently used by this model while loaded, in bytes (ollama). */
+  vramBytes?: number;
   /** Family / quantization hints. */
   details?: Record<string, string>;
+}
+
+/** Local model-server kinds (on-device servers we can inspect and manage). */
+export const LOCAL_PROVIDER_KINDS: ProviderKind[] = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
+
+/** Whether a provider kind is an on-device local model server. */
+export function isLocalProvider(kind: ProviderKind): boolean {
+  return LOCAL_PROVIDER_KINDS.includes(kind);
+}
+
+/**
+ * A single GPU's memory snapshot (megabytes). Utilization is 0-100 when known.
+ */
+export interface GpuDevice {
+  name: string;
+  memoryTotalMB: number;
+  memoryUsedMB: number;
+  memoryFreeMB: number;
+  utilizationPct?: number;
+}
+
+/**
+ * Aggregate GPU/VRAM stats, surfaced in the Chat metrics bar and Command Center.
+ * `source` records where the numbers came from so the UI can label them honestly;
+ * totals are summed across all devices.
+ */
+export interface GpuStats {
+  source: 'nvidia-smi' | 'none';
+  devices: GpuDevice[];
+  totalMB: number;
+  usedMB: number;
+  freeMB: number;
+}
+
+/**
+ * Reasoning ("thinking") model detection by id/name. Covers the common local and
+ * cloud reasoning families (DeepSeek-R1, Qwen3, QwQ, Magistral, gpt-oss,
+ * phi-4-reasoning, o1/o3/o4, Gemini thinking, …). Used to decide whether to offer
+ * the per-chat thinking toggle.
+ */
+const THINKING_MODEL_RE =
+  /(?:^|[-_/ .])(?:r1|reason|reasoning|qwq|qwen-?3|magistral|thinking|think|o1|o3|o4|gpt-?5|gpt-oss|deepseek-?r|phi-?4-reasoning|cogito|marco-o1|sky-t1|deephermes|granite[\w.-]*thinking)/i;
+
+export function modelSupportsThinking(model: { id: string; name?: string }): boolean {
+  return THINKING_MODEL_RE.test(`${model.id} ${model.name ?? ''}`);
 }
 
 /** Default base URLs per provider kind. */
