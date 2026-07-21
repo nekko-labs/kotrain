@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@kotrain/shared';
-import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens } from '@kotrain/shared';
+import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
@@ -472,6 +472,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const lastMsg = session?.messages[session.messages.length - 1];
   const canRegenerate = !streaming && !!session?.messages.some((m) => m.role === 'assistant') && lastMsg?.role !== 'user';
   const isCloudModel = !LOCAL_KINDS.includes(providers.find((p) => p.id === providerId)?.kind ?? '');
+  // Reasoning toggle: offered only for a concrete, reasoning-capable model.
+  const selectedModelInfo = modelId && modelId !== AUTO_MODEL_ID ? models.find((m) => m.id === modelId) : undefined;
+  const thinkingSupported = !!modelId && modelId !== AUTO_MODEL_ID && modelSupportsThinking({ id: modelId, name: selectedModelInfo?.name });
+  const setThinkingPref = (value: boolean) => {
+    window.nekko.setSessionOptions(sessionId, { thinking: value }).then((s) => { if (s) setSession(s); }).catch(() => {});
+  };
   const modelControls = (
     <>
       <select className="input min-w-0 max-w-[100px] py-0.5 text-[10px] md:max-w-[120px]" value={providerId ?? ''} onChange={(e) => setProviderId(e.target.value)}>
@@ -589,6 +595,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           cost={cost}
           controls={modelControls}
           skill={activeSkill ? { name: activeSkill.name, tokens: estimateTokens(activeSkill.template) } : null}
+          thinkingSupported={thinkingSupported}
+          thinkingPref={session?.thinking}
+          onSetThinking={setThinkingPref}
         />
 
         <div className="border-t border-line px-4 pb-1 pt-3">

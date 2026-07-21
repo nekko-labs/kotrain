@@ -112,7 +112,7 @@ export function clearSessions(scope: 'today' | 'month' | 'all'): number {
 /** Patch per-chat options (title, pin, mode, disabled tools, offline, incognito). */
 export function setSessionOptions(
   id: string,
-  patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'order' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel'>>,
+  patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'order' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel' | 'thinking'>>,
 ): Session | null {
   const s = getSession(id);
   if (!s) return null;

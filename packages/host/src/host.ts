@@ -39,7 +39,9 @@ import type {
   TerminalInfo,
   TerminalSnapshot,
   ShellOption,
+  GpuStats,
 } from '@kotrain/shared';
+import { isLocalProvider } from '@kotrain/shared';
 import {
   createProvider,
   discoverLocalProviders,
@@ -94,6 +96,8 @@ import {
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
+import { getGpuStats } from './gpu.js';
+import { stopLocalServer } from './servers.js';
 import { syncMcp, mcpStatus, mcpToolList, detectNekkoMcp } from './mcp.js';
 import {
   setTerminalSender,
@@ -138,6 +142,10 @@ export interface Host {
   pullModel(providerId: string, model: string): Promise<{ ok: boolean; message: string }>;
   loadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
   unloadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
+  /** Stop the local model server backing a provider (kills its listening process). */
+  stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
+  /** GPU/VRAM stats (null when no NVIDIA GPU / nvidia-smi is available). */
+  getGpuStats(): Promise<GpuStats | null>;
 
   listSessions(): Session[];
   createSession(workspaceId?: string): Session;
@@ -175,7 +183,7 @@ export interface Host {
   specPath(sessionId: string): string | null;
   setSessionOptions(
     id: string,
-    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel'>>,
+    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel' | 'thinking'>>,
   ): Session | null;
   truncateSession(id: string, messageId: string): Session | null;
   clearSessions(scope: 'today' | 'month' | 'all'): number;
@@ -356,6 +364,13 @@ export function createHost(opts: { dataDir: string }): Host {
       if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, false);
       return { ok: true };
     },
+    stopServer: async (providerId) => {
+      const p = findProvider(providerId);
+      if (!p) return { ok: false, message: 'Provider not found.' };
+      if (!isLocalProvider(p.kind)) return { ok: false, message: 'Only local model servers can be stopped from here.' };
+      return stopLocalServer(p.baseUrl);
+    },
+    getGpuStats: () => getGpuStats(),
 
     listSessions: sessions.listSessions,
     createSession: sessions.createSession,
