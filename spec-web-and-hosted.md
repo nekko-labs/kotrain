@@ -197,6 +197,8 @@ Capture these on the website + README.
 
 Numbers are placeholders pending cost modeling (relay bandwidth, storage). ZDR is available on **all** paid plans, not gated to Team.
 
+**Relay passthrough decision (2026-07-22, T100)**: self-hosting the relay is free forever and first-class (one Docker command, `ghcr.io/nekko-labs/kotrain-relay`; Compose/Coolify/Fly recipes in docs/REMOTE.md). The **managed relay** (`kotrain-relay.fly.dev`) runs free during beta with per-connection rate limits; at Cloud launch it becomes part of the paid plans by pointing `KOTRAIN_RELAY_AUTHZ_URL` at the cloud's `/api/relay/authorize` (already implemented; checks the account and returns the plan's `maxDevices`). Rationale: the relay only routes ciphertext, so managed hosting is a low-liability bandwidth cost that maps cleanly to a subscription, while self-hosting preserves the open-source promise.
+
 ---
 
 ## 7. Build plan / phases
@@ -210,7 +212,7 @@ Phase ordering keeps the OSS app shippable throughout.
 - [ ] **P3.1, Cloud foundation**: accounts/auth, Postgres, entitlements, app.kotrain.com shell reusing the same renderer with a cloud transport.
 - [x] **P3.2, Payments**: Stripe Checkout + Portal + signature-verified webhooks → `store.setPlan`; entitlement gating (already existed). Gated on `STRIPE_SECRET_KEY`; live charges need keys. See §4.3.
 - [ ] **P3.3, ZDR + cloud history/files**: retention modes, encrypted storage, sync engine, ZDR badges + audit.
-- [ ] **P3.4, Relay + phone**: local agent outbound WSS, relay service, device pairing (QR/code), E2E encryption, mobile-responsive UI / PWA, revoke devices.
+- [x] **P3.4, Relay + phone**: DONE (T100). Relay v2 (per-device cids, unicast, kick, limits, optional cloud authz gate), agent-side device registry with 10-min single-use pairing codes + rename/revoke/rotate, HELLO handshake over the E2E channel, phone bottom-nav, per-device push tokens, managed relay live at `wss://kotrain-relay.fly.dev`, self-host image `ghcr.io/nekko-labs/kotrain-relay`. Notably the device registry lives on the AGENT, so revocation shipped without the Cloud account model; the cloud's `/api/relay/authorize` gate exists for making the managed relay a paid perk at launch. See docs/REMOTE.md.
 - [ ] **P3.5, Managed connectors**: pre-registered OAuth apps for Gmail/Drive/Slack/Discord.
 
 ## 8. Open questions
