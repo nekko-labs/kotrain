@@ -1,0 +1,33 @@
+# Fly.io config for the managed Kotrain relay (relay.kotrain.com candidate).
+# Deploy from the REPO ROOT (the Dockerfile needs the workspace manifests):
+#   fly apps create kotrain-relay                 (first time)
+#   fly deploy -c apps/relay/fly.toml --dockerfile apps/relay/Dockerfile .
+# Keep it at ONE machine (fly scale count 1): rooms live in a machine's memory,
+# so the agent and its phones must land on the same instance.
+# Secrets (only if enabling push / the paid gate):
+#   fly secrets set APNS_KEY_P8=... APNS_KEY_ID=... APNS_TEAM_ID=... \
+#     FCM_SERVICE_ACCOUNT=... KOTRAIN_RELAY_AUTHZ_URL=https://cloud.kotrain.com/api/relay/authorize
+
+app = "kotrain-relay"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  KOTRAIN_RELAY_PORT = "4400"
+  KOTRAIN_RELAY_HOST = "0.0.0.0"
+
+[http_service]
+  internal_port = 4400
+  force_https = true
+  # Long-lived WebSockets: keep at least one machine warm so paired agents stay
+  # connected; more machines are fine (rooms are per-connection, no shared state
+  # beyond a single machine's memory — use fly-replay or one machine for now).
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
