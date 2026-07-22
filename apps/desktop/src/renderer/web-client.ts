@@ -58,6 +58,9 @@ function makeWebClient(): NekkoApi {
         relayUrl = saved.relay;
         room = saved.room;
         key = saved.key;
+        // Native pairing screen stores the one-time code alongside the creds
+        // (there's no URL to carry it after the reload).
+        if (saved.pair) pairCode = saved.pair;
       }
     } catch {
       /* ignore */
@@ -110,6 +113,8 @@ function makeWebClient(): NekkoApi {
         welcomed = true;
         pairCode = null; // enrollment done; never resend the code
         sessionStorage.removeItem('op_relay_denied');
+        // Drop a stored one-time code so it never leaks or gets replayed.
+        localStorage.setItem('op_relay', JSON.stringify({ relay: relayUrl, room, key }));
       } else if (frame.type === 'denied') {
         onDenied(String(frame.reason || 'denied'));
       } else if (frame.type === 'res' && pending.has(frame.id)) {

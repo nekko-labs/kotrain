@@ -42,6 +42,9 @@ const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string 
   { view: 'settings', labelKey: 'nav.settings', Icon: SettingsColorIcon },
 ];
 
+/** Phone bottom-tab destinations (the remote-control essentials). */
+const MOBILE_NAV: View[] = ['command', 'chat', 'training', 'goals', 'settings'];
+
 export function App() {
   const { view, setView, mascotMood, settings, providers, refreshSettings, refreshProviders, refreshSessions, refreshTerminals } = useStore();
   const t = useT();
@@ -132,8 +135,9 @@ export function App() {
   return (
     <div className="flex h-full w-full" style={{ background: 'var(--paper)' }}>
       {/* Left rail: icon-only at rest, expands over the content on hover to
-          reveal each destination's label. */}
-      <nav className="relative z-40 w-16 shrink-0">
+          reveal each destination's label. Hidden on phones (hover is useless on
+          touch), where the bottom tab bar below takes over. */}
+      <nav className="relative z-40 hidden w-16 shrink-0 md:block">
         <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
           <div className="mb-3 flex h-9 items-center gap-2.5">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
@@ -155,8 +159,8 @@ export function App() {
         </div>
       </nav>
 
-      {/* Main */}
-      <main className="relative flex min-w-0 flex-1 flex-col">
+      {/* Main (bottom padding on phones so the tab bar never covers content) */}
+      <main className="relative flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
         {providers.length === 0 && view !== 'models' && view !== 'settings' && (
           <button
             className="flex items-center justify-center gap-2 border-b border-line py-2.5 text-[13px]"
@@ -177,6 +181,30 @@ export function App() {
         {view === 'memory' && <MemoryView />}
         {view === 'settings' && <SettingsView />}
       </main>
+
+      {/* Phone bottom tab bar: the remote-control surface. The long tail of
+          destinations (models, connectors, …) stays reachable via ⌘K / More. */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-line md:hidden"
+        style={{ background: 'var(--paper)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {MOBILE_NAV.map((v) => {
+          const item = NAV.find((n) => n.view === v)!;
+          const { Icon } = item;
+          return (
+            <button
+              key={v}
+              className="flex flex-1 flex-col items-center gap-0.5 py-1.5"
+              style={view === v ? { color: 'var(--accent)' } : { color: 'var(--ink-faint)' }}
+              aria-label={t(item.labelKey)}
+              onClick={() => setView(v)}
+            >
+              <span className="grid h-7 w-7 place-items-center"><Icon /></span>
+              <span className="text-[10px] font-medium">{t(item.labelKey)}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       <UpdateBanner />
       <RelayPairing />
