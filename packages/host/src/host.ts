@@ -40,6 +40,7 @@ import type {
   TerminalSnapshot,
   ShellOption,
   GpuStats,
+  LmsProbe,
 } from '@kotrain/shared';
 import { isLocalProvider } from '@kotrain/shared';
 import {
@@ -98,6 +99,7 @@ import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTa
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
 import { getGpuStats } from './gpu.js';
 import { stopLocalServer } from './servers.js';
+import { lmsProbe, lmsLoad, lmsUnload } from './lms.js';
 import { syncMcp, mcpStatus, mcpToolList, detectNekkoMcp } from './mcp.js';
 import {
   setTerminalSender,
@@ -140,8 +142,10 @@ export interface Host {
 
   listModels(providerId: string): Promise<ModelInfo[]>;
   pullModel(providerId: string, model: string): Promise<{ ok: boolean; message: string }>;
-  loadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
-  unloadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
+  loadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  unloadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  /** Whether per-model load/unload is available for an LM Studio provider (via `lms`). */
+  lmsAvailable(providerId: string): Promise<LmsProbe>;
   /** Stop the local model server backing a provider (kills its listening process). */
   stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
   /** GPU/VRAM stats (null when no NVIDIA GPU / nvidia-smi is available). */
@@ -356,13 +360,22 @@ export function createHost(opts: { dataDir: string }): Host {
     },
     loadModel: async (providerId, model) => {
       const p = findProvider(providerId);
-      if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, true);
+      if (p?.kind === 'ollama') { await new OllamaProvider(p).setLoaded(model, true); return { ok: true }; }
+      // LM Studio has no HTTP load; drive its `lms` CLI for a local instance.
+      if (p?.kind === 'lmstudio') return lmsLoad(p.baseUrl, model);
       return { ok: true };
     },
     unloadModel: async (providerId, model) => {
       const p = findProvider(providerId);
-      if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, false);
+      if (p?.kind === 'ollama') { await new OllamaProvider(p).setLoaded(model, false); return { ok: true }; }
+      // LM Studio has no HTTP per-model unload; drive its `lms` CLI instead.
+      if (p?.kind === 'lmstudio') return lmsUnload(p.baseUrl, model);
       return { ok: true };
+    },
+    lmsAvailable: async (providerId) => {
+      const p = findProvider(providerId);
+      if (p?.kind !== 'lmstudio') return { available: false };
+      return lmsProbe(p.baseUrl);
     },
     stopServer: async (providerId) => {
       const p = findProvider(providerId);

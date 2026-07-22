@@ -27,6 +27,7 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.modelPull]: ([id, m]) => host.pullModel(id, m),
     [C.modelLoad]: ([id, m]) => host.loadModel(id, m),
     [C.modelUnload]: ([id, m]) => host.unloadModel(id, m),
+    [C.lmsProbe]: ([id]) => host.lmsAvailable(id),
     [C.serverStop]: ([id]) => host.stopServer(id),
     [C.gpuStats]: () => host.getGpuStats(),
 

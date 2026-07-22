@@ -213,6 +213,10 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
   const [pullName, setPullName] = useState('');
   const [busy, setBusy] = useState<string | null>(null); // model id being (un)loaded
   const [stopping, setStopping] = useState(false);
+  // Per-model load/unload for LM Studio rides its `lms` CLI, so it's only
+  // available for a local instance with the CLI installed. `null` = not yet
+  // probed; the reason feeds the fallback badge's tooltip.
+  const [lms, setLms] = useState<{ available: boolean; reason?: string } | null>(null);
 
   const isFavorite = (key: string) => (settings?.favoriteModels ?? []).includes(key);
   const toggleFavorite = async (key: string) => {
@@ -236,6 +240,9 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
   useEffect(() => {
     load();
     test();
+    if (provider.kind === 'lmstudio') {
+      window.nekko.lmsAvailable(provider.id).then(setLms).catch(() => setLms({ available: false }));
+    }
     /* eslint-disable-next-line */
   }, [provider.id]);
 
@@ -251,11 +258,17 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
   const isOllama = provider.kind === 'ollama';
   const local = isLocal(provider.kind);
   const anyLoaded = models.some((m) => m.loaded);
+  // Ollama always supports per-model load/unload; LM Studio does too once its
+  // `lms` CLI is reachable. Others fall back to the static badge + Stop server.
+  const canManage = isOllama || (provider.kind === 'lmstudio' && lms?.available === true);
 
   const setLoaded = async (m: ModelInfo, loaded: boolean) => {
     setBusy(m.id);
     try {
-      loaded ? await window.nekko.loadModel(provider.id, m.id) : await window.nekko.unloadModel(provider.id, m.id);
+      const r = loaded
+        ? await window.nekko.loadModel(provider.id, m.id)
+        : await window.nekko.unloadModel(provider.id, m.id);
+      if (r && !r.ok) pushToast('error', r.message ?? `Couldn't ${loaded ? 'load' : 'unload'} ${m.id}.`);
       await load();
     } finally {
       setBusy(null);
@@ -355,7 +368,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
               ) : m.sizeBytes ? (
                 <span className="text-[10px] text-ink-faint" title="Size on disk">{(m.sizeBytes / 1e9).toFixed(1)} GB</span>
               ) : null}
-              {isOllama ? (
+              {canManage ? (
                 m.loaded ? (
                   <button
                     className="chip !text-white"
@@ -375,7 +388,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
                 <span
                   className="chip !text-white"
                   style={{ background: '#4ec98a' }}
-                  title="Loaded in memory. Use “Stop server” to unload."
+                  title={lms?.reason ?? 'Loaded in memory. Use “Stop server” to unload.'}
                 >
                   <CheckIcon className="h-3 w-3" /> loaded
                 </span>

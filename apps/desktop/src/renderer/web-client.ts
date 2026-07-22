@@ -173,6 +173,7 @@ function makeWebClient(): NekkoApi {
     pullModel: (providerId, model) => call(IpcChannels.modelPull, providerId, model),
     loadModel: (providerId, model) => call(IpcChannels.modelLoad, providerId, model),
     unloadModel: (providerId, model) => call(IpcChannels.modelUnload, providerId, model),
+    lmsAvailable: (providerId) => call(IpcChannels.lmsProbe, providerId),
     stopServer: (providerId) => call(IpcChannels.serverStop, providerId),
     getGpuStats: () => call(IpcChannels.gpuStats),
 
