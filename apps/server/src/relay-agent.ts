@@ -1,14 +1,19 @@
-import { createHost, connectRelayAgent } from '@kotrain/host';
+import { createHost } from '@kotrain/host';
 
 /**
  * Relay-agent mode for the server CLI: create a host and expose it over a relay
- * (the heavy lifting lives in @kotrain/host's connectRelayAgent, shared with the
- * desktop's in-app "remote access" feature).
+ * via the host's remote-access service (shared with the desktop's in-app
+ * "remote access" feature), so headless agents get the same device registry,
+ * pairing codes, and revocation. Prints a one-time pairing code at boot; more
+ * devices can be paired later from the UI (or by restarting).
  */
 export async function runRelayAgent(opts: { relayUrl: string; room: string; key: string; dataDir: string }): Promise<void> {
   const host = createHost({ dataDir: opts.dataDir });
-  connectRelayAgent(host, { relayUrl: opts.relayUrl, room: opts.room, key: opts.key });
-  console.log(`\n🐾 Nekko relay-agent → ${opts.relayUrl}`);
-  console.log(`   pair a client with:  room=${opts.room}  key=${opts.key}`);
-  console.log(`   serving this machine's model + tools to paired clients (data: ${opts.dataDir})\n`);
+  host.remote.attach({ relayUrl: opts.relayUrl, room: opts.room, secret: opts.key });
+  const grant = host.remote.pair();
+  console.log(`\n🐾 Kotrain relay-agent → ${opts.relayUrl}`);
+  console.log(`   room=${opts.room}  key=${opts.key}`);
+  console.log(`   one-time pairing code (10 min): ${grant.code}`);
+  console.log(`   pairing link: <ui-origin>/?relay=${encodeURIComponent(opts.relayUrl)}&room=${opts.room}&key=${opts.key}&pair=${grant.code}`);
+  console.log(`   serving this machine's model + tools to paired devices (data: ${opts.dataDir})\n`);
 }

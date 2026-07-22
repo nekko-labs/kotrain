@@ -138,6 +138,11 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.remoteEnable]: ([relayUrl]) => host.enableRemote(relayUrl),
     [C.remoteDisable]: () => host.disableRemote(),
     [C.remoteStatus]: () => host.remoteStatus(),
+    [C.remotePair]: () => host.startRemotePairing(),
+    [C.remoteDevices]: () => host.listRemoteDevices(),
+    [C.remoteRevoke]: ([deviceId]) => host.revokeRemoteDevice(deviceId),
+    [C.remoteRename]: ([deviceId, name]) => host.renameRemoteDevice(deviceId, name),
+    [C.remoteRotate]: () => host.rotateRemoteSecret(),
 
     [C.appInfo]: () => host.appInfo(),
     [C.mcpStatus]: () => host.mcpStatus(),
