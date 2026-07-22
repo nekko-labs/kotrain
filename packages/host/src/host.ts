@@ -96,7 +96,7 @@ import {
 } from './training.js';
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
-import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
+import { createRemoteService } from './remote.js';
 import { getGpuStats } from './gpu.js';
 import { stopLocalServer } from './servers.js';
 import { lmsProbe, lmsLoad, lmsUnload } from './lms.js';
@@ -270,10 +270,17 @@ export interface Host {
   classifyCommand(command: string): GuardrailDecision;
   usageSummary(): UsageSummary;
 
-  /** Expose this machine over a relay so a remote client can reach it. */
+  /** Expose this machine over a relay so paired devices can reach it. */
   enableRemote(relayUrl: string): RemoteStatus;
   disableRemote(): RemoteStatus;
   remoteStatus(): RemoteStatus;
+  startRemotePairing(): import('@kotrain/shared').PairingGrant;
+  listRemoteDevices(): import('@kotrain/shared').RemoteDevice[];
+  revokeRemoteDevice(deviceId: string): import('@kotrain/shared').RemoteDevice[];
+  renameRemoteDevice(deviceId: string, name: string): import('@kotrain/shared').RemoteDevice[];
+  rotateRemoteSecret(): RemoteStatus;
+  /** The remote-access service itself (headless relay-agent mode attaches here). */
+  remote: import('./remote.js').RemoteService;
   appInfo(): AppInfo;
   /** Connect (or reconnect) configured MCP servers and return their status. */
   mcpStatus(): Promise<McpServerStatus[]>;
@@ -302,11 +309,10 @@ export function createHost(opts: { dataDir: string }): Host {
 
   const findProvider = (id: string) => getSettings().providers.find((p) => p.id === id);
 
-  let remote: { handle: RelayAgentHandle; status: RemoteStatus } | null = null;
-
   const host: Host = {
     events,
     dataDir,
+    remote: null as unknown as import('./remote.js').RemoteService, // set right after construction (needs `host`)
 
     getSettings,
     updateSettings: (patch) => saveSettings(patch),
@@ -522,22 +528,14 @@ export function createHost(opts: { dataDir: string }): Host {
     classifyCommand: (command) => classifyCommand(command, getSettings().guardrails),
     usageSummary,
 
-    enableRemote: (relayUrl) => {
-      if (remote) remote.handle.stop();
-      const room = randomUUID().slice(0, 6);
-      const key = randomUUID().replace(/-/g, '').slice(0, 16);
-      const handle = connectRelayAgent(host, { relayUrl, room, key });
-      remote = { handle, status: { enabled: true, relayUrl, room, key } };
-      return remote.status;
-    },
-    disableRemote: () => {
-      if (remote) {
-        remote.handle.stop();
-        remote = null;
-      }
-      return { enabled: false };
-    },
-    remoteStatus: () => (remote ? remote.status : { enabled: false }),
+    enableRemote: (relayUrl) => host.remote.enable(relayUrl),
+    disableRemote: () => host.remote.disable(),
+    remoteStatus: () => host.remote.status(),
+    startRemotePairing: () => host.remote.pair(),
+    listRemoteDevices: () => host.remote.devices(),
+    revokeRemoteDevice: (deviceId) => host.remote.revoke(deviceId),
+    renameRemoteDevice: (deviceId, name) => host.remote.rename(deviceId, name),
+    rotateRemoteSecret: () => host.remote.rotate(),
     appInfo: () => ({ version: process.env.KOTRAIN_VERSION ?? '0.0.0', platform: process.platform, edition: 'web' }),
     mcpStatus: async () => {
       const configs = getSettings().mcpServers ?? [];
@@ -546,5 +544,9 @@ export function createHost(opts: { dataDir: string }): Host {
     },
     detectNekkoMcp: () => detectNekkoMcp(),
   };
+  // Remote access needs the finished host (it dispatches into it); reconnect if
+  // remote access was left enabled when the host last shut down.
+  host.remote = createRemoteService(host);
+  host.remote.startIfEnabled();
   return host;
 }

@@ -6,5 +6,6 @@
  */
 export { createHost, type Host } from './host.js';
 export { createDispatcher } from './dispatch.js';
-export { connectRelayAgent, type RelayAgentHandle } from './relay.js';
+export { connectRelayAgent, type RelayAgentHandle, type RelayAgentOptions } from './relay.js';
+export { createRemoteService, type RemoteService } from './remote.js';
 export { dataDir, setDataDir, withDataDir } from './paths.js';

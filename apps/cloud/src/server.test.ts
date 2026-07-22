@@ -36,6 +36,21 @@ describe('cloud server (HTTP)', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it('authorizes relay enrollment for authenticated accounts only', async () => {
+    const denied = await app.inject({ method: 'POST', url: '/api/relay/authorize' });
+    expect(denied.statusCode).toBe(401);
+    expect(denied.json().ok).toBe(false);
+
+    const { token } = await signup('relay@example.com');
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/relay/authorize',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ ok: true, plan: 'free', maxDevices: 1 });
+  });
+
   it('signup → authed dispatch reaches the per-account host', async () => {
     const { token, account } = await signup('alice@example.com');
     expect(account.id).toBeTruthy();

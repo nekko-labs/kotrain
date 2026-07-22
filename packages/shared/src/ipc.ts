@@ -148,6 +148,11 @@ export const IpcChannels = {
   remoteEnable: 'remote:enable',
   remoteDisable: 'remote:disable',
   remoteStatus: 'remote:status',
+  remotePair: 'remote:pair',
+  remoteDevices: 'remote:devices',
+  remoteRevoke: 'remote:revoke',
+  remoteRename: 'remote:rename',
+  remoteRotate: 'remote:rotate',
 
   appInfo: 'app:info',
   mcpStatus: 'mcp:status',
@@ -354,6 +359,13 @@ export interface NekkoApi {
   enableRemote(relayUrl: string): Promise<import('./remote.js').RemoteStatus>;
   disableRemote(): Promise<import('./remote.js').RemoteStatus>;
   getRemoteStatus(): Promise<import('./remote.js').RemoteStatus>;
+  /** Mint a short-lived single-use pairing code for enrolling a new device. */
+  startRemotePairing(): Promise<import('./remote.js').PairingGrant>;
+  listRemoteDevices(): Promise<import('./remote.js').RemoteDevice[]>;
+  revokeRemoteDevice(deviceId: string): Promise<import('./remote.js').RemoteDevice[]>;
+  renameRemoteDevice(deviceId: string, name: string): Promise<import('./remote.js').RemoteDevice[]>;
+  /** Rotate the pairing secret: re-keys the room; every device must re-pair. */
+  rotateRemoteSecret(): Promise<import('./remote.js').RemoteStatus>;
 
   /** Running version + edition. */
   getAppInfo(): Promise<AppInfo>;

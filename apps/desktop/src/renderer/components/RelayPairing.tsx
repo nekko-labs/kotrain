@@ -21,18 +21,33 @@ function alreadyPaired(): boolean {
   }
 }
 
-/** Parse a pairing link (`…/?relay=&room=&key=`) or raw query string. */
-function parsePairing(input: string): { relay: string; room: string; key: string } | null {
+/** Parse a pairing link (`…/?relay=&room=&key=&pair=`) or raw query string. */
+function parsePairing(input: string): { relay: string; room: string; key: string; pair?: string } | null {
   try {
     const q = input.includes('?') ? new URLSearchParams(input.slice(input.indexOf('?') + 1)) : new URLSearchParams(input);
     const relay = q.get('relay');
     const room = q.get('room');
     const key = q.get('key');
-    if (relay && room && key) return { relay, room, key };
+    if (relay && room && key) return { relay, room, key, pair: q.get('pair') ?? undefined };
   } catch {
     /* ignore */
   }
   return null;
+}
+
+/** Why the last pairing attempt was rejected (set by web-client on `denied`). */
+function deniedReason(): string {
+  const r = sessionStorage.getItem('op_relay_denied');
+  switch (r) {
+    case 'revoked':
+      return 'This device was revoked on your computer. Pair it again with a fresh QR.';
+    case 'bad-code':
+      return 'That pairing code expired or was already used. Generate a new QR on your computer.';
+    case 'unknown-device':
+      return 'This device isn’t paired yet. Use a pairing QR (Settings → Remote access → Pair a device).';
+    default:
+      return '';
+  }
 }
 
 /**
@@ -45,7 +60,7 @@ function parsePairing(input: string): { relay: string; room: string; key: string
 export function RelayPairing() {
   const [show] = useState(() => isNativeApp() && !alreadyPaired());
   const [input, setInput] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => deniedReason());
   const [scanning, setScanning] = useState(false);
 
   if (!show) return null;
@@ -56,6 +71,7 @@ export function RelayPairing() {
       setError('That doesn’t look like a pairing link. Copy it from Settings → Remote access on your computer.');
       return false;
     }
+    sessionStorage.removeItem('op_relay_denied');
     localStorage.setItem(LS_RELAY, JSON.stringify(creds));
     location.reload();
     return true;

@@ -156,6 +156,11 @@ const api: NekkoApi = {
   enableRemote: (relayUrl) => inv(IpcChannels.remoteEnable, relayUrl),
   disableRemote: () => inv(IpcChannels.remoteDisable),
   getRemoteStatus: () => inv(IpcChannels.remoteStatus),
+  startRemotePairing: () => inv(IpcChannels.remotePair),
+  listRemoteDevices: () => inv(IpcChannels.remoteDevices),
+  revokeRemoteDevice: (deviceId) => inv(IpcChannels.remoteRevoke, deviceId),
+  renameRemoteDevice: (deviceId, name) => inv(IpcChannels.remoteRename, deviceId, name),
+  rotateRemoteSecret: () => inv(IpcChannels.remoteRotate),
 
   getAppInfo: () => inv(IpcChannels.appInfo),
   getMcpStatus: () => inv(IpcChannels.mcpStatus),

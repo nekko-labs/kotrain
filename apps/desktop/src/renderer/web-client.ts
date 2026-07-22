@@ -31,22 +31,36 @@ function makeWebClient(): NekkoApi {
     else if (channel === IpcEvents.trainingUpdated) trainingCbs.forEach((cb) => cb(payload));
   };
 
-  // Relay transport: when the page is opened with ?relay=&room=&key=, talk to a
-  // paired local agent through the relay instead of a same-origin server. This
-  // is how a phone (or Nekko Cloud) drives your local model. The native mobile
-  // app has no URL query, so we also accept creds saved in localStorage by the
-  // pairing screen.
+  // Relay transport: when the page is opened with ?relay=&room=&key=[&pair=],
+  // talk to a paired local agent through the relay instead of a same-origin
+  // server. This is how a phone drives your local model. The native mobile app
+  // has no URL query, so we also accept creds saved in localStorage by the
+  // pairing screen. Every connection must complete the E2E HELLO handshake
+  // (device identity + optional one-time pairing code) before the agent serves
+  // it; revoked/unknown devices are denied and sent back to pairing.
   const p = new URLSearchParams(location.search);
   let relayUrl = p.get('relay');
   let room = p.get('room');
   let key = p.get('key');
-  if (!(relayUrl && room && key)) {
+  let pairCode: string | null = p.get('pair');
+  if (relayUrl && room && key) {
+    // Persist creds and scrub them from the address bar/history right away.
+    localStorage.setItem('op_relay', JSON.stringify({ relay: relayUrl, room, key }));
+    try {
+      history.replaceState(null, '', location.pathname);
+    } catch {
+      /* ignore */
+    }
+  } else {
     try {
       const saved = JSON.parse(localStorage.getItem('op_relay') || 'null');
       if (saved?.relay && saved?.room && saved?.key) {
         relayUrl = saved.relay;
         room = saved.room;
         key = saved.key;
+        // Native pairing screen stores the one-time code alongside the creds
+        // (there's no URL to carry it after the reload).
+        if (saved.pair) pairCode = saved.pair;
       }
     } catch {
       /* ignore */
@@ -57,13 +71,53 @@ function makeWebClient(): NekkoApi {
   let registerPush: (token: string, platform: string) => Promise<void> = async () => {};
 
   if (relayUrl && room && key) {
+    // Stable device identity for the agent's paired-device registry.
+    let deviceId = localStorage.getItem('op_device_id');
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem('op_device_id', deviceId);
+    }
+    const cap = (window as { Capacitor?: { getPlatform?: () => string } }).Capacitor;
+    const platform = cap?.getPlatform?.() ?? 'web';
+    const ua = navigator.userAgent;
+    const deviceName = /iPhone/.test(ua)
+      ? 'iPhone'
+      : /iPad/.test(ua)
+        ? 'iPad'
+        : /Android/.test(ua)
+          ? 'Android phone'
+          : /Mac/.test(ua)
+            ? 'Mac browser'
+            : /Windows/.test(ua)
+              ? 'Windows browser'
+              : 'Browser';
+
     const pending = new Map<number, { resolve: (v: any) => void; reject: (e: any) => void }>();
     let nextId = 1;
     let relay: WebSocket | null = null;
+    let welcomed = false;
     // E2E key shared with the agent; the relay only carries ciphertext.
     const keyP = deriveKey(key, room);
+    const sendSealed = async (frame: unknown) => {
+      relay?.send(JSON.stringify({ enc: await seal(await keyP, frame) }));
+    };
+    const onDenied = (reason: string) => {
+      // Kicked out of the registry (revoked, or a stale/used pairing link).
+      localStorage.removeItem('op_relay');
+      sessionStorage.setItem('op_relay_denied', reason);
+      if (cap) location.reload(); // native shell → back to the pairing screen
+      else alert(`This device can't reach the paired computer (${reason}). Pair it again from Settings → Remote access.`);
+    };
     const handle = async (frame: any) => {
-      if (frame.type === 'res' && pending.has(frame.id)) {
+      if (frame.type === 'welcome') {
+        welcomed = true;
+        pairCode = null; // enrollment done; never resend the code
+        sessionStorage.removeItem('op_relay_denied');
+        // Drop a stored one-time code so it never leaks or gets replayed.
+        localStorage.setItem('op_relay', JSON.stringify({ relay: relayUrl, room, key }));
+      } else if (frame.type === 'denied') {
+        onDenied(String(frame.reason || 'denied'));
+      } else if (frame.type === 'res' && pending.has(frame.id)) {
         const { resolve, reject } = pending.get(frame.id)!;
         pending.delete(frame.id);
         frame.error ? reject(new Error(frame.error)) : resolve(frame.result);
@@ -72,7 +126,11 @@ function makeWebClient(): NekkoApi {
       }
     };
     const connect = () => {
+      welcomed = false;
       relay = new WebSocket(`${relayUrl.replace(/\/$/, '')}/relay?role=client&room=${encodeURIComponent(room)}&key=${encodeURIComponent(key)}`);
+      relay.onopen = () => {
+        void sendSealed({ type: 'hello', deviceId, name: deviceName, platform, ...(pairCode ? { pair: pairCode } : {}) });
+      };
       relay.onmessage = async (ev) => {
         let env: any;
         try {
@@ -86,17 +144,23 @@ function makeWebClient(): NekkoApi {
           } catch {
             /* tampered / wrong key */
           }
+        } else if (env.type === 'agent-online' && relay?.readyState === WebSocket.OPEN && !welcomed) {
+          // Agent (re)connected after us → repeat the handshake.
+          void sendSealed({ type: 'hello', deviceId, name: deviceName, platform, ...(pairCode ? { pair: pairCode } : {}) });
         }
-        // non-enc frames are relay control (agent-online/offline), ignored
       };
-      relay.onclose = () => setTimeout(connect, 1000);
+      relay.onclose = (ev) => {
+        welcomed = false;
+        if (ev.code === 4001) return; // kicked (revoked) → don't reconnect-loop
+        setTimeout(connect, 1000);
+      };
     };
     connect();
     const ready = () =>
       new Promise<void>((res, rej) => {
-        if (relay && relay.readyState === WebSocket.OPEN) return res();
+        if (welcomed) return res();
         const t = setInterval(() => {
-          if (relay && relay.readyState === WebSocket.OPEN) {
+          if (welcomed) {
             clearInterval(t);
             res();
           }
@@ -121,9 +185,9 @@ function makeWebClient(): NekkoApi {
         }, 120000);
       });
     };
-    registerPush = async (token, platform) => {
+    registerPush = async (token, platform2) => {
       await ready();
-      relay!.send(JSON.stringify({ type: 'register-push', token, platform }));
+      relay!.send(JSON.stringify({ type: 'register-push', token, platform: platform2, deviceId }));
     };
   } else {
     // HTTP transport (same-origin web server).
@@ -308,6 +372,11 @@ function makeWebClient(): NekkoApi {
     enableRemote: (relayUrl) => call(IpcChannels.remoteEnable, relayUrl),
     disableRemote: () => call(IpcChannels.remoteDisable),
     getRemoteStatus: () => call(IpcChannels.remoteStatus),
+    startRemotePairing: () => call(IpcChannels.remotePair),
+    listRemoteDevices: () => call(IpcChannels.remoteDevices),
+    revokeRemoteDevice: (deviceId) => call(IpcChannels.remoteRevoke, deviceId),
+    renameRemoteDevice: (deviceId, name) => call(IpcChannels.remoteRename, deviceId, name),
+    rotateRemoteSecret: () => call(IpcChannels.remoteRotate),
 
     // Web edition: "update" = the server got a newer build since this tab
     // loaded; we just suggest a refresh (no installer to run in the browser).
