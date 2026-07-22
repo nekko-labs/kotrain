@@ -41,6 +41,16 @@ export interface ModelInfo {
   details?: Record<string, string>;
 }
 
+/**
+ * Whether per-model load/unload is available for an LM Studio provider (driven
+ * by its `lms` CLI). Unavailable for a remote server or when `lms` isn't
+ * installed; `reason` is a UI-ready explanation for those cases.
+ */
+export interface LmsProbe {
+  available: boolean;
+  reason?: string;
+}
+
 /** Local model-server kinds (on-device servers we can inspect and manage). */
 export const LOCAL_PROVIDER_KINDS: ProviderKind[] = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 

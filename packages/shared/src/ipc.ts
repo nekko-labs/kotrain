@@ -31,6 +31,7 @@ export const IpcChannels = {
   modelPull: 'model:pull',
   modelLoad: 'model:load',
   modelUnload: 'model:unload',
+  lmsProbe: 'lms:probe',
   serverStop: 'server:stop',
   gpuStats: 'gpu:stats',
 
@@ -185,8 +186,10 @@ export interface NekkoApi {
 
   listModels(providerId: string): Promise<ModelInfo[]>;
   pullModel(providerId: string, model: string): Promise<{ ok: boolean; message: string }>;
-  loadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
-  unloadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
+  loadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  unloadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  /** Whether per-model load/unload is available for an LM Studio provider (via `lms`). */
+  lmsAvailable(providerId: string): Promise<import('./models.js').LmsProbe>;
   /** Stop the local model server backing a provider (ollama/lmstudio/vllm/…). */
   stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
   /** GPU/VRAM stats for the metrics bar + Command Center (null if unavailable). */

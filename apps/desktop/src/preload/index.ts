@@ -32,6 +32,7 @@ const api: NekkoApi = {
   pullModel: (providerId, model) => inv(IpcChannels.modelPull, providerId, model),
   loadModel: (providerId, model) => inv(IpcChannels.modelLoad, providerId, model),
   unloadModel: (providerId, model) => inv(IpcChannels.modelUnload, providerId, model),
+  lmsAvailable: (providerId) => inv(IpcChannels.lmsProbe, providerId),
   stopServer: (providerId) => inv(IpcChannels.serverStop, providerId),
   getGpuStats: () => inv(IpcChannels.gpuStats),
 
