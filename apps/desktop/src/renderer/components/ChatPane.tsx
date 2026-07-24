@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@kotrain/shared';
-import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking } from '@kotrain/shared';
+import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
@@ -621,7 +621,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               </div>
             </div>
           )}
-          <PromptAnalyzer text={draft} />
+          <PromptAnalyzer
+            text={draft}
+            sessionId={sessionId}
+            workspaces={settings?.workspaces ?? []}
+            contextItems={ctx?.items ?? []}
+            activeWorkspaceIds={session ? getSessionWorkspaceIds(session) : []}
+          />
           <div className="relative mx-auto w-full max-w-3xl">
             {pendingImages.length > 0 && (
               <div className="absolute bottom-full left-0 right-0 mb-2 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface-2 p-2">

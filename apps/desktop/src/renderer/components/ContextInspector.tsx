@@ -4,6 +4,7 @@ import { getSessionWorkspaceIds, estimateTokens } from '@kotrain/shared';
 import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
+import { useGpuStats, VramDock } from './GpuStats.js';
 
 const SOURCE_LABEL: Record<ContextItem['source'], string> = {
   'attached-file': 'Files',
@@ -76,6 +77,8 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   const [bundle, setBundle] = useState<ContextBundle | null>(null);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(new Set());
+  // GPU/VRAM stats for the pinned footer (null on machines with no NVIDIA GPU).
+  const gpu = useGpuStats();
 
   const session = sessions.find((s) => s.id === sessionId) ?? null;
   const workspaces = settings?.workspaces ?? [];
@@ -345,6 +348,10 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
         <SpecPanel sessionId={sessionId} session={session} />
 
       </div>
+
+      {/* VRAM: pinned at the foot of the panel so it stays visible while the
+          sources/breakdown above scroll. Hidden on machines with no GPU. */}
+      {gpu && <VramDock stats={gpu} />}
     </div>
   );
 }

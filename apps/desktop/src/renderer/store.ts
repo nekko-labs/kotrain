@@ -170,7 +170,7 @@ function addPane(groups: WbGroup[], activeGroupId: string | null, pane: WbPane):
 
 export const useStore = create<UiState>((set, get) => ({
   settings: null,
-  view: 'chat',
+  view: 'command',
   sessions: [],
   activeSessionId: null,
   providers: [],

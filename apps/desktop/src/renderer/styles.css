@@ -316,6 +316,23 @@ h1 { letter-spacing: -0.02em; }
 .nekko-swing { animation: nekko-swing 1.7s cubic-bezier(0.5, 0, 0.3, 1) infinite; }
 .nekko-arms-up { animation: nekko-guard 0.8s ease-in-out infinite; }
 .nekko-peek { animation: nekko-peek 0.5s ease-out; }
+/* interactive: lean right while animating; a hover wiggle and a click hop */
+@keyframes nekko-hover-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-5deg); }
+  60% { transform: rotate(5deg); }
+}
+@keyframes nekko-hop {
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-16px) rotate(-10deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  70% { transform: translateY(-7px) rotate(6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+.nekko-lean { transform-origin: bottom center; transition: transform 0.25s ease; }
+.nekko-lean-right { transform-origin: bottom center; transition: transform 0.25s ease; transform: rotate(9deg); }
+.nekko-hover-wiggle { animation: nekko-hover-wiggle 0.7s ease-in-out infinite; transform-origin: bottom center; }
+.nekko-hop { animation: nekko-hop 0.75s ease-out; transform-origin: bottom center; }
 @keyframes dots {
   0% { content: ''; }
   25% { content: '.'; }
