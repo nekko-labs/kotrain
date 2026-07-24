@@ -68,6 +68,50 @@ export function VramInline({ stats }: { stats: GpuStats }) {
 }
 
 /**
+ * Compact VRAM dock for the Context panel's pinned footer: an aggregate
+ * used/total bar plus a small per-GPU readout. Sized to sit in the narrow
+ * (w-80) inspector column without scrolling.
+ */
+export function VramDock({ stats }: { stats: GpuStats }) {
+  const pct = stats.totalMB ? (stats.usedMB / stats.totalMB) * 100 : 0;
+  return (
+    <div className="shrink-0 border-t border-line p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+          GPU · VRAM
+          <span className="chip text-[9px]">{stats.devices.length} GPU{stats.devices.length === 1 ? '' : 's'}</span>
+        </span>
+        <span className="text-[11px] tabular-nums text-ink-faint">{GB(stats.usedMB)} / {GB(stats.totalMB)} GB</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
+        <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: usedColor(pct) }} />
+      </div>
+      <div className="mt-2.5 max-h-40 space-y-2 overflow-y-auto">
+        {stats.devices.map((d, i) => {
+          const dp = d.memoryTotalMB ? (d.memoryUsedMB / d.memoryTotalMB) * 100 : 0;
+          return (
+            <div key={i}>
+              <div className="flex items-center justify-between text-[10.5px] text-ink-faint">
+                <span className="min-w-0 truncate" title={d.name}>{d.name}</span>
+                {d.utilizationPct != null && <span className="shrink-0 tabular-nums">{d.utilizationPct}% util</span>}
+              </div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
+                <span className="block h-full rounded-full" style={{ width: `${dp}%`, background: usedColor(dp) }} />
+              </div>
+              <div className="mt-0.5 flex justify-between text-[10px] tabular-nums text-ink-faint">
+                <span>{GB(d.memoryUsedMB)} GB used</span>
+                <span>{GB(d.memoryFreeMB)} GB free</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-right text-[10px] text-ink-faint">via nvidia-smi</p>
+    </div>
+  );
+}
+
+/**
  * Full VRAM panel for the Command Center: total / used / free with a bar per GPU.
  */
 export function VramPanel({ stats }: { stats: GpuStats }) {

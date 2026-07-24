@@ -2,7 +2,6 @@ import React from 'react';
 import type { ContextBundle, ContextItem, EffortLevel } from '@kotrain/shared';
 import { formatUSD } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { useGpuStats, VramInline } from './GpuStats.js';
 
 /** Label + bar color per context source (mirrors the Context Inspector). */
 const SOURCE_META: Record<string, { label: string; color: string }> = {
@@ -23,9 +22,10 @@ const EFFORTS: EffortLevel[] = ['low', 'normal', 'high'];
 
 /**
  * Thin status bar under the conversation: context usage (with a hover breakdown
- * of where the tokens go), throughput, thinking (a live toggle for reasoning
- * models), VRAM, cost, and an effort control — the at-a-glance metrics Kotrain
- * mirrors from Claude Code.
+ * of where the tokens go), throughput, and cost on the left; the thinking toggle
+ * (for reasoning models) and effort control clustered together on the right — the
+ * at-a-glance metrics Kotrain mirrors from Claude Code. VRAM lives in the Context
+ * panel (pinned at its foot) rather than here.
  */
 export function ChatMetrics({
   bundle,
@@ -56,7 +56,6 @@ export function ChatMetrics({
 }) {
   const settings = useStore((s) => s.settings);
   const effort = settings?.effort ?? 'normal';
-  const gpu = useGpuStats();
 
   const included = (bundle?.items ?? []).filter((i: ContextItem) => i.included);
   const used = included.reduce((s, i) => s + i.tokens, 0) + (skill?.tokens ?? 0);
@@ -156,40 +155,6 @@ export function ChatMetrics({
           </>
         )}
 
-        <span className="opacity-40">·</span>
-
-        {/* Thinking: a live toggle for reasoning-capable models, else a passive indicator. */}
-        {thinkingSupported && onSetThinking ? (
-          <button
-            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:text-ink"
-            style={{ background: 'var(--surface-2)' }}
-            onClick={() => onSetThinking(!thinkingOn)}
-            title={thinkingOn ? 'Reasoning is on for this chat — click to turn off' : 'Reasoning is off for this chat — click to turn on'}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${thinkingOn && streaming ? 'animate-pulse' : ''}`}
-              style={{ background: thinkingOn ? 'var(--accent)' : 'var(--ink-faint)' }}
-            />
-            💭 thinking {thinkingOn ? 'on' : 'off'}
-          </button>
-        ) : (
-          <span className="flex items-center gap-1" title="Whether the model streamed reasoning this turn">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${thinking && streaming ? 'animate-pulse' : ''}`}
-              style={{ background: thinking ? 'var(--accent)' : 'var(--ink-faint)' }}
-            />
-            thinking {thinking ? 'on' : 'off'}
-          </span>
-        )}
-
-        {/* VRAM (when a GPU is detected) */}
-        {gpu && (
-          <>
-            <span className="opacity-40">·</span>
-            <VramInline stats={gpu} />
-          </>
-        )}
-
         {cost != null && cost > 0 && (
           <>
             <span className="opacity-40">·</span>
@@ -197,17 +162,44 @@ export function ChatMetrics({
           </>
         )}
 
-        {controls && <div className="ml-auto flex min-w-0 items-center gap-1">{controls}</div>}
+        {/* Right cluster: model controls, then the thinking + effort boxes side by side. */}
+        <div className="ml-auto flex min-w-0 items-center gap-2.5">
+          {controls && <div className="flex min-w-0 items-center gap-1">{controls}</div>}
 
-        {/* Effort control (pushed right) */}
-        <button
-          className="rounded-md px-2 py-0.5 hover:text-ink"
-          style={{ background: 'var(--surface-2)' }}
-          onClick={cycleEffort}
-          title="Sampling effort (temperature). Click to change."
-        >
-          effort: <span className="font-medium text-ink-soft">{effort}</span>
-        </button>
+          {/* Thinking: a live toggle for reasoning-capable models, else a passive indicator. */}
+          {thinkingSupported && onSetThinking ? (
+            <button
+              className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 hover:text-ink"
+              style={{ background: 'var(--surface-2)' }}
+              onClick={() => onSetThinking(!thinkingOn)}
+              title={thinkingOn ? 'Reasoning is on for this chat — click to turn off' : 'Reasoning is off for this chat — click to turn on'}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${thinkingOn && streaming ? 'animate-pulse' : ''}`}
+                style={{ background: thinkingOn ? 'var(--accent)' : 'var(--ink-faint)' }}
+              />
+              💭 thinking {thinkingOn ? 'on' : 'off'}
+            </button>
+          ) : (
+            <span className="flex shrink-0 items-center gap-1" title="Whether the model streamed reasoning this turn">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${thinking && streaming ? 'animate-pulse' : ''}`}
+                style={{ background: thinking ? 'var(--accent)' : 'var(--ink-faint)' }}
+              />
+              thinking {thinking ? 'on' : 'off'}
+            </span>
+          )}
+
+          {/* Effort control */}
+          <button
+            className="shrink-0 rounded-md px-2 py-0.5 hover:text-ink"
+            style={{ background: 'var(--surface-2)' }}
+            onClick={cycleEffort}
+            title="Sampling effort (temperature). Click to change."
+          >
+            effort: <span className="font-medium text-ink-soft">{effort}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

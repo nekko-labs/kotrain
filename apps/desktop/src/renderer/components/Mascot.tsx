@@ -95,6 +95,10 @@ export function MiniNekko({ size = 18 }: { size?: number }) {
  */
 export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }) {
   const [peek, setPeek] = useState(false);
+  // Interaction: hovering gives a gentle wiggle, clicking a one-shot hop, and
+  // either (like training) leans Nekko to the right so it "points" that way.
+  const [hovering, setHovering] = useState(false);
+  const [reacting, setReacting] = useState(false);
   const training = mood === 'thinking';
   const move = useTrainingMove(training);
   useEffect(() => {
@@ -109,11 +113,28 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
   const swinging = training && move === 'bokken';
   const punching = training && move === 'punch';
 
+  // Point right whenever anything is animating; pick the reaction animation
+  // (click beats hover; training keeps its own in-sprite moves).
+  const active = training || hovering || reacting;
+  const reactionAnim = reacting ? 'nekko-hop' : hovering && !training ? 'nekko-hover-wiggle' : '';
+
   return (
     <div
       className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'nekko-peek' : ''}`}
-      title={training ? 'Nekko is training…' : 'Nekko'}
     >
+      <div
+        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${active ? 'nekko-lean-right' : 'nekko-lean'}`}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        onClick={() => setReacting(true)}
+        title={training ? 'Nekko is training…' : reacting ? 'Hyah!' : 'Nekko'}
+        role="button"
+        aria-label="Nekko mascot"
+      >
+      <div
+        className={reactionAnim}
+        onAnimationEnd={(e) => { if (e.target === e.currentTarget) setReacting(false); }}
+      >
       {/* viewBox extends above the sprite so the raised bokken isn't clipped */}
       <svg viewBox="0 -12 36 52" width="58" height="84" shapeRendering="crispEdges">
         {/* ears */}
@@ -206,6 +227,8 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
           px(15, 31, 4, 3, C.dark)
         )}
       </svg>
+      </div>
+      </div>
     </div>
   );
 }
