@@ -101,6 +101,10 @@ export const IpcChannels = {
   changeAccept: 'changes:accept',
   changeAcceptAll: 'changes:acceptAll',
 
+  prSessionList: 'pr:sessionList',
+  prDiff: 'pr:diff',
+  prAction: 'pr:action',
+
   commentsList: 'comments:list',
   commentAdd: 'comment:add',
   commentResolve: 'comment:resolve',
@@ -296,6 +300,13 @@ export interface NekkoApi {
   acceptChange(sessionId: string, path: string): Promise<void>;
   /** Keep all of a session's changes. */
   acceptAllChanges(sessionId: string): Promise<void>;
+
+  /** Live PR state for every GitHub PR URL referenced in a chat's transcript. */
+  listSessionPrs(sessionId: string): Promise<import('./pr.js').PrInfo[]>;
+  /** A PR's changed files + patches (for the diff pane). */
+  getPrDiff(url: string): Promise<import('./pr.js').PrDiff>;
+  /** Approve / decline / merge / reopen a PR. Always user-initiated. */
+  prAction(url: string, action: import('./pr.js').PrAction): Promise<import('./pr.js').PrActionResult>;
 
   /** Inline editor comments on a file (gutter "+" annotations the agent picks up). */
   listComments(path: string): Promise<LineComment[]>;

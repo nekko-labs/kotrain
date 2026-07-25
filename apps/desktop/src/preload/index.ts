@@ -103,6 +103,10 @@ const api: NekkoApi = {
   acceptChange: (sessionId, path) => inv(IpcChannels.changeAccept, sessionId, path),
   acceptAllChanges: (sessionId) => inv(IpcChannels.changeAcceptAll, sessionId),
 
+  listSessionPrs: (sessionId) => inv(IpcChannels.prSessionList, sessionId),
+  getPrDiff: (url) => inv(IpcChannels.prDiff, url),
+  prAction: (url, action) => inv(IpcChannels.prAction, url, action),
+
   listComments: (path) => inv(IpcChannels.commentsList, path),
   addComment: (path, line, lineText, comment) => inv(IpcChannels.commentAdd, path, line, lineText, comment),
   resolveComment: (path, id) => inv(IpcChannels.commentResolve, path, id),

@@ -58,9 +58,85 @@ export function windowHistory(history: ChatMessage[], turns?: number): ChatMessa
  * History is mutated to include the assistant + tool messages so callers can
  * persist the full transcript.
  */
+/** What one streamed provider response accumulated. */
+interface Turn {
+  text: string;
+  reasoning: string;
+  reasoningSeconds?: number;
+  calls: ToolCall[];
+}
+
+/** A response that produced no text, no reasoning, and no tool calls. Some local
+ *  models occasionally stop cold mid-agent-loop (finish_reason "stop" with a
+ *  single token); treating that as a completed turn makes the chat look like it
+ *  silently died. We detect it so the loop can retry once with a nudge. */
+function isEmptyTurn(t: Turn): boolean {
+  return !t.text.trim() && !t.reasoning.trim() && t.calls.length === 0;
+}
+
 export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEvent> {
   const tools = opts.tools ?? BUILTIN_TOOLS;
   const maxIterations = opts.maxIterations ?? 12;
+
+  // Stream one provider response, yielding its events and accumulating the
+  // result into `turn`. `extraMessages` are appended to the sent history only
+  // (never persisted) so a retry can nudge the model without polluting the
+  // transcript.
+  async function* stream(turn: Turn, extraMessages: ChatMessage[] = []): AsyncGenerator<AgentEvent> {
+    let reasoningStartedAt = 0;
+    for await (const chunk of opts.provider.chat({
+      model: opts.model,
+      messages: [...windowHistory(opts.history, opts.maxHistoryTurns), ...extraMessages],
+      system: opts.system,
+      tools,
+      temperature: opts.temperature,
+      think: opts.think,
+      signal: opts.signal,
+    })) {
+      switch (chunk.type) {
+        case 'text':
+          if (reasoningStartedAt && turn.reasoningSeconds == null) {
+            turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+          }
+          turn.text += chunk.delta;
+          yield { type: 'text', sessionId: opts.sessionId, delta: chunk.delta };
+          break;
+        case 'reasoning':
+          if (!reasoningStartedAt) reasoningStartedAt = Date.now();
+          turn.reasoning += chunk.delta;
+          yield { type: 'reasoning', sessionId: opts.sessionId, delta: chunk.delta };
+          break;
+        case 'tool_call':
+          if (reasoningStartedAt && turn.reasoningSeconds == null) {
+            turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+          }
+          turn.calls.push(chunk.call);
+          yield { type: 'tool_call', sessionId: opts.sessionId, call: chunk.call };
+          break;
+        case 'usage':
+          yield {
+            type: 'usage',
+            sessionId: opts.sessionId,
+            inputTokens: chunk.inputTokens,
+            outputTokens: chunk.outputTokens,
+          };
+          break;
+        case 'done':
+          break;
+      }
+    }
+    if (reasoningStartedAt && turn.reasoningSeconds == null) {
+      turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+    }
+  }
+
+  // A transient nudge used to recover from an empty response (not persisted).
+  const nudge: ChatMessage = {
+    id: id('nudge'),
+    role: 'user',
+    content: 'Please continue and give your answer.',
+    createdAt: Date.now(),
+  };
 
   for (let iter = 0; iter < maxIterations; iter++) {
     if (opts.signal?.aborted) {
@@ -68,68 +144,33 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
       return;
     }
 
-    let text = '';
-    let reasoning = '';
-    let reasoningStartedAt = 0;
-    let reasoningSeconds: number | undefined;
-    const calls: ToolCall[] = [];
-
+    const turn: Turn = { text: '', reasoning: '', calls: [] };
     try {
-      for await (const chunk of opts.provider.chat({
-        model: opts.model,
-        messages: windowHistory(opts.history, opts.maxHistoryTurns),
-        system: opts.system,
-        tools,
-        temperature: opts.temperature,
-        think: opts.think,
-        signal: opts.signal,
-      })) {
-        switch (chunk.type) {
-          case 'text':
-            if (reasoningStartedAt && reasoningSeconds == null) {
-              reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
-            }
-            text += chunk.delta;
-            yield { type: 'text', sessionId: opts.sessionId, delta: chunk.delta };
-            break;
-          case 'reasoning':
-            if (!reasoningStartedAt) reasoningStartedAt = Date.now();
-            reasoning += chunk.delta;
-            yield { type: 'reasoning', sessionId: opts.sessionId, delta: chunk.delta };
-            break;
-          case 'tool_call':
-            if (reasoningStartedAt && reasoningSeconds == null) {
-              reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
-            }
-            calls.push(chunk.call);
-            yield { type: 'tool_call', sessionId: opts.sessionId, call: chunk.call };
-            break;
-          case 'usage':
-            yield {
-              type: 'usage',
-              sessionId: opts.sessionId,
-              inputTokens: chunk.inputTokens,
-              outputTokens: chunk.outputTokens,
-            };
-            break;
-          case 'done':
-            break;
-        }
+      yield* stream(turn);
+      // Empty response: retry once with a nudge before giving up so the turn
+      // doesn't silently stall (common with some local models mid-loop).
+      if (isEmptyTurn(turn) && !opts.signal?.aborted) {
+        yield* stream(turn, [nudge]);
       }
     } catch (e) {
       yield { type: 'error', sessionId: opts.sessionId, message: (e as Error).message };
       return;
     }
 
-    if (reasoningStartedAt && reasoningSeconds == null) {
-      reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
-    }
+    const { text, reasoning, reasoningSeconds, calls } = turn;
+
+    // Still nothing after the retry: surface it instead of ending on a blank
+    // bubble, so the user knows the turn ended and can try again.
+    const stalled = isEmptyTurn(turn);
+    const content = stalled
+      ? '_The model returned an empty response and stopped. It may have run out of steam — try again, or rephrase._'
+      : text;
 
     // Record the assistant message.
     const assistantMsg: ChatMessage = {
       id: id('msg'),
       role: 'assistant',
-      content: text,
+      content,
       ...(reasoning ? { reasoning, reasoningSeconds } : {}),
       toolCalls: calls.length ? calls : undefined,
       createdAt: Date.now(),

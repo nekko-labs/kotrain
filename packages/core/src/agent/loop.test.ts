@@ -100,6 +100,42 @@ describe('runAgent', () => {
     expect(events.some((e) => e.type === 'reasoning' && (e as any).delta === 'thinking')).toBe(true);
   });
 
+  it('retries once with a nudge when the model returns an empty response', async () => {
+    // Round 1: the model stops cold (finish_reason "stop", nothing produced).
+    // Round 2 (the nudged retry): a real answer.
+    const provider = scriptedProvider([
+      [{ type: 'done' }],
+      [{ type: 'text', delta: 'recovered' }, { type: 'done' }],
+    ]);
+    const history: ChatMessage[] = [{ id: 'u', role: 'user', content: 'hi', createdAt: 0 }];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) {
+      events.push(e);
+    }
+    // The recovered text is what lands, and the nudge is not persisted.
+    expect(history.at(-1)).toMatchObject({ role: 'assistant', content: 'recovered' });
+    expect(history.filter((m) => m.role === 'user')).toHaveLength(1);
+    expect(events.at(-1)?.type).toBe('done');
+  });
+
+  it('surfaces a clear marker when the model stays empty after the retry', async () => {
+    const provider = scriptedProvider([[{ type: 'done' }], [{ type: 'done' }]]);
+    const history: ChatMessage[] = [{ id: 'u', role: 'user', content: 'hi', createdAt: 0 }];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) {
+      events.push(e);
+    }
+    expect(events.at(-1)?.type).toBe('done');
+    expect(history.at(-1)?.role).toBe('assistant');
+    expect(history.at(-1)?.content).toContain('empty response');
+  });
+
   it('sends only the last N user-turn groups when maxHistoryTurns is set', async () => {
     let seen: ChatMessage[] = [];
     const provider: Provider = {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef } from '@kotrain/shared';
-import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds } from '@kotrain/shared';
+import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
+import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
@@ -8,10 +8,12 @@ import { ChatMetrics } from './ChatMetrics.js';
 import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
+import { PrCard, PrBadge } from './PrCard.js';
 import { MiniNekko } from './Mascot.js';
 import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
+const NO_PRS: PrInfo[] = []; // stable empty ref so the store selector doesn't churn
 
 function readImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -56,6 +58,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // the right can show it and count its tokens while it's active.
   const activeSkill = useStore((s) => s.activeSkillBySession[sessionId] ?? null);
   const setActiveSkill = (skill: SkillDef | null) => useStore.getState().setActiveSkill(sessionId, skill);
+  // PRs referenced in this chat (for the header badge + inline cards).
+  const prs = useStore((s) => s.prsBySession[sessionId] ?? NO_PRS);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [reasoningDuration, setReasoningDuration] = useState<number | null>(null);
   const [changeCount, setChangeCount] = useState(0);
@@ -63,12 +67,18 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [providerId, setProviderId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
+  // Live turn telemetry for the subtext under the chat: output tokens, elapsed
+  // seconds, and a summary of the last completed turn.
+  const [turnOut, setTurnOut] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [lastTurn, setLastTurn] = useState<{ out: number; tps: number; secs: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const turnStart = useRef(0);
   const reasoningStart = useRef(0);
+  const turnOutRef = useRef(0);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -111,6 +121,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       setModelId(s?.autoModel ? AUTO_MODEL_ID : (s?.modelId ?? st.activeModelId ?? null));
     });
     refreshCtx();
+    useStore.getState().refreshSessionPrs(sessionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
@@ -155,8 +166,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           setThinking(true);
           break;
         case 'usage': {
+          // Accumulate output tokens across the turn's iterations for the live
+          // subtext; base tps on the running total over elapsed time.
+          turnOutRef.current += e.outputTokens;
+          setTurnOut(turnOutRef.current);
           const secs = (Date.now() - turnStart.current) / 1000;
-          if (secs > 0 && e.outputTokens > 0) setTps(Math.round(e.outputTokens / secs));
+          if (secs > 0 && turnOutRef.current > 0) setTps(Math.round(turnOutRef.current / secs));
           break;
         }
         case 'tool_call':
@@ -192,6 +207,14 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const endTurn = () => {
     setStreaming(false);
 
+    // Snapshot the turn's telemetry for the idle subtext (refs only, so this is
+    // safe inside the long-lived agent-event listener closure).
+    const secs = turnStart.current ? Math.round((Date.now() - turnStart.current) / 1000) : 0;
+    if (turnOutRef.current > 0) {
+      setLastTurn({ out: turnOutRef.current, tps: secs > 0 ? Math.round(turnOutRef.current / secs) : 0, secs });
+    }
+    turnOutRef.current = 0;
+
     // Build a short completion summary from the tools used this turn.
     if (liveTools.length > 0) {
       const names = liveTools.map((t) => t.name);
@@ -218,6 +241,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     reasoningStart.current = 0;
     window.nekko.getSession(sessionId).then(setSession);
     refreshSessions();
+    // A turn may have created or updated a PR (e.g. `gh pr create`).
+    useStore.getState().refreshSessionPrs(sessionId);
   };
 
   useEffect(() => {
@@ -243,8 +268,20 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     setDoneSummary(null);
     reasoningStart.current = 0;
     turnStart.current = Date.now();
+    turnOutRef.current = 0;
+    setTurnOut(0);
+    setElapsed(0);
     setMascotMood('thinking');
   };
+
+  // Tick the elapsed-seconds counter while a turn is streaming (for the subtext).
+  useEffect(() => {
+    if (!streaming) return;
+    const t = setInterval(() => {
+      if (turnStart.current) setElapsed(Math.round((Date.now() - turnStart.current) / 1000));
+    }, 500);
+    return () => clearInterval(t);
+  }, [streaming]);
 
   // The concrete model to run this turn: the picked one, or, in Auto mode -
   // the best available model for the prompt (favorites break ties).
@@ -346,29 +383,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composerInbox, sessionId, providerId, streaming]);
 
-  const regenerate = async () => {
-    if (streaming || !providerId || !session) return;
-    const lastUser = [...session.messages].reverse().find((m) => m.role === 'user');
-    if (!lastUser) return;
-    const useModel = resolveModelId(lastUser.content);
-    if (!useModel) return;
-    beginTurn();
-    setSession((prev) => {
-      if (!prev) return prev;
-      const msgs = [...prev.messages];
-      while (msgs.length && msgs[msgs.length - 1].role !== 'user') msgs.pop();
-      return { ...prev, messages: msgs };
-    });
-    await window.nekko.sendChat({
-      sessionId,
-      providerId,
-      modelId: useModel,
-      text: lastUser.content,
-      ...(lastUser.images?.length ? { images: lastUser.images } : {}),
-      regenerate: true,
-    });
-  };
-
   const editResend = async (messageId: string, newText: string) => {
     if (!providerId || !newText.trim()) return;
     const useModel = resolveModelId(newText);
@@ -469,8 +483,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     return fa - fb;
   });
 
-  const lastMsg = session?.messages[session.messages.length - 1];
-  const canRegenerate = !streaming && !!session?.messages.some((m) => m.role === 'assistant') && lastMsg?.role !== 'user';
   const isCloudModel = !LOCAL_KINDS.includes(providers.find((p) => p.id === providerId)?.kind ?? '');
   // Reasoning toggle: offered only for a concrete, reasoning-capable model.
   const selectedModelInfo = modelId && modelId !== AUTO_MODEL_ID ? models.find((m) => m.id === modelId) : undefined;
@@ -509,6 +521,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     </>
   );
 
+  // The in-flight turn's reasoning + tool calls, folded into one activity block.
+  const liveActivity: Activity[] = [
+    ...(liveReasoning ? [{ kind: 'reasoning' as const, text: liveReasoning, duration: reasoningDuration }] : []),
+    ...liveTools.map((c) => ({ kind: 'tool' as const, call: c })),
+  ];
+
   return (
     <div className="flex h-full min-w-0 overflow-hidden">
       <section className="flex min-w-0 w-full flex-1 flex-col overflow-x-hidden">
@@ -518,6 +536,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             {session?.parentSessionId && <span className="chip shrink-0 text-[10px]">sub-agent</span>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {prs.length > 0 && (
+              <button
+                className="btn btn-ghost px-2 py-1"
+                onClick={() => useStore.getState().openPrPane(prs[0].url)}
+                title="Review pull request"
+              >
+                <PrBadge prs={prs} />
+              </button>
+            )}
             {changeCount > 0 && (
               <button
                 className="btn btn-ghost px-2 py-1 text-[12px] font-medium text-accent"
@@ -549,39 +576,58 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 </div>
               </div>
             )}
-            {session?.messages.map((m, i) => (
-              <MessageBubble
-                key={m.id + i}
-                message={m}
-                onResend={!streaming && m.role === 'user' && m.id !== 'tmp' ? editResend : undefined}
-                onImageClick={setLightbox}
-                chronological
-              />
-            ))}
-            {liveReasoning && <ReasoningBlock text={liveReasoning} live={streaming && !liveText} duration={reasoningDuration} />}
-            {liveTools.map((t) => <ToolCard key={t.id} call={t} />)}
+            {session && (() => {
+              const shown = new Set<string>();
+              const prByUrl = new Map(prs.map((p) => [p.url, p]));
+              const blocks = toStreamBlocks(session.messages);
+              const rendered = blocks.map((b, i) => {
+                if (b.type !== 'msg') return <ActivityGroup key={b.key} items={b.items} />;
+                const isUser = b.message.role === 'user';
+                const bubble = (
+                  <MessageBubble
+                    message={b.message}
+                    onResend={!streaming && isUser && b.message.id !== 'tmp' ? editResend : undefined}
+                    onReset={!streaming && isUser && b.message.id !== 'tmp' ? editResend : undefined}
+                    onImageClick={setLightbox}
+                    chronological
+                  />
+                );
+                // Surface a PR card right after the message that first names it.
+                const urls = isUser ? [] : extractPrUrls(b.message.content).filter((u) => !shown.has(u));
+                urls.forEach((u) => shown.add(u));
+                if (!urls.length) return <React.Fragment key={`${b.message.id}_${i}`}>{bubble}</React.Fragment>;
+                return (
+                  <React.Fragment key={`${b.message.id}_${i}`}>
+                    {bubble}
+                    {urls.map((u) => <PrCard key={u} url={u} info={prByUrl.get(u)} sessionId={sessionId} />)}
+                  </React.Fragment>
+                );
+              });
+              // PRs mentioned only in tool output (never in assistant text) still
+              // get a card, appended after the transcript.
+              const orphans = collectSessionPrUrls(session.messages).filter((u) => !shown.has(u));
+              return (
+                <>
+                  {rendered}
+                  {orphans.map((u) => <PrCard key={`orphan_${u}`} url={u} info={prByUrl.get(u)} sessionId={sessionId} />)}
+                </>
+              );
+            })()}
+            {liveActivity.length > 0 && <ActivityGroup items={liveActivity} streaming />}
             {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} onImageClick={setLightbox} chronological />}
-            {/* Visible indicator while the model is thinking (reasoning) */}
-            {liveReasoning && (
-              <div className="flex items-center gap-2 text-[13px] text-ink-faint">
-                <MiniNekko size={18} /> Thinking<span className="dots" />
-              </div>
-            )}
             {doneSummary && (
               <div className="fade-in flex items-center gap-2 text-[12px] text-green-400">
                 <span>✓</span> {doneSummary}
               </div>
             )}
-            {streaming && !liveText && !liveReasoning && !liveTools.length && (
-              <div className="flex items-center gap-2 text-[13px] text-ink-faint">
-                <MiniNekko size={18} /> Nekko is working<span className="dots" />
-              </div>
-            )}
-            {canRegenerate && (
-              <div className="flex justify-center pt-1">
-                <button className="btn btn-outline py-1.5 text-[12px]" onClick={regenerate} title="Re-answer the last message">↻ Regenerate</button>
-              </div>
-            )}
+            <TurnStatus
+              streaming={streaming}
+              waiting={streaming && !liveText && liveActivity.length === 0}
+              elapsed={elapsed}
+              tps={tps}
+              out={turnOut}
+              last={lastTurn}
+            />
           </div>
         </div>
 
@@ -860,6 +906,137 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   );
 }
 
+/** One step of an assistant turn: a tool call, a reasoning block, or a bit of
+ *  narration text between tools. Grouped into a single collapsible section. */
+type Activity =
+  | { kind: 'tool'; call: ToolCall }
+  | { kind: 'reasoning'; text: string; duration: number | null }
+  | { kind: 'note'; text: string };
+
+/** A render block of the transcript: a message bubble (user or the final
+ *  assistant answer) or a grouped run of the model's working steps. */
+type StreamBlock =
+  | { type: 'msg'; message: ChatMessage }
+  | { type: 'activity'; key: string; items: Activity[] };
+
+/**
+ * Fold a transcript into render blocks, collapsing each run of the model's
+ * working steps (reasoning, tool calls, and inter-tool narration) into one
+ * activity group so a many-step turn reads as a single expandable line instead
+ * of a wall of "Used <tool>" rows. Only the final answer stays a bubble.
+ */
+function toStreamBlocks(messages: ChatMessage[]): StreamBlock[] {
+  const blocks: StreamBlock[] = [];
+  let run: Activity[] = [];
+  let runKey = '';
+  const flush = () => {
+    if (run.length) { blocks.push({ type: 'activity', key: `act_${runKey}`, items: run }); run = []; }
+  };
+  messages.forEach((m, i) => {
+    if (m.role === 'tool') return;
+    if (m.role === 'user') { flush(); blocks.push({ type: 'msg', message: m }); return; }
+    // Assistant messages that still call tools are working steps; the one that
+    // stops calling tools is the answer.
+    if (m.toolCalls?.length) {
+      if (!run.length) runKey = `${m.id}_${i}`;
+      if (m.reasoning) run.push({ kind: 'reasoning', text: m.reasoning, duration: m.reasoningSeconds ?? null });
+      if (m.content.trim()) run.push({ kind: 'note', text: m.content });
+      m.toolCalls.forEach((c) => run.push({ kind: 'tool', call: c }));
+    } else {
+      flush();
+      blocks.push({ type: 'msg', message: m });
+    }
+  });
+  flush();
+  return blocks;
+}
+
+const fmtTok = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `${n}`);
+
+/** Short local time for a message timestamp (e.g. "3:42 PM"). */
+function fmtTime(ts: number): string {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  catch { return ''; }
+}
+
+/**
+ * A collapsed, expandable summary of a run of the model's working steps. Reads
+ * as one line ("Worked on 6 steps · read_file, grep") that expands to the
+ * individual tool calls, reasoning, and narration.
+ */
+function ActivityGroup({ items, streaming = false }: { items: Activity[]; streaming?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const tools = items.filter((it): it is Extract<Activity, { kind: 'tool' }> => it.kind === 'tool');
+  const toolCount = tools.length;
+  const hasScript = tools.some((t) => t.call.name === 'bash');
+  const names = Array.from(new Set(tools.map((t) => t.call.name)));
+  const summary = streaming
+    ? (toolCount ? `Working · ${tools[tools.length - 1].call.name}` : 'Thinking')
+    : (toolCount ? `Worked on ${toolCount} step${toolCount === 1 ? '' : 's'}` : 'Thought it through');
+  return (
+    <div className="fade-in mt-1 font-mono text-[12px]">
+      <button
+        className="flex w-full items-center gap-1.5 py-0.5 text-left text-ink-faint hover:text-ink-soft"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
+        <span className={`shrink-0 ${hasScript ? 'text-red-400' : 'text-green-400'}`}>⚒</span>
+        <span className="font-medium text-ink-soft">{summary}</span>
+        {!streaming && names.length > 0 && <span className="min-w-0 truncate text-ink-faint">· {names.join(', ')}</span>}
+        {streaming && <span className="dots" />}
+      </button>
+      {open && (
+        <div className="ml-[7px] mt-0.5 space-y-0.5 border-l border-line pl-2.5">
+          {items.map((it, i) => {
+            if (it.kind === 'tool') return <ToolCard key={`${it.call.id}_${i}`} call={it.call} />;
+            if (it.kind === 'reasoning') return <ReasoningBlock key={`r${i}`} text={it.text} live={false} duration={it.duration} />;
+            return (
+              <div key={`n${i}`} className="py-0.5 font-sans text-[12.5px] text-ink-soft">
+                <Markdown text={it.text} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The live subtext under the conversation: while a turn streams it shows
+ * elapsed time, throughput, and tokens generated; when idle it keeps a muted
+ * summary of the last turn so the numbers stay visible at the end of the chat.
+ */
+function TurnStatus({
+  streaming, waiting, elapsed, tps, out, last,
+}: {
+  streaming: boolean; waiting: boolean; elapsed: number; tps: number; out: number;
+  last: { out: number; tps: number; secs: number } | null;
+}) {
+  if (streaming) {
+    return (
+      <div className="fade-in flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1 text-[11.5px] text-ink-faint">
+        <span className="flex items-center gap-2 text-ink-soft"><MiniNekko size={16} /> {waiting ? 'Nekko is working' : 'Streaming'}<span className="dots" /></span>
+        {elapsed > 0 && <span>· {elapsed}s</span>}
+        {tps > 0 && <span>· {tps} tok/s</span>}
+        {out > 0 && <span>· {fmtTok(out)} tokens</span>}
+      </div>
+    );
+  }
+  if (last && last.out > 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[11px] text-ink-faint/80">
+        <span>Last turn</span>
+        <span>· {fmtTok(last.out)} tokens</span>
+        {last.tps > 0 && <span>· {last.tps} tok/s</span>}
+        {last.secs > 0 && <span>· {last.secs}s</span>}
+      </div>
+    );
+  }
+  return null;
+}
+
 /** Compact thinking indicator — matches tool card style. */
 function ReasoningBlock({ text, live, duration }: { text: string; live: boolean; duration: number | null }) {
   const [open, setOpen] = useState(false);
@@ -878,11 +1055,14 @@ function ReasoningBlock({ text, live, duration }: { text: string; live: boolean;
 function MessageBubble({
   message,
   onResend,
+  onReset,
   onImageClick,
   chronological,
 }: {
   message: ChatMessage;
   onResend?: (id: string, text: string) => void;
+  /** Rewind the chat to this message and re-run it (replaces the old Regenerate). */
+  onReset?: (id: string, text: string) => void;
   onImageClick?: (src: string) => void;
   chronological?: boolean;
 }) {
@@ -964,9 +1144,21 @@ function MessageBubble({
         {displayText && (isUser ? <p className="whitespace-pre-wrap text-[14px]">{displayText}</p> : <Markdown text={message.content} />)}
         {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
         {displayText && message.content && (
-          <div className={`mt-1.5 flex gap-3 text-[10.5px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end' : ''}`}>
-            <button onClick={copy} title="Copy message" className="hover:text-ink">{copied ? '✓ copied' : 'Copy'}</button>
+          <div className={`mt-1.5 flex items-center gap-3 text-[10.5px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end' : ''}`}>
+            {isUser && message.createdAt > 0 && (
+              <span className="text-ink-faint/70" title={new Date(message.createdAt).toLocaleString()}>{fmtTime(message.createdAt)}</span>
+            )}
+            <button onClick={copy} title="Copy prompt" className="hover:text-ink">{copied ? '✓ copied' : 'Copy'}</button>
             {onResend && <button onClick={() => { setDraft(displayText); setEditing(true); }} title="Edit & resend" className="hover:text-ink">Edit</button>}
+            {onReset && (
+              <button
+                onClick={() => onReset(message.id, displayText)}
+                title="Rewind the chat to this message and re-run it"
+                className="hover:text-ink"
+              >
+                Reset here
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -93,6 +93,10 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.changeAccept]: ([sid, p]) => host.acceptChange(sid, p),
     [C.changeAcceptAll]: ([sid]) => host.acceptAllChanges(sid),
 
+    [C.prSessionList]: ([sid]) => host.listSessionPrs(sid),
+    [C.prDiff]: ([url]) => host.getPrDiff(url),
+    [C.prAction]: ([url, action]) => host.prAction(url, action),
+
     [C.commentsList]: ([p]) => host.listComments(p),
     [C.commentAdd]: ([p, line, lineText, comment]) => host.addComment(p, line, lineText, comment),
     [C.commentResolve]: ([p, id]) => host.resolveComment(p, id),
