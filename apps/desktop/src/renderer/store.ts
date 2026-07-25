@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef } from '@kotrain/shared';
+import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo } from '@kotrain/shared';
 import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
 
@@ -19,13 +19,13 @@ export interface Toast {
   message: string;
 }
 
-/** A single workbench tab, a chat, terminal, file, browser, or diff view. */
+/** A single workbench tab, a chat, terminal, file, browser, diff, or PR view. */
 export interface WbPane {
   id: string;
-  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff';
+  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff' | 'pr';
   /**
-   * What the pane points at: sessionId (chat), terminalId (terminal), absolute
-   * file path (file/diff), or URL (browser).
+   * What the pane points at: sessionId (chat/diff), terminalId (terminal),
+   * absolute file path (file), URL (browser), or PR URL (pr).
    */
   refId: string;
 }
@@ -95,6 +95,13 @@ interface UiState {
 
   /** Pending message to hand a chat's composer (set by editor comments / design notes). */
   composerInbox: ComposerInbox | null;
+
+  /** Live PR state per chat (PRs referenced in its transcript), for cards + badges. */
+  prsBySession: Record<string, PrInfo[]>;
+  /** Fetch a chat's PRs (gh/API, host-cached) and stash them for cards + badges. */
+  refreshSessionPrs: (sessionId: string) => Promise<void>;
+  /** Open a PR's diff in a workbench pane. */
+  openPrPane: (url: string) => void;
 
   /** Marketplace installs (all targets) + the Kotrain ones as runnable skills. */
   installedSkills: InstalledSkillRecord[];
@@ -186,6 +193,7 @@ export const useStore = create<UiState>((set, get) => ({
   terminals: [],
   groups: [],
   activeGroupId: null,
+  prsBySession: {},
   ...(() => {
     const files = readFilesPaneState();
     return {
@@ -379,6 +387,28 @@ export const useStore = create<UiState>((set, get) => ({
     set({ view: 'chat' });
     get().openChatPane(sid);
     set({ composerInbox: { sessionId: sid, text, run } });
+  },
+
+  refreshSessionPrs: async (sessionId) => {
+    try {
+      const prs = await window.nekko.listSessionPrs(sessionId);
+      set((s) => ({ prsBySession: { ...s.prsBySession, [sessionId]: prs } }));
+    } catch {
+      /* older host without PR channels, or gh/API unavailable */
+    }
+  },
+
+  openPrPane: (url) => {
+    set((s) => {
+      const hit = locatePane(s.groups, 'pr', url);
+      if (hit) {
+        return {
+          activeGroupId: hit.groupId,
+          groups: s.groups.map((g) => (g.id === hit.groupId ? { ...g, activeId: hit.paneId } : g)),
+        };
+      }
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'pr', refId: url }), view: 'chat' as View };
+    });
   },
 
   openDiffPane: (sessionId) => {

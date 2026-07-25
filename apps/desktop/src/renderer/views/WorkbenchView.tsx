@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentEvent, AppSettings, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@kotrain/shared';
+import { collectSessionPrUrls, parsePrUrl } from '@kotrain/shared';
 import { useStore, type FilesPaneSide, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
 import { FilePane } from '../components/FilePane.js';
 import { BrowserPane } from '../components/BrowserPane.js';
 import { DiffPane } from '../components/DiffPane.js';
+import { PrPane, PrBadge } from '../components/PrCard.js';
 import { ProjectFiles } from '../components/FileTree.js';
 import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
 
@@ -17,6 +19,10 @@ function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[])
     try { return new URL(pane.refId).host || 'Browser'; } catch { return 'Browser'; }
   }
   if (pane.kind === 'diff') return 'Changes';
+  if (pane.kind === 'pr') {
+    const p = parsePrUrl(pane.refId);
+    return p ? `PR #${p.number}` : 'Pull request';
+  }
   return pane.refId.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pane.refId;
 }
 
@@ -25,6 +31,7 @@ function PaneIcon({ kind }: { kind: WbPane['kind'] }) {
   const cls = 'h-3.5 w-3.5 shrink-0 text-ink-faint';
   if (kind === 'terminal') return <TerminalIcon className={cls} />;
   if (kind === 'browser') return <ExternalIcon className={cls} />;
+  if (kind === 'pr') return <span className="w-3.5 shrink-0 text-center text-[12px] leading-none text-ink-faint">⑂</span>;
   if (kind === 'file' || kind === 'diff') return <FileIcon className={cls} />;
   return <ChatIcon className={cls} />;
 }
@@ -37,6 +44,7 @@ function PaneBody({ pane }: { pane: WbPane }) {
     case 'file': return <FilePane key={pane.refId} path={pane.refId} />;
     case 'browser': return <BrowserPane key={pane.refId} url={pane.refId} />;
     case 'diff': return <DiffPane key={pane.refId} sessionId={pane.refId} />;
+    case 'pr': return <PrPane key={pane.refId} url={pane.refId} />;
     default: return null;
   }
 }
@@ -147,6 +155,17 @@ export function WorkbenchView() {
     });
     return off;
   }, [sessions, refreshSessions]);
+
+  // Populate PR badges for chats that reference a PR in their transcript. Only
+  // sessions with a detected PR URL and no cached state get a (host-cached)
+  // fetch, bounded so we never shell out to gh for a whole list at once.
+  useEffect(() => {
+    const loaded = useStore.getState().prsBySession;
+    sessions
+      .filter((s) => !(s.id in loaded) && collectSessionPrUrls(s.messages).length > 0)
+      .slice(0, 8)
+      .forEach((s) => { void useStore.getState().refreshSessionPrs(s.id); });
+  }, [sessions]);
 
   const childrenOf = useMemo(() => {
     const m = new Map<string, Session[]>();
@@ -337,7 +356,7 @@ export function WorkbenchView() {
                       className={dropTarget === 'chatrow:' + s.id ? 'rounded-lg ring-1 ring-accent/60' : ''}
                     >
                       <ChatRow session={s} depth={0} statuses={statuses} childrenOf={childrenOf}
-                        activeSessionId={activeSessionId} onOpen={openChatPane} />
+                        activeSessionId={activeSessionId} onOpen={openChatPane} workspaces={settings?.workspaces ?? []} />
                     </div>
                   ))}
                   {terms.map((t) => (
@@ -400,6 +419,7 @@ export function WorkbenchView() {
                 statuses={statuses}
                 sessions={sessions}
                 titleFor={titleFor}
+                workspaces={settings?.workspaces ?? []}
                 onFocus={() => focusGroup(g.id)}
                 onSelect={(pid) => setActivePane(g.id, pid)}
                 onClose={(pid) => closePane(g.id, pid)}
@@ -518,14 +538,47 @@ function baseName(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
+/**
+ * Compact project/tag chips for a chat: the extra projects it references
+ * (supporting workspaces) and any free-form tags. The primary project is the
+ * sidebar bucket the row already sits in, so it isn't repeated here.
+ */
+function ChatTags({ session, workspaces }: { session: Session; workspaces: WorkspaceFolder[] }) {
+  const chips: Array<{ label: string; project: boolean }> = [
+    ...(session.supportingWorkspaceIds ?? [])
+      .map((id) => workspaces.find((w) => w.id === id)?.name)
+      .filter((n): n is string => !!n)
+      .map((label) => ({ label, project: true })),
+    ...(session.tags ?? []).map((label) => ({ label, project: false })),
+  ];
+  if (!chips.length) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      {chips.slice(0, 2).map((c, i) => (
+        <span
+          key={i}
+          className="max-w-[70px] shrink-0 truncate rounded px-1 py-px text-[9px] leading-[1.5]"
+          style={{ background: 'var(--surface-2)', color: 'var(--ink-faint)' }}
+          title={c.project ? `Also references ${c.label}` : `Tag: ${c.label}`}
+        >
+          {c.label}
+        </span>
+      ))}
+      {chips.length > 2 && <span className="shrink-0 text-[9px] text-ink-faint">+{chips.length - 2}</span>}
+    </span>
+  );
+}
+
 function ChatRow({
-  session, depth, statuses, childrenOf, activeSessionId, onOpen,
+  session, depth, statuses, childrenOf, activeSessionId, onOpen, workspaces,
 }: {
   session: Session; depth: number; statuses: Map<string, AgentStatus>;
   childrenOf: Map<string, Session[]>; activeSessionId: string | null; onOpen: (id: string) => void;
+  workspaces: WorkspaceFolder[];
 }) {
   const kids = childrenOf.get(session.id) ?? [];
   const status = statuses.get(session.id);
+  const prs = useStore((s) => s.prsBySession[session.id]);
   const isActive = session.id === activeSessionId;
   const nested = depth > 0;
   return (
@@ -549,10 +602,12 @@ function ChatRow({
           style={{ width: nested ? 5 : 6, height: nested ? 5 : 6, marginLeft: nested ? 1 : 0 }}
         />
         <span className="min-w-0 flex-1 truncate">{session.title}</span>
+        {prs?.length ? <PrBadge prs={prs} compact /> : null}
+        <ChatTags session={session} workspaces={workspaces} />
         {status && <StatusDot status={status} />}
       </button>
       {kids.map((k) => (
-        <ChatRow key={k.id} session={k} depth={depth + 1} statuses={statuses} childrenOf={childrenOf} activeSessionId={activeSessionId} onOpen={onOpen} />
+        <ChatRow key={k.id} session={k} depth={depth + 1} statuses={statuses} childrenOf={childrenOf} activeSessionId={activeSessionId} onOpen={onOpen} workspaces={workspaces} />
       ))}
     </>
   );
@@ -573,15 +628,22 @@ function TerminalRow({ term, onOpen }: { term: TerminalInfo; onOpen: (id: string
 }
 
 function PaneGroupView({
-  group, isActive, canSplit, statuses, sessions, titleFor,
+  group, isActive, canSplit, statuses, sessions, titleFor, workspaces,
   onFocus, onSelect, onClose, onSplit, onNewChat, onNewTerminal,
 }: {
   group: WbGroup; isActive: boolean; canSplit: boolean; statuses: Map<string, AgentStatus>;
-  sessions: Session[]; titleFor: (p: WbPane) => string;
+  sessions: Session[]; titleFor: (p: WbPane) => string; workspaces: WorkspaceFolder[];
   onFocus: () => void; onSelect: (paneId: string) => void; onClose: (paneId: string) => void;
   onSplit: (paneId: string) => void; onNewChat: () => void; onNewTerminal: () => void;
 }) {
   const active = group.panes.find((p) => p.id === group.activeId) ?? group.panes[0];
+  // The project a chat tab belongs to (tabs from different projects sit side by
+  // side, so the chip is what tells them apart).
+  const projectFor = (p: WbPane): string | null => {
+    if (p.kind !== 'chat') return null;
+    const wid = sessions.find((s) => s.id === p.refId)?.workspaceId;
+    return wid ? workspaces.find((w) => w.id === wid)?.name ?? null : null;
+  };
   return (
     <div className={`flex min-w-0 flex-1 flex-col border-r border-line ${isActive ? '' : 'opacity-95'}`} onMouseDown={onFocus}>
       {/* Tab strip */}
@@ -600,6 +662,15 @@ function PaneGroupView({
             >
               <PaneIcon kind={p.kind} />
               <span className="max-w-[140px] truncate">{titleFor(p)}</span>
+              {projectFor(p) && (
+                <span
+                  className="max-w-[90px] shrink-0 truncate rounded px-1 py-px text-[9px] leading-[1.5] text-ink-faint"
+                  style={{ background: 'var(--surface-2)' }}
+                  title={`Project: ${projectFor(p)}`}
+                >
+                  {projectFor(p)}
+                </span>
+              )}
               {status && <StatusDot status={status} />}
               <button
                 className="ml-0.5 rounded p-0.5 text-ink-faint opacity-0 hover:text-ink group-hover:opacity-100"

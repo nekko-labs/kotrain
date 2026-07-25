@@ -16,6 +16,10 @@ import type {
   DirEntry,
   FileContent,
   FileChange,
+  PrInfo,
+  PrDiff,
+  PrAction,
+  PrActionResult,
   LineComment,
   DesignBoard,
   DesignPage,
@@ -59,6 +63,7 @@ import { usageSummary, clearUsage } from './usage.js';
 import { indexWorkspace, getIndexStatus, searchWorkspace, listIndexedFiles } from './workspace.js';
 import { readFile, writeFile, listDir } from './files.js';
 import { listChanges, acceptChange, acceptAllChanges, setChangeNotifier } from './changes.js';
+import { listSessionPrs, getPrDiff, prAction } from './pr.js';
 import { listComments, addComment, resolveComment } from './comments.js';
 import {
   getDesignBoard,
@@ -217,6 +222,13 @@ export interface Host {
   acceptChange(sessionId: string, path: string): void;
   /** Keep all of a session's changes. */
   acceptAllChanges(sessionId: string): void;
+
+  /** Live PR state for every PR URL referenced in a chat's transcript. */
+  listSessionPrs(sessionId: string): Promise<PrInfo[]>;
+  /** A PR's changed files + patches (diff pane). */
+  getPrDiff(url: string): Promise<PrDiff>;
+  /** Approve / decline / merge / reopen a PR (user-initiated). */
+  prAction(url: string, action: PrAction): Promise<PrActionResult>;
 
   /** Inline editor comments on a file. */
   listComments(path: string): LineComment[];
@@ -477,6 +489,9 @@ export function createHost(opts: { dataDir: string }): Host {
     listChanges,
     acceptChange,
     acceptAllChanges,
+    listSessionPrs,
+    getPrDiff,
+    prAction,
     listComments,
     addComment,
     resolveComment,
