@@ -70,14 +70,14 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [reasoningDuration, setReasoningDuration] = useState<number | null>(null);
   const [changeCount, setChangeCount] = useState(0);
   const [doneSummary, setDoneSummary] = useState<string | null>(null);
-  // A failed turn stays in the transcript with a retry, instead of vanishing
+  // A failed reply stays in the transcript with a retry, instead of vanishing
   // with the toast.
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
-  // Live turn telemetry for the subtext under the chat: output tokens, elapsed
-  // seconds, and a summary of the last completed turn.
+  // Live telemetry for the subtext under the chat: output tokens, elapsed
+  // seconds, and a summary of the last completed reply.
   const [turnOut, setTurnOut] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [lastTurn, setLastTurn] = useState<{ out: number; tps: number; secs: number } | null>(null);
@@ -161,7 +161,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   useEffect(() => {
     const off = window.nekko.onAgentEvent((e: AgentEvent) => {
       if (e.sessionId !== sessionId) return;
-      // A turn may start host-side (a queued follow-up, or a task-driven run):
+      // A reply may start host-side (a queued follow-up, or a task-driven run):
       // reflect it as streaming even though this pane didn't call send().
       if (e.type === 'text' || e.type === 'reasoning' || e.type === 'tool_call') {
         setStreaming(true);
@@ -182,7 +182,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           setThinking(true);
           break;
         case 'usage': {
-          // Accumulate output tokens across the turn's iterations for the live
+          // Accumulate output tokens across the reply's steps for the live
           // subtext; base tps on the running total over elapsed time.
           turnOutRef.current += e.outputTokens;
           setTurnOut(turnOutRef.current);
@@ -225,7 +225,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const endTurn = () => {
     setStreaming(false);
 
-    // Snapshot the turn's telemetry for the idle subtext (refs only, so this is
+    // Snapshot the reply's telemetry for the idle subtext (refs only, so this is
     // safe inside the long-lived agent-event listener closure).
     const secs = turnStart.current ? Math.round((Date.now() - turnStart.current) / 1000) : 0;
     if (turnOutRef.current > 0) {
@@ -233,7 +233,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     }
     turnOutRef.current = 0;
 
-    // Build a short completion summary from the tools used this turn (refs, not
+    // Build a short completion summary from the tools used in this reply (refs, not
     // state — see the ref mirrors above).
     const usedTools = liveToolsRef.current;
     if (usedTools.length > 0) {
@@ -259,7 +259,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     liveTextRef.current = '';
 
     // Hold the streamed reply on screen until its persisted copy is in state,
-    // then clear the live buffers in the same commit, so the end of a turn
+    // then clear the live buffers in the same commit, so the end of a reply
     // never flashes the answer out and back in.
     window.nekko.getSession(sessionId).then((s) => {
       setSession(s);
@@ -268,7 +268,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       setLiveTools([]);
     });
     refreshSessions();
-    // A turn may have created or updated a PR (e.g. `gh pr create`).
+    // A reply may have created or updated a PR (e.g. `gh pr create`).
     useStore.getState().refreshSessionPrs(sessionId);
   };
 
@@ -392,7 +392,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     return () => clearInterval(t);
   }, [streaming]);
 
-  // The concrete model to run this turn: the picked one, or, in Auto mode -
+  // The concrete model to run this reply on: the picked one, or, in Auto mode -
   // the best available model for the prompt (favorites break ties).
   const resolveModelId = (text: string): string | null => {
     if (modelId !== AUTO_MODEL_ID) return modelId;
@@ -460,7 +460,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     });
   };
 
-  // Queue the draft to run after the current turn (and any earlier queued
+  // Queue the draft to run after the current reply (and any earlier queued
   // items). Useful for lining up follow-ups while an agent is working.
   const queueDraft = async () => {
     const text = draft.trim();
@@ -774,7 +774,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   }}
                   role="alert"
                 >
-                  <span className="shrink-0 font-medium" style={{ color: 'var(--danger)' }}>Turn failed</span>
+                  <span className="shrink-0 font-medium" style={{ color: 'var(--danger)' }}>Reply failed</span>
                   <span className="min-w-0 flex-1 text-ink-soft">{errorNotice}</span>
                   {session?.messages.some((m) => m.role === 'user') && (
                     <button className="btn btn-outline shrink-0 px-2.5 py-0.5 text-[11px]" onClick={retryLast}>Retry</button>
@@ -784,7 +784,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   </button>
                 </div>
               )}
-              <TurnStatus
+              <ReplyStatus
                 streaming={streaming}
                 waiting={streaming && !liveText && liveActivity.length === 0}
                 elapsed={elapsed}
@@ -846,7 +846,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     <ThoughtIcon className="h-3 w-3" /> Thinking {thinkingOn ? 'on' : 'off'}
                   </button>
                 ) : thinking ? (
-                  <span className="chip shrink-0 text-[11px]" title="The model streamed reasoning this turn">
+                  <span className="chip shrink-0 text-[11px]" title="The model streamed reasoning while writing this reply">
                     <span
                       className={`h-1.5 w-1.5 rounded-full ${streaming ? 'animate-pulse' : ''}`}
                       style={{ background: 'var(--accent)' }}
@@ -1094,7 +1094,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     <button
                       className="btn btn-ghost h-8 px-2.5 py-0 text-[12px]"
                       onClick={queueDraft}
-                      title={streaming ? 'Queue this to run after the current turn' : 'Queue this to run after any queued items'}
+                      title={streaming ? 'Queue this to run after the current reply' : 'Queue this to run after any queued items'}
                     >
                       Queue
                     </button>
@@ -1435,7 +1435,7 @@ function ActivityGroup({ items, streaming = false }: { items: Activity[]; stream
  * All three render as the same single row, so the transcript's tail never
  * changes height.
  */
-function TurnStatus({
+function ReplyStatus({
   streaming, waiting, elapsed, tps, out, last, done,
 }: {
   streaming: boolean; waiting: boolean; elapsed: number; tps: number; out: number;
@@ -1462,7 +1462,7 @@ function TurnStatus({
   if (last && last.out > 0) {
     return (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[11px] text-ink-faint/80">
-        <span>Last turn</span>
+        <span>Last reply</span>
         <span>· {fmtTok(last.out)} tokens</span>
         {last.tps > 0 && <span>· {last.tps} tok/s</span>}
         {last.secs > 0 && <span>· {last.secs}s</span>}

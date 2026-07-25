@@ -107,7 +107,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
         {docs && docs.some((d) => d.exists) && (
           <button
             className={`text-[10px] uppercase tracking-wide ${session?.specLinked ? 'text-accent' : 'text-ink-faint hover:text-ink'}`}
-            title="Rebuild the spec after every turn"
+            title="Rebuild the spec after every reply"
             onClick={toggleLive}
           >
             {session?.specLinked ? '● Live' : '○ Live'}

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@kotrain/shared';
-import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@kotrain/shared';
+import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, clampMaxSteps, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@kotrain/shared';
 import {
   createProvider,
   runAgent,
@@ -379,6 +379,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
             });
       },
       temperature: EFFORT_TEMPERATURE[settings.effort ?? 'normal'],
+      maxIterations: clampMaxSteps(settings.maxSteps),
       think: session.thinking,
       maxHistoryTurns: opts.maxHistoryTurns,
       signal: abort.signal,

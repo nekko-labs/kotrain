@@ -44,6 +44,7 @@ import type {
   TerminalSnapshot,
   ShellOption,
   GpuStats,
+  SystemStats,
   LmsProbe,
 } from '@kotrain/shared';
 import { isLocalProvider } from '@kotrain/shared';
@@ -103,6 +104,7 @@ import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs }
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
 import { createRemoteService } from './remote.js';
 import { getGpuStats } from './gpu.js';
+import { getSystemStats } from './system.js';
 import { stopLocalServer } from './servers.js';
 import { lmsProbe, lmsLoad, lmsUnload } from './lms.js';
 import { syncMcp, mcpStatus, mcpToolList, detectNekkoMcp } from './mcp.js';
@@ -155,6 +157,8 @@ export interface Host {
   stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
   /** GPU/VRAM stats (null when no NVIDIA GPU / nvidia-smi is available). */
   getGpuStats(): Promise<GpuStats | null>;
+  /** CPU load + RAM use for the resource monitors. */
+  getSystemStats(): Promise<SystemStats | null>;
 
   listSessions(): Session[];
   createSession(workspaceId?: string): Session;
@@ -402,6 +406,7 @@ export function createHost(opts: { dataDir: string }): Host {
       return stopLocalServer(p.baseUrl);
     },
     getGpuStats: () => getGpuStats(),
+    getSystemStats: () => getSystemStats(),
 
     listSessions: sessions.listSessions,
     createSession: sessions.createSession,

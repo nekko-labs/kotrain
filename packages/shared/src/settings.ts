@@ -76,6 +76,34 @@ export interface AppSettings {
   specMethodology?: string;
   /** Sub-agent orchestration strategy + bounds. */
   orchestration?: import('./orchestration.js').OrchestrationSettings;
+  /**
+   * Tool steps one reply may take before the agent wraps up (runaway-loop
+   * backstop). Undefined = the core default. See MAX_STEPS_RANGE.
+   */
+  maxSteps?: number;
+  /**
+   * Which resource monitors run. Anything omitted falls back to
+   * DEFAULT_MONITORS; a monitor switched off stops being sampled at all, so no
+   * `nvidia-smi` spawn and no CPU sampling happen for it.
+   */
+  monitors?: Partial<Record<import('./monitor.js').MonitorKind, boolean>>;
+}
+
+/**
+ * Tool steps one reply may take before the agent wraps up. Real agentic work
+ * (explore, edit, verify) routinely runs dozens of tool calls, so this is a
+ * runaway-loop backstop rather than a work limit: reaching it makes the agent
+ * answer with what it has instead of failing the reply.
+ */
+export const DEFAULT_MAX_STEPS = 80;
+
+/** Bounds for the per-reply tool-step budget (Settings → Agent loop). */
+export const MAX_STEPS_RANGE = { min: 5, max: 400 } as const;
+
+/** Clamp a user-entered step budget into MAX_STEPS_RANGE (undefined = default). */
+export function clampMaxSteps(n: number | undefined): number | undefined {
+  if (n == null || !Number.isFinite(n)) return undefined;
+  return Math.min(MAX_STEPS_RANGE.max, Math.max(MAX_STEPS_RANGE.min, Math.round(n)));
 }
 
 /** One usage event appended to a JSONL log for analytics. */

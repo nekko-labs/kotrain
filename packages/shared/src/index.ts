@@ -30,3 +30,4 @@ export * from './spec.js';
 export * from './orchestration.js';
 export * from './insights.js';
 export * from './model-select.js';
+export * from './monitor.js';

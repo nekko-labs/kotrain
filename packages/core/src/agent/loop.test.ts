@@ -136,6 +136,68 @@ describe('runAgent', () => {
     expect(history.at(-1)?.content).toContain('empty response');
   });
 
+  it('wraps up with an answer (not an error) when the step budget runs out', async () => {
+    // A model that never stops calling tools while it has any, and answers once
+    // they're withheld, exactly the shape of the wrap-up pass.
+    const toolRounds: ChatRequest[] = [];
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        toolRounds.push(req);
+        if (req.tools?.length) {
+          yield { type: 'tool_call', call: { id: `c${toolRounds.length}`, name: 'read_file', input: {} } } as ProviderChunk;
+        } else {
+          yield { type: 'text', delta: 'here is what I found so far' } as ProviderChunk;
+        }
+        yield { type: 'done' } as ProviderChunk;
+      },
+    };
+    const history: ChatMessage[] = [{ id: 'u', role: 'user', content: 'explore', createdAt: 0 }];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, maxIterations: 3,
+      executeTool: async (c) => ({ toolCallId: c.id, output: 'contents' }),
+    })) {
+      events.push(e);
+    }
+    // The reply survives: no error, a done event, and the model's own summary.
+    expect(events.some((e) => e.type === 'error')).toBe(false);
+    expect(events.at(-1)?.type).toBe('done');
+    expect(history.at(-1)?.content).toContain('here is what I found so far');
+    // Plus an honest note about why it stopped, naming the budget.
+    expect(history.at(-1)?.content).toContain('3-step tool limit');
+    // 3 budgeted rounds with tools, then one wrap-up round with none.
+    expect(toolRounds).toHaveLength(4);
+    expect(toolRounds[2].tools?.length).toBeGreaterThan(0);
+    expect(toolRounds[3].tools).toEqual([]);
+    // The wrap-up nudge is never persisted into the transcript.
+    expect(history.filter((m) => m.role === 'user')).toHaveLength(1);
+  });
+
+  it('still notes the step limit when the wrap-up pass produces nothing', async () => {
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        if (req.tools?.length) yield { type: 'tool_call', call: { id: 'c', name: 'bash', input: {} } } as ProviderChunk;
+        yield { type: 'done' } as ProviderChunk;
+      },
+    };
+    const history: ChatMessage[] = [{ id: 'u', role: 'user', content: 'go', createdAt: 0 }];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, maxIterations: 1,
+      executeTool: async (c) => ({ toolCallId: c.id, output: 'ok' }),
+    })) {
+      events.push(e);
+    }
+    expect(events.at(-1)?.type).toBe('done');
+    expect(history.at(-1)?.content).toContain('1-step tool limit');
+  });
+
   it('sends only the last N user-turn groups when maxHistoryTurns is set', async () => {
     let seen: ChatMessage[] = [];
     const provider: Provider = {

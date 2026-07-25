@@ -240,6 +240,7 @@ function makeWebClient(): NekkoApi {
     lmsAvailable: (providerId) => call(IpcChannels.lmsProbe, providerId),
     stopServer: (providerId) => call(IpcChannels.serverStop, providerId),
     getGpuStats: () => call(IpcChannels.gpuStats),
+    getSystemStats: () => call(IpcChannels.systemStats),
 
     listSessions: () => call(IpcChannels.sessionsList),
     createSession: (workspaceId) => call(IpcChannels.sessionCreate, workspaceId),

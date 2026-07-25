@@ -169,7 +169,7 @@ export function pauseTrainingRun(id: string): TrainingRun[] {
     if (r.status !== 'running') return;
     stopClock(r);
     r.status = 'paused';
-    log(r, 'info', 'Run paused. The current turn finishes, then the agent stops.');
+    log(r, 'info', 'Run paused. The current iteration finishes, then the agent stops.');
   });
   return listTrainingRuns();
 }
@@ -559,7 +559,7 @@ async function tickRun(id: string): Promise<void> {
   } catch (e) {
     persistRun(id, (r) => {
       r.errorTurns = (r.errorTurns ?? 0) + 1;
-      log(r, 'error', `Turn failed: ${(e as Error).message}`);
+      log(r, 'error', `Iteration failed: ${(e as Error).message}`);
       if ((r.errorTurns ?? 0) >= ERROR_LIMIT && r.status === 'running') {
         stopClock(r);
         r.status = 'failed';

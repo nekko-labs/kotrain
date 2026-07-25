@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Badge } from '../components/primitives/index.js';
-import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@kotrain/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
@@ -122,6 +122,9 @@ export function SettingsView() {
           </div>
         </section>
 
+        {/* Agent loop */}
+        <AgentLoopSection settings={settings} update={update} />
+
         {/* Spec-driven development */}
         <section className="card mt-5 p-5">
           <div className="flex items-center gap-2"><h2 className="font-semibold">Spec-driven development</h2></div>
@@ -211,6 +214,54 @@ export function SettingsView() {
         <p className="mt-6 text-center text-[11px] text-ink-faint">Kotrain · open source · MIT</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * The agent loop's step budget: how many tool steps one reply may take before
+ * Nekko stops and answers with what it has. Committed on blur/Enter (not per
+ * keystroke) so a half-typed number never becomes the live setting.
+ */
+function AgentLoopSection({ settings, update }: { settings: AppSettings; update: (patch: Partial<AppSettings>) => void }) {
+  const saved = settings.maxSteps ?? DEFAULT_MAX_STEPS;
+  const [draft, setDraft] = useState(String(saved));
+  useEffect(() => { setDraft(String(settings.maxSteps ?? DEFAULT_MAX_STEPS)); }, [settings.maxSteps]);
+
+  const commit = () => {
+    const n = clampMaxSteps(Number(draft));
+    const next = n ?? DEFAULT_MAX_STEPS;
+    setDraft(String(next));
+    if (next !== saved) update({ maxSteps: next });
+  };
+
+  return (
+    <section className="card mt-5 p-5">
+      <div className="flex items-center gap-2"><RobotIcon className="h-4 w-4" /><h2 className="font-semibold">Agent loop</h2></div>
+      <p className="mt-1 text-[12px] text-ink-faint">
+        A long task takes many tool steps (read, search, edit, verify). This is the backstop that catches a loop
+        going nowhere, not a work limit: when a reply reaches it, Nekko stops calling tools and answers with what
+        it found plus the next steps, so nothing is thrown away.
+      </p>
+      <div className="mt-3 flex min-h-[40px] items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-[13px]">Tool steps per reply</span>
+          <p className="text-[11px] text-ink-faint">
+            {MAX_STEPS_RANGE.min}–{MAX_STEPS_RANGE.max}. Default {DEFAULT_MAX_STEPS}.
+          </p>
+        </div>
+        <input
+          type="number"
+          className="input max-w-[110px] py-1.5 tabular-nums"
+          min={MAX_STEPS_RANGE.min}
+          max={MAX_STEPS_RANGE.max}
+          value={draft}
+          aria-label="Tool steps per reply"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        />
+      </div>
+    </section>
   );
 }
 

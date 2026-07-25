@@ -16,7 +16,7 @@ export const SOURCE_META: Record<ContextItem['source'], { label: string; color: 
   conversation: {
     label: 'Conversation',
     color: CONTEXT_SOURCE.conversation,
-    explain: 'The running back-and-forth of this chat. Grows every turn — the biggest driver of context as a chat gets long.',
+    explain: 'The running back-and-forth of this chat. It grows with every reply, the biggest driver of context as a chat gets long.',
   },
   guideline: {
     label: 'Guidelines',
@@ -31,7 +31,7 @@ export const SOURCE_META: Record<ContextItem['source'], { label: string; color: 
   'attached-file': {
     label: 'Files',
     color: CONTEXT_SOURCE['attached-file'],
-    explain: 'Files you attached to this chat. Included in full on every turn.',
+    explain: 'Files you attached to this chat. Included in full on every reply.',
   },
   connector: {
     label: 'Connectors',
@@ -41,7 +41,7 @@ export const SOURCE_META: Record<ContextItem['source'], { label: string; color: 
   'index-snippet': {
     label: 'Code index',
     color: CONTEXT_SOURCE['index-snippet'],
-    explain: "Code snippets retrieved from your workspace index that match this turn's prompt.",
+    explain: "Code snippets retrieved from your workspace index that match this reply's prompt.",
   },
   skill: {
     label: 'Skill',
