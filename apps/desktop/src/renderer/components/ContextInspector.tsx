@@ -5,40 +5,22 @@ import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icon
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
 import { ResourceDock } from './ResourceMonitor.js';
-import { CONTEXT_SOURCE } from '../tokens.js';
+import { sourceMeta } from '../contextSources.js';
 
-const SOURCE_LABEL: Record<ContextItem['source'], string> = {
-  'attached-file': 'Files',
-  guideline: 'Guidelines',
-  memory: 'Memory',
-  connector: 'Connectors',
-  'index-snippet': 'Code index',
-  system: 'System prompt',
-  conversation: 'Conversation',
-  skill: 'Skill',
-};
-
-const SOURCE_COLOR = CONTEXT_SOURCE;
-
-/** Plain-language explanation of each context source, shown on hover. */
-const SOURCE_EXPLAIN: Record<ContextItem['source'], string> = {
-  system: "Kotrain's base instructions to the model, its role, available tools, and safety rules. Always included.",
-  guideline: 'Your project guideline files (AGENTS.md / CLAUDE.md and similar) that tell the model how to work in this repo.',
-  memory: 'Facts Kotrain remembers across chats, your preferences and project notes, that match this conversation.',
-  'attached-file': 'Files you attached to this chat. Included in full on every reply.',
-  connector: 'Content pulled from your connected tools and integrations that is relevant to this prompt.',
-  'index-snippet': "Code snippets retrieved from your workspace index that match this reply's prompt.",
-  conversation: 'The running back-and-forth of this chat. It grows with every reply, the biggest driver of context as a chat gets long.',
-  skill: 'The skill armed in the composer. Its instructions are added to your message when you send.',
-};
-
-/** A small "i" badge that reveals an explanation on hover. */
+/** A small "i" badge that reveals an explanation on hover or keyboard focus. */
 function InfoHint({ text }: { text: string }) {
   return (
     <span className="group/info relative inline-flex">
-      <span className="grid h-3.5 w-3.5 cursor-help place-items-center rounded-full border border-line text-[8px] font-bold text-ink-faint">i</span>
       <span
-        className="pointer-events-none absolute left-0 top-5 z-50 hidden w-56 rounded-xl border border-line p-2.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-ink-soft shadow-lg group-hover/info:block"
+        tabIndex={0}
+        role="note"
+        aria-label={text}
+        className="grid h-3.5 w-3.5 cursor-help place-items-center rounded-full border border-line text-[8px] font-bold text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+      >
+        i
+      </span>
+      <span
+        className="pointer-events-none absolute left-0 top-5 z-50 hidden w-56 rounded-xl border border-line p-2.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-ink-soft shadow-lg group-focus-within/info:block group-hover/info:block"
         style={{ background: 'var(--surface)' }}
       >
         {text}
@@ -245,7 +227,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
               <span className="shrink-0 text-[11px] font-medium text-accent">{skillTokens.toLocaleString()} tok</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-snug text-ink-soft">{activeSkill.description}</p>
-            <p className="mt-1 text-[10.5px] text-ink-faint">Added to your message when you send. Not typed into the box.</p>
+            <p className="mt-1 text-[11px] text-ink-faint">Added to your message when you send. Not typed into the box.</p>
           </div>
         )}
 
@@ -255,8 +237,8 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
             <div className="space-y-1">
               {breakdown.map(([src, n]) => (
                 <div key={src} className="flex items-center gap-2 text-[12px]">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SOURCE_COLOR[src as ContextItem['source']] ?? 'var(--neutral)' }} />
-                  <span className="min-w-0 flex-1 truncate text-ink-soft">{SOURCE_LABEL[src as ContextItem['source']] ?? src}</span>
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: sourceMeta(src).color }} />
+                  <span className="min-w-0 flex-1 truncate text-ink-soft">{sourceMeta(src).label}</span>
                   <span className="shrink-0 text-ink-faint">{n.toLocaleString()} tok</span>
                 </div>
               ))}
@@ -411,10 +393,10 @@ function Row({
       <span className={active ? 'text-accent' : 'text-ink-faint'}>{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-[12.5px] font-medium">{title}</span>
+          <span className="truncate text-[13px] font-medium">{title}</span>
           {badge && (badgeAction ? (
             <button
-              className="chip shrink-0 cursor-pointer text-[9px] uppercase hover:text-accent"
+              className="chip shrink-0 cursor-pointer text-[10px] uppercase hover:text-accent"
               onClick={(e) => {
                 e.stopPropagation();
                 badgeAction();
@@ -423,14 +405,14 @@ function Row({
             >
               {badge}
             </button>
-          ) : <span className="chip shrink-0 text-[9px] uppercase">{badge}</span>)}
+          ) : <span className="chip shrink-0 text-[10px] uppercase">{badge}</span>)}
           {onClick && <ExternalIcon className="h-3 w-3 shrink-0 text-ink-faint opacity-0 group-hover:opacity-100" />}
         </div>
-        {subtitle && <p className="truncate text-[10.5px] text-ink-faint">{subtitle}</p>}
+        {subtitle && <p className="truncate text-[11px] text-ink-faint">{subtitle}</p>}
       </div>
       {onRemove && (
         <button
-          className="shrink-0 text-ink-faint opacity-0 hover:text-red-400 group-hover:opacity-100"
+          className="shrink-0 text-ink-faint opacity-0 hover:text-[var(--danger)] group-hover:opacity-100"
           title="Remove"
           onClick={(e) => {
             e.stopPropagation();

@@ -20,6 +20,14 @@
   --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.04), 0 2px 8px rgba(20, 20, 30, 0.05);
   --shadow-md: 0 4px 16px rgba(20, 20, 30, 0.08), 0 1px 3px rgba(20, 20, 30, 0.06);
   --ring: color-mix(in srgb, var(--accent) 35%, transparent);
+  /* Motion vocabulary: one deceleration curve for arrivals and layout change,
+     one spring reserved for the playful nav icons. Durations by consequence:
+     fast feedback, standard state change, slow layout/overlay. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 0.12s;
+  --dur-med: 0.2s;
+  --dur-slow: 0.26s;
   /* Semantic status colors. Every screen reads state through these (never a
      raw hex), so a theme change moves every badge, dot and chip at once. */
   --success: #3aa870;
@@ -216,11 +224,17 @@ h1 { letter-spacing: -0.02em; }
     background: var(--surface-2);
     color: var(--ink-soft);
   }
+  /* Keyboard-shortcut hint, sat at the end of a menu row or a button. */
+  .kbd {
+    @apply inline-flex shrink-0 items-center rounded-md border border-line px-1.5 py-px font-sans text-[10px] font-medium;
+    background: var(--surface-2);
+    color: var(--ink-faint);
+  }
   /* The collapsible left rail: 64px of icons at rest; hovering (or keyboard
      focus inside) expands it over the content to reveal the labels. */
   .rail {
     width: 64px;
-    transition: width 0.26s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease;
+    transition: width var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) ease;
     will-change: width;
   }
   .rail:hover,
@@ -233,7 +247,7 @@ h1 { letter-spacing: -0.02em; }
     transform: translateX(-8px);
     white-space: nowrap;
     pointer-events: none;
-    transition: opacity 0.16s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.16s ease, transform var(--dur-slow) var(--ease-out);
   }
   .rail:hover .rail-label,
   .rail:has(:focus-visible) .rail-label {
@@ -269,7 +283,7 @@ h1 { letter-spacing: -0.02em; }
      hover, a satisfying squish on press, and a pop when a tab becomes active. */
   .nav-item svg {
     opacity: 0.82;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease;
+    transition: transform var(--dur-med) var(--ease-spring), opacity 0.15s ease;
     will-change: transform;
   }
   .nav-item:hover svg {
@@ -281,7 +295,7 @@ h1 { letter-spacing: -0.02em; }
   }
   .nav-item.active svg {
     opacity: 1;
-    animation: nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: nav-pop 0.45s var(--ease-spring);
   }
   @keyframes nav-pop {
     0% { transform: scale(0.7); }
@@ -406,20 +420,39 @@ h1 { letter-spacing: -0.02em; }
   100% { box-shadow: inset 0 0 0 0 transparent; }
 }
 
-.fade-in { animation: fade 0.25s ease; }
+.fade-in { animation: fade 0.25s var(--ease-out); }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-/* Smooth expand/collapse for sidebar folder sections (the 0fr→1fr grid trick,
-   which animates to the content's natural height without measuring it). */
+/* Deliberate entrance for high-stakes surfaces (the tool-approval bar): slides
+   up from the composer edge so the interruption reads as arriving, not popping. */
+.slide-up { animation: slide-up 0.22s var(--ease-out); }
+@keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Smooth expand/collapse (the 0fr→1fr grid trick, which animates to the
+   content's natural height without measuring it). Used by sidebar folder
+   sections and by composer attachments (analyzer, queue) so they never shove
+   the textarea around mid-keystroke. */
 .collapse-wrap {
   display: grid;
   grid-template-rows: 1fr;
-  transition: grid-template-rows 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  transition: grid-template-rows 0.22s var(--ease-out), opacity var(--dur-med) ease;
   opacity: 1;
 }
 .collapse-wrap.collapsed {
   grid-template-rows: 0fr;
   opacity: 0;
+}
+
+/* Honor the OS reduce-motion setting: kill loops (mascot, pulsing dots) and
+   collapse transitions to instant. Snapshot the first animation frame so
+   entrance keyframes land in their end state. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Clean, conversational thread (no bubbles). The user's turn sits in a soft

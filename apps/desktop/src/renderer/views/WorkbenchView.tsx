@@ -10,6 +10,7 @@ import { DiffPane } from '../components/DiffPane.js';
 import { PrPane, PrBadge } from '../components/PrCard.js';
 import { ProjectFiles } from '../components/FileTree.js';
 import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
+import { SHORTCUTS } from '../shortcuts.js';
 
 /** Short label for a pane's tab/title. */
 function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
@@ -266,21 +267,25 @@ export function WorkbenchView() {
                 onClick={() => { setNewMenuOpen(false); newChat(); }}
               >
                 <ChatIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                <span className="min-w-0">
-                  <span className="block text-[12.5px] font-medium">New agent</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-medium">New agent</span>
                   <span className="block text-[11px] text-ink-faint">Chat that drives an agent</span>
                 </span>
+                <kbd className="kbd mt-0.5">{SHORTCUTS.newAgent.label}</kbd>
               </button>
 
               <div className="my-1 border-t border-line" />
-              <p className="px-2.5 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Terminal</p>
+              <div className="flex items-center justify-between gap-2 px-2.5 pb-0.5 pt-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Terminal</p>
+                <kbd className="kbd">{SHORTCUTS.newTerminal.label}</kbd>
+              </div>
               {shells.length === 0 ? (
                 <button
                   className="flex w-full items-start gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
                   onClick={() => { setNewMenuOpen(false); newTerminal(); }}
                 >
                   <TerminalIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                  <span className="text-[12.5px] font-medium">New terminal</span>
+                  <span className="text-[13px] font-medium">New terminal</span>
                 </button>
               ) : (
                 shells.map((sh) => (
@@ -291,7 +296,7 @@ export function WorkbenchView() {
                     onClick={() => { setNewMenuOpen(false); newTerminal(undefined, sh.path); }}
                   >
                     <TerminalIcon className="h-4 w-4 shrink-0 text-ink-faint" />
-                    <span className="min-w-0 flex-1 truncate text-[12.5px]">{sh.label}</span>
+                    <span className="min-w-0 flex-1 truncate text-[13px]">{sh.label}</span>
                   </button>
                 ))
               )}
@@ -557,14 +562,14 @@ function ChatTags({ session, workspaces }: { session: Session; workspaces: Works
       {chips.slice(0, 2).map((c, i) => (
         <span
           key={i}
-          className="max-w-[70px] shrink-0 truncate rounded px-1 py-px text-[9px] leading-[1.5]"
+          className="max-w-[70px] shrink-0 truncate rounded px-1 py-px text-[10px] leading-[1.5]"
           style={{ background: 'var(--surface-2)', color: 'var(--ink-faint)' }}
           title={c.project ? `Also references ${c.label}` : `Tag: ${c.label}`}
         >
           {c.label}
         </span>
       ))}
-      {chips.length > 2 && <span className="shrink-0 text-[9px] text-ink-faint">+{chips.length - 2}</span>}
+      {chips.length > 2 && <span className="shrink-0 text-[10px] text-ink-faint">+{chips.length - 2}</span>}
     </span>
   );
 }
@@ -585,7 +590,7 @@ function ChatRow({
     <>
       <button
         onClick={() => onOpen(session.id)}
-        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[12.5px] transition-colors duration-150 ${
+        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[13px] transition-colors duration-150 ${
           isActive ? 'bg-accent-soft font-medium text-ink' : 'text-ink-soft hover:bg-surface-2'
         }`}
         style={{ paddingLeft: 14 + depth * 16 }}
@@ -617,12 +622,12 @@ function TerminalRow({ term, onOpen }: { term: TerminalInfo; onOpen: (id: string
   return (
     <button
       onClick={() => onOpen(term.id)}
-      className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[12.5px] text-ink-soft transition-colors duration-150 hover:bg-surface-2"
+      className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[13px] text-ink-soft transition-colors duration-150 hover:bg-surface-2"
       style={{ paddingLeft: 14 }}
     >
       <TerminalIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
       <span className="min-w-0 flex-1 truncate">{term.title}</span>
-      {!term.running && <span className="shrink-0 text-[10px] text-red-400">exited</span>}
+      {!term.running && <span className="shrink-0 text-[10px]" style={{ color: 'var(--danger)' }}>exited</span>}
     </button>
   );
 }
@@ -645,17 +650,23 @@ function PaneGroupView({
     return wid ? workspaces.find((w) => w.id === wid)?.name ?? null : null;
   };
   return (
-    <div className={`flex min-w-0 flex-1 flex-col border-r border-line ${isActive ? '' : 'opacity-95'}`} onMouseDown={onFocus}>
-      {/* Tab strip */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-line px-1.5 py-1" style={{ background: 'var(--surface-2)' }}>
+    <div className="flex min-w-0 flex-1 flex-col border-r border-line" onMouseDown={onFocus}>
+      {/* Tab strip: real tabs, reachable and switchable from the keyboard. */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-line px-1.5 py-1" style={{ background: 'var(--surface-2)' }} role="tablist">
         {group.panes.map((p) => {
           const isActiveTab = p.id === active?.id;
           const status = p.kind === 'chat' ? statuses.get(p.refId) : undefined;
           return (
             <div
               key={p.id}
+              role="tab"
+              aria-selected={isActiveTab}
+              tabIndex={0}
               onClick={() => onSelect(p.id)}
-              className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(p.id); }
+              }}
+              className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
                 isActiveTab ? 'bg-paper font-medium shadow-sm' : 'text-ink-soft hover:bg-paper/50'
               }`}
               style={isActiveTab ? { background: 'var(--paper)' } : undefined}
@@ -664,7 +675,7 @@ function PaneGroupView({
               <span className="max-w-[140px] truncate">{titleFor(p)}</span>
               {projectFor(p) && (
                 <span
-                  className="max-w-[90px] shrink-0 truncate rounded px-1 py-px text-[9px] leading-[1.5] text-ink-faint"
+                  className="max-w-[90px] shrink-0 truncate rounded px-1 py-px text-[10px] leading-[1.5] text-ink-faint"
                   style={{ background: 'var(--surface-2)' }}
                   title={`Project: ${projectFor(p)}`}
                 >
@@ -673,8 +684,9 @@ function PaneGroupView({
               )}
               {status && <StatusDot status={status} />}
               <button
-                className="ml-0.5 rounded p-0.5 text-ink-faint opacity-0 hover:text-ink group-hover:opacity-100"
+                className="ml-0.5 rounded p-0.5 text-ink-faint opacity-0 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
                 title="Close tab"
+                aria-label={`Close ${titleFor(p)}`}
                 onClick={(e) => { e.stopPropagation(); onClose(p.id); }}
               >
                 <CloseIcon className="h-3 w-3" />
@@ -683,8 +695,8 @@ function PaneGroupView({
           );
         })}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="New chat" onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="New terminal" onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded p-1 text-ink-faint hover:text-ink" title={`New chat (${SHORTCUTS.newAgent.label})`} onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded p-1 text-ink-faint hover:text-ink" title={`New terminal (${SHORTCUTS.newTerminal.label})`} onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
           {canSplit && group.panes.length > 1 && active && (
             <button className="rounded p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
           )}
@@ -707,8 +719,12 @@ function EmptyState({ onNewChat, onNewTerminal }: { onNewChat: () => void; onNew
         <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">Open a chat to drive an agent, or a terminal to run commands. Open several and split them side by side.</p>
       </div>
       <div className="flex gap-2">
-        <button className="btn btn-primary" onClick={onNewChat}><ChatIcon className="h-4 w-4" /> New chat</button>
-        <button className="btn btn-outline" onClick={onNewTerminal}><TerminalIcon className="h-4 w-4" /> New terminal</button>
+        <button className="btn btn-primary" onClick={onNewChat}>
+          <ChatIcon className="h-4 w-4" /> New chat <kbd className="kbd">{SHORTCUTS.newAgent.label}</kbd>
+        </button>
+        <button className="btn btn-outline" onClick={onNewTerminal}>
+          <TerminalIcon className="h-4 w-4" /> New terminal <kbd className="kbd">{SHORTCUTS.newTerminal.label}</kbd>
+        </button>
       </div>
     </div>
   );

@@ -18,3 +18,7 @@ cli-dist/
 kotrain-training/
 kotrain-goal/
 kotrain-designs/
+
+# Local agent tooling (per-machine hooks and critique scratch)
+.codex/
+.impeccable/

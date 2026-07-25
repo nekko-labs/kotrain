@@ -1,0 +1,44 @@
+/**
+ * Global keyboard shortcuts, defined once so the handler that listens for a
+ * chord and the hint we render next to a menu item can never drift apart.
+ */
+
+const isMac =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+
+const MOD = isMac ? '⌘' : 'Ctrl+';
+
+/** Ctrl on Windows/Linux, Cmd on macOS. */
+const mod = (e: KeyboardEvent) => e.ctrlKey || e.metaKey;
+
+export interface Shortcut {
+  /** Hint to show in menus and tooltips, e.g. "⌘N" or "Ctrl+N". */
+  label: string;
+  /** Whether a keydown is this chord. */
+  matches: (e: KeyboardEvent) => boolean;
+}
+
+export const SHORTCUTS: Record<'palette' | 'newAgent' | 'newTerminal' | 'contextPanel', Shortcut> = {
+  palette: {
+    label: `${MOD}K`,
+    matches: (e) => mod(e) && !e.shiftKey && e.key.toLowerCase() === 'k',
+  },
+  // New chat is ⌘N in Claude Desktop, ChatGPT's desktop app, and Cursor, so it
+  // is the one people already reach for.
+  newAgent: {
+    label: `${MOD}N`,
+    matches: (e) => mod(e) && !e.shiftKey && e.key.toLowerCase() === 'n',
+  },
+  // Backtick is the terminal key in VS Code, Cursor, and Zed (Ctrl+` opens the
+  // terminal there, Ctrl+Shift+` adds another). Kotrain has no terminal panel to
+  // toggle, so both chords just spawn one. Shift+` arrives as "~" on US layouts.
+  // ⌘J keeps working for anyone used to the shortcut Kotrain shipped before.
+  newTerminal: {
+    label: `${MOD}\``,
+    matches: (e) => mod(e) && (e.key === '`' || e.key === '~' || e.key.toLowerCase() === 'j'),
+  },
+  contextPanel: {
+    label: `${MOD}\\`,
+    matches: (e) => mod(e) && e.key === '\\',
+  },
+};
