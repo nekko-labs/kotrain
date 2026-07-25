@@ -12,6 +12,7 @@ import {
   type PartFill,
   type Severity,
 } from '../promptAnalysis.js';
+import { CATEGORY } from '../tokens.js';
 import { FolderIcon } from '../icons.js';
 
 /**
@@ -34,10 +35,10 @@ interface ContextRef {
   sub?: string;
 }
 const REF_META: Record<RefKind, { color: string; label: string }> = {
-  guideline: { color: '#c08adb', label: 'Guideline' },
-  spec: { color: '#5bc8c0', label: 'Spec' },
-  file: { color: '#5b9dd9', label: 'File' },
-  code: { color: '#8a8f98', label: 'Code index' },
+  guideline: { color: CATEGORY.guideline, label: 'Guideline' },
+  spec: { color: CATEGORY.spec, label: 'Spec' },
+  file: { color: CATEGORY.file, label: 'File' },
+  code: { color: CATEGORY.index, label: 'Code index' },
 };
 
 function baseName(p: string): string {

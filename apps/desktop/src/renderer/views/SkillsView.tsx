@@ -26,11 +26,11 @@ import { StarIcon, SendIcon } from '../icons.js';
 
 /** Per-node-kind visual identity for the workflow canvas. */
 const KIND: Record<SkillNodeKind, { color: string; glyph: string; label: string }> = {
-  trigger: { color: '#f59e0b', glyph: '⚡', label: 'Trigger' },
+  trigger: { color: 'var(--warning)', glyph: '⚡', label: 'Trigger' },
   context: { color: '#6f9bff', glyph: '▤', label: 'Context' },
   agent: { color: '#a78bfa', glyph: '✦', label: 'Agent' },
-  tool: { color: '#4ec98a', glyph: '⚙', label: 'Tool' },
-  decision: { color: '#fbbf24', glyph: '◆', label: 'Decision' },
+  tool: { color: 'var(--success)', glyph: '⚙', label: 'Tool' },
+  decision: { color: 'var(--highlight)', glyph: '◆', label: 'Decision' },
   loop: { color: '#f472b6', glyph: '↻', label: 'Loop' },
   output: { color: '#34d399', glyph: '✓', label: 'Output' },
 };
@@ -205,7 +205,7 @@ function LibraryTab() {
 
 const SOURCE_META: Record<MarketplaceSkill['source'], { label: string; color: string }> = {
   nekkolabs: { label: 'Nekko Labs', color: 'var(--accent)' },
-  community: { label: 'community', color: '#5b9dd9' },
+  community: { label: 'community', color: 'var(--info)' },
   dojo: { label: 'Nekko Dojo', color: '#a78bfa' },
 };
 
@@ -216,7 +216,7 @@ function TierChip({ tier }: { tier?: MarketplaceSkill['tier'] }) {
   return (
     <span
       className="shrink-0 rounded-full px-1.5 py-0 text-[9px]"
-      style={{ background: 'var(--surface-2)', color: official ? '#a78bfa' : '#4ec98a' }}
+      style={{ background: 'var(--surface-2)', color: official ? '#a78bfa' : 'var(--success)' }}
       title={official ? 'Built and reviewed by Nekko Labs' : 'Community-submitted: audit before use, skills run with your permissions'}
     >
       {official ? '🟣 official' : '🟢 community'}
@@ -444,7 +444,7 @@ function MarketplaceTab() {
                 </div>
                 <p className="mt-1 text-[13px] text-ink-soft">{selected.description}</p>
                 {selected.source === 'dojo' && selected.tier === 'community' && (
-                  <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px]" style={{ background: 'color-mix(in srgb, #f59e0b 12%, transparent)', color: '#b45309' }}>
+                  <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px]" style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)', color: 'var(--warning)' }}>
                     Community skill: it runs with your machine's permissions. Read its instructions before installing.
                   </p>
                 )}

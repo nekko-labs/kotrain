@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { Badge } from '../components/primitives/index.js';
 import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
@@ -13,7 +14,7 @@ const SANDBOX_OPTS: Array<{ value: SandboxMode; label: string; desc: string }> =
   { value: 'off', label: 'Off', desc: 'No restrictions (power users).' },
 ];
 
-const ACTION_COLORS: Record<GuardrailAction, string> = { allow: '#4ec98a', ask: '#e0a44a', deny: '#e0574a' };
+const ACTION_COLORS: Record<GuardrailAction, string> = { allow: 'var(--success)', ask: 'var(--warning)', deny: 'var(--danger)' };
 
 const CHAT_MODES: Array<{ value: ChatMode; label: string; desc: string }> = [
   { value: 'ask', label: 'Ask', desc: 'Confirm every file write and command before it runs.' },
@@ -298,7 +299,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   };
 
   return (
-    <section className="card mt-5 p-5" style={{ borderColor: 'color-mix(in srgb, #e0574a 35%, var(--line))' }}>
+    <section className="card mt-5 p-5" style={{ borderColor: 'color-mix(in srgb, var(--danger) 35%, var(--line))' }}>
       <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">Data &amp; privacy</h2></div>
       <p className="mt-1 text-[12px] text-ink-faint">Everything stays on your machine. Clean it up here whenever you want.</p>
 
@@ -323,7 +324,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
         </div>
         <button
           className="btn py-1.5 text-[12px] !text-white"
-          style={{ background: '#e0574a' }}
+          style={{ background: 'var(--danger)' }}
           disabled={busy}
           onClick={wipe}
         >
@@ -441,9 +442,9 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
                 <input className="input py-1 text-[12.5px]" style={{ maxWidth: 160 }} value={s.name} onChange={(e) => edit(s.id, { name: e.target.value })} />
                 <span className="chip">{s.url != null ? 'http' : 'stdio'}</span>
                 {st && (
-                  <span className="chip !text-white" style={{ background: st.connected ? '#4ec98a' : '#e0574a' }} title={st.error}>
+                  <Badge tone={st.connected ? 'success' : 'danger'} variant="solid" title={st.error}>
                     {st.connected ? `${st.tools.length} tools` : 'offline'}
-                  </span>
+                  </Badge>
                 )}
                 <div className="ml-auto flex items-center gap-2">
                   <Toggle on={s.enabled} onChange={(v) => edit(s.id, { enabled: v })} />
@@ -461,7 +462,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
                   <input className="input py-1 font-mono text-[12px]" value={s.args.join(' ')} onChange={(e) => edit(s.id, { args: e.target.value.split(/\s+/).filter(Boolean) })} placeholder="-y @modelcontextprotocol/server-filesystem ." />
                 </div>
               )}
-              {st?.error && <p className="mt-1 text-[11px]" style={{ color: '#e0574a' }}>{st.error}</p>}
+              {st?.error && <p className="mt-1 text-[11px]" style={{ color: 'var(--danger)' }}>{st.error}</p>}
             </div>
           );
         })}
@@ -568,7 +569,7 @@ function GuardrailsSection({
             onChange={(e) => setDraft(e.target.value)}
             spellCheck={false}
           />
-          {error && <p className="mt-1.5 text-[12px]" style={{ color: '#e0574a' }}>{error}</p>}
+          {error && <p className="mt-1.5 text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
           <div className="mt-2 flex justify-end gap-2">
             <button className="btn btn-ghost" onClick={() => setJsonMode(false)}>Cancel</button>
             <button className="btn btn-primary" onClick={apply}>Apply</button>
@@ -582,7 +583,7 @@ function GuardrailsSection({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-[13px] font-medium">{g.label}</span>
-                    <span className="h-2 w-2 rounded-full" style={{ background: g.severity === 'high' ? '#e0574a' : g.severity === 'medium' ? '#e0a44a' : '#8a8f98' }} />
+                    <span className="h-2 w-2 rounded-full" style={{ background: g.severity === 'high' ? 'var(--danger)' : g.severity === 'medium' ? 'var(--warning)' : 'var(--neutral)' }} />
                   </div>
                   <p className="truncate text-[11px] text-ink-faint">{g.description}</p>
                 </div>

@@ -5,7 +5,6 @@ import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icon
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
 import { useGpuStats, VramDock } from './GpuStats.js';
-
 import { sourceMeta } from '../contextSources.js';
 
 /** A small "i" badge that reveals an explanation on hover or keyboard focus. */

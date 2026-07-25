@@ -10,6 +10,7 @@ import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { PrCard, PrBadge } from './PrCard.js';
 import { MiniNekko } from './Mascot.js';
+import { Modal } from './primitives/index.js';
 import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon, StarIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
@@ -107,15 +108,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
-
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(null);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [lightbox]);
 
   // Track how many files the agent changed this chat (for the Changes button).
   useEffect(() => {
@@ -1090,25 +1082,14 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         />
       )}
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Image preview"
-          onClick={() => setLightbox(null)}
+        <Modal
+          title="Attached image"
+          onClose={() => setLightbox(null)}
+          scrim="rgba(0,0,0,0.5)"
+          overlayClassName="p-4"
         >
-          <button
-            autoFocus
-            className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-            title="Close (Esc)"
-            onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
-          >
-            <CloseIcon className="h-4 w-4" />
-          </button>
-          <div onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox} alt="Full-size attachment" className="max-h-[90vh] max-w-[90vw] object-contain" />
-          </div>
-        </div>
+          <img src={lightbox} alt="Full-size attachment" className="max-h-[90vh] max-w-[90vw] object-contain" />
+        </Modal>
       )}
     </div>
   );
@@ -1116,8 +1097,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
 /**
  * Provider + model as one legible control (instead of two microscopic selects):
- * a chip naming the current model that opens a picker with the provider select
- * and the model list, favorites first, Auto on top.
+ * a chip naming the current model that opens a flat picker of every provider's
+ * models, grouped by provider, starred on top, Auto first.
  */
 function ModelPicker({
   providers,
@@ -1420,7 +1401,7 @@ function TurnStatus({
   }
   if (done) {
     return (
-      <div className="fade-in flex items-center gap-2 pt-1 text-[12px]" style={{ color: 'var(--ok)' }} role="status">
+      <div className="fade-in flex items-center gap-2 pt-1 text-[12px]" style={{ color: 'var(--success)' }} role="status">
         <span>✓</span> {done}
       </div>
     );
@@ -1607,7 +1588,7 @@ function ApprovalBar({ approval, onDecide }: { approval: PendingApproval; onDeci
   const denyRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { denyRef.current?.focus(); }, []);
   const color =
-    approval.severity === 'high' ? 'var(--danger)' : approval.severity === 'medium' ? 'var(--warn)' : 'var(--ink-faint)';
+    approval.severity === 'high' ? 'var(--danger)' : approval.severity === 'medium' ? 'var(--warning)' : 'var(--ink-faint)';
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); onDecide(true); }
     else if (e.key === 'n' || e.key === 'N' || e.key === 'Escape') { e.preventDefault(); onDecide(false); }

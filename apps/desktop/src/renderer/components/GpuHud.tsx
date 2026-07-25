@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGpuStats } from './GpuStats.js';
 
 const GB = (mb: number) => (mb / 1024).toFixed(mb / 1024 >= 10 ? 0 : 1);
-const usedColor = (pct: number) => (pct > 90 ? '#e0574a' : pct > 70 ? '#e0a44a' : '#4ec98a');
+const usedColor = (pct: number) => (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)');
 
 /**
  * A small always-on GPU monitor pinned to the bottom-right corner, visible on

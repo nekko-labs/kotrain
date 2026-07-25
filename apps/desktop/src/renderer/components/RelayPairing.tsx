@@ -107,7 +107,7 @@ export function RelayPairing() {
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
-      {error && <p className="mt-2 max-w-sm text-center text-[12px]" style={{ color: '#e0574a' }}>{error}</p>}
+      {error && <p className="mt-2 max-w-sm text-center text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
       <button className="btn btn-primary mt-4 w-full max-w-sm" onClick={pair} disabled={!input.trim()}>Pair</button>
       <div className="my-3 flex w-full max-w-sm items-center gap-3 text-[11px] text-ink-faint">
         <span className="h-px flex-1" style={{ background: 'var(--line)' }} /> or <span className="h-px flex-1" style={{ background: 'var(--line)' }} />

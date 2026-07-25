@@ -13,9 +13,9 @@ export function prSummary(prs: PrInfo[]) {
 }
 
 const CHECK_META: Record<PrChecks, { label: string; color: string; dot: string }> = {
-  passing: { label: 'checks passing', color: '#4ec98a', dot: '✓' },
-  failing: { label: 'checks failing', color: '#e0574a', dot: '✕' },
-  pending: { label: 'checks running', color: '#e0a44a', dot: '●' },
+  passing: { label: 'checks passing', color: 'var(--success)', dot: '✓' },
+  failing: { label: 'checks failing', color: 'var(--danger)', dot: '✕' },
+  pending: { label: 'checks running', color: 'var(--warning)', dot: '●' },
   none: { label: '', color: '', dot: '' },
 };
 
@@ -112,7 +112,7 @@ export function PrCard({ url, info, sessionId }: { url: string; info?: PrInfo; s
         </button>
         <span
           className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-          style={{ background: closed ? '#8a5cd0' : info?.isDraft ? '#8a8f98' : '#2ea043' }}
+          style={{ background: closed ? '#8a5cd0' : info?.isDraft ? 'var(--neutral)' : '#2ea043' }}
         >
           {closed ? 'closed' : info?.isDraft ? 'draft' : 'open'}
         </span>
@@ -145,7 +145,7 @@ export function PrCard({ url, info, sessionId }: { url: string; info?: PrInfo; s
             </button>
             <button
               className="rounded-lg border px-3 py-1 text-[12px] font-medium transition hover:bg-red-500/10 disabled:opacity-50"
-              style={{ borderColor: 'rgba(224,87,74,0.35)', color: 'rgba(224,87,74,0.85)' }}
+              style={{ borderColor: 'color-mix(in srgb, var(--danger) 35%, transparent)', color: 'color-mix(in srgb, var(--danger) 85%, transparent)' }}
               onClick={() => act('close')}
               disabled={!!busy}
               title="Close this PR without merging"
@@ -195,8 +195,8 @@ function patchLines(patch: string) {
     let color: string | undefined;
     let bg: string | undefined;
     if (line.startsWith('@@')) color = 'var(--accent)';
-    else if (line.startsWith('+')) { color = '#4ec98a'; bg = 'rgba(78,201,138,0.10)'; }
-    else if (line.startsWith('-')) { color = '#e0574a'; bg = 'rgba(224,87,74,0.10)'; }
+    else if (line.startsWith('+')) { color = 'var(--success)'; bg = 'color-mix(in srgb, var(--success) 10%, transparent)'; }
+    else if (line.startsWith('-')) { color = 'var(--danger)'; bg = 'color-mix(in srgb, var(--danger) 10%, transparent)'; }
     return (
       <div key={i} className="flex" style={{ background: bg }}>
         <span className="whitespace-pre-wrap break-words px-3" style={{ color: color ?? 'var(--ink-soft)' }}>{line || ' '}</span>
