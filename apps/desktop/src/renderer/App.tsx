@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
 import { useT } from './i18n.js';
+import { SHORTCUTS } from './shortcuts.js';
 import { Mascot } from './components/Mascot.js';
 import { GpuHud } from './components/GpuHud.js';
 import { Toasts } from './components/Toasts.js';
@@ -60,19 +61,18 @@ export function App() {
     const onChange = () => useStore.getState().applyTheme();
     mq.addEventListener('change', onChange);
 
-    // Global keyboard shortcuts.
+    // Global keyboard shortcuts (chords + their hint labels live in shortcuts.ts).
     const onKey = (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 'k') {
+      if (SHORTCUTS.palette.matches(e)) {
         e.preventDefault();
         useStore.getState().setPaletteOpen(!useStore.getState().paletteOpen);
-      } else if (mod && e.key.toLowerCase() === 'n') {
+      } else if (SHORTCUTS.newAgent.matches(e)) {
         e.preventDefault();
         useStore.getState().newChat();
-      } else if (mod && e.key.toLowerCase() === 'j') {
+      } else if (SHORTCUTS.newTerminal.matches(e)) {
         e.preventDefault();
         useStore.getState().newTerminal();
-      } else if (mod && e.key === '\\') {
+      } else if (SHORTCUTS.contextPanel.matches(e)) {
         e.preventDefault();
         useStore.getState().toggleContextPanel();
       }

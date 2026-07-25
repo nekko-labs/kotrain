@@ -10,6 +10,7 @@ import { DiffPane } from '../components/DiffPane.js';
 import { PrPane, PrBadge } from '../components/PrCard.js';
 import { ProjectFiles } from '../components/FileTree.js';
 import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
+import { SHORTCUTS } from '../shortcuts.js';
 
 /** Short label for a pane's tab/title. */
 function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
@@ -266,14 +267,18 @@ export function WorkbenchView() {
                 onClick={() => { setNewMenuOpen(false); newChat(); }}
               >
                 <ChatIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-medium">New agent</span>
                   <span className="block text-[11px] text-ink-faint">Chat that drives an agent</span>
                 </span>
+                <kbd className="kbd mt-0.5">{SHORTCUTS.newAgent.label}</kbd>
               </button>
 
               <div className="my-1 border-t border-line" />
-              <p className="px-2.5 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Terminal</p>
+              <div className="flex items-center justify-between gap-2 px-2.5 pb-0.5 pt-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Terminal</p>
+                <kbd className="kbd">{SHORTCUTS.newTerminal.label}</kbd>
+              </div>
               {shells.length === 0 ? (
                 <button
                   className="flex w-full items-start gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
@@ -690,8 +695,8 @@ function PaneGroupView({
           );
         })}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="New chat" onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="New terminal" onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded p-1 text-ink-faint hover:text-ink" title={`New chat (${SHORTCUTS.newAgent.label})`} onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded p-1 text-ink-faint hover:text-ink" title={`New terminal (${SHORTCUTS.newTerminal.label})`} onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
           {canSplit && group.panes.length > 1 && active && (
             <button className="rounded p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
           )}
@@ -714,8 +719,12 @@ function EmptyState({ onNewChat, onNewTerminal }: { onNewChat: () => void; onNew
         <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">Open a chat to drive an agent, or a terminal to run commands. Open several and split them side by side.</p>
       </div>
       <div className="flex gap-2">
-        <button className="btn btn-primary" onClick={onNewChat}><ChatIcon className="h-4 w-4" /> New chat</button>
-        <button className="btn btn-outline" onClick={onNewTerminal}><TerminalIcon className="h-4 w-4" /> New terminal</button>
+        <button className="btn btn-primary" onClick={onNewChat}>
+          <ChatIcon className="h-4 w-4" /> New chat <kbd className="kbd">{SHORTCUTS.newAgent.label}</kbd>
+        </button>
+        <button className="btn btn-outline" onClick={onNewTerminal}>
+          <TerminalIcon className="h-4 w-4" /> New terminal <kbd className="kbd">{SHORTCUTS.newTerminal.label}</kbd>
+        </button>
       </div>
     </div>
   );

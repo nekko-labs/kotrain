@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
 import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { clearDraft, loadDraft, saveDraft } from '../composerDrafts.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
 import { ContextGauge, EffortMenu } from './ChatMetrics.js';
@@ -40,7 +41,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const { providers, settings, setMascotMood, refreshSessions, activeWorkspaceId } = useStore();
 
   const [session, setSession] = useState<Session | null>(null);
-  const [draft, setDraft] = useState('');
+  // Seed the composer from whatever was parked for this chat, so an unsent
+  // message survives a tab switch or a restart.
+  const [draft, setDraft] = useState(() => loadDraft(sessionId)?.text ?? '');
   const [streaming, setStreaming] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [liveReasoning, setLiveReasoning] = useState('');
@@ -53,7 +56,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [cost, setCost] = useState(0);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
-  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [pendingImages, setPendingImages] = useState<string[]>(() => loadDraft(sessionId)?.images ?? []);
   // The context panel toggle lives in the store so the ⌘\ shortcut and the
   // command palette's "Toggle context panel" act on this pane too.
   const ctxOpen = useStore((s) => s.contextPanelOpen);
@@ -308,6 +311,56 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     el.style.height = `${el.scrollHeight}px`;
   }, [draft]);
 
+  // --- Draft persistence ---
+  // The workbench only mounts the pane you're looking at, so a tab switch (or
+  // quitting) tears this composer down. Park what's unsent and restore it.
+  const latestDraft = useRef({ text: draft, images: pendingImages });
+  latestDraft.current = { text: draft, images: pendingImages };
+
+  // The pane is keyed by session today, so this only matters if the component is
+  // ever reused for another chat. Without it, the save below would write one
+  // chat's words into the next one.
+  const draftLoadedFor = useRef(sessionId);
+  useEffect(() => {
+    if (draftLoadedFor.current === sessionId) return;
+    draftLoadedFor.current = sessionId;
+    const parked = loadDraft(sessionId);
+    setDraft(parked?.text ?? '');
+    setPendingImages(parked?.images ?? []);
+  }, [sessionId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => saveDraft(sessionId, latestDraft.current), 400);
+    return () => clearTimeout(t);
+  }, [sessionId, draft, pendingImages]);
+
+  // Flush on unmount (tab switch, leaving the Chat view) and on window close, so
+  // the last keystrokes can't be lost inside the debounce window.
+  useEffect(() => {
+    const flush = () => saveDraft(sessionId, latestDraft.current);
+    window.addEventListener('beforeunload', flush);
+    return () => { window.removeEventListener('beforeunload', flush); flush(); };
+  }, [sessionId]);
+
+  // Focus the composer when a chat opens so you can start typing straight away,
+  // caret after any restored draft. Runs once per chat, and never steals focus
+  // from something else you're already typing in. The provider count is a
+  // dependency because the textarea is disabled until providers have loaded.
+  const focusedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el || el.disabled || focusedFor.current === sessionId) return;
+    const active = document.activeElement;
+    const typingElsewhere =
+      active instanceof HTMLElement &&
+      active !== el &&
+      (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+    if (typingElsewhere) return;
+    focusedFor.current = sessionId;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [sessionId, providers.length]);
+
   const beginTurn = () => {
     setStreaming(true);
     setLiveText('');
@@ -375,14 +428,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         intervalMs: 5 * 60_000,
       });
       useStore.getState().pushToast('success', 'Goal started as a background task, track it in Command Center.');
-      if (override === undefined) setDraft('');
+      if (override === undefined) { setDraft(''); clearDraft(sessionId); }
       return;
     }
 
     const useModel = resolveModelId(text);
     if (!useModel) return;
-    if (override === undefined) setDraft('');
-    if (override === undefined) setPendingImages([]);
+    if (override === undefined) { setDraft(''); setPendingImages([]); clearDraft(sessionId); }
     setActiveSkill(null);
     beginTurn();
     setSession((prev) =>
@@ -415,6 +467,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     if (!text) return;
     const updated = await window.nekko.queuePrompt(sessionId, text);
     setDraft('');
+    clearDraft(sessionId);
     if (updated) setSession(updated);
     refreshSessions();
   };
