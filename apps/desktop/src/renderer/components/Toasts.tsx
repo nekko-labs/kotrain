@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '../store.js';
 
-const COLOR = { info: '#5b9dd9', error: '#e0574a', success: '#4ec98a' };
+const COLOR = { info: 'var(--info)', error: 'var(--danger)', success: 'var(--success)' };
 
 /** Bottom-left transient notifications (errors, confirmations). */
 export function Toasts() {

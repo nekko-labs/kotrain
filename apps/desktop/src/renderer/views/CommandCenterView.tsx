@@ -4,6 +4,7 @@ import type { RemoteStatus } from '@kotrain/shared';
 import { estimateCostUSD, formatUSD, optimizationTips, MODEL_PRICING, taskCadence, classifySession, classifyAgent } from '@kotrain/shared';
 import type { OptimizationTip, AgentType } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { Badge, EmptyHint, PanelList } from '../components/primitives/index.js';
 import { ChatIcon, ServerIcon, PlusIcon, CheckIcon, TerminalIcon, RobotIcon, TrashIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
@@ -170,11 +171,11 @@ export function CommandCenterView() {
             )}
           </div>
           {nowChats.length === 0 && liveTasks.length === 0 ? (
-            <p className="mt-2.5 rounded-xl border border-dashed border-line px-4 py-3.5 text-[12.5px] text-ink-faint">
+            <EmptyHint className="mt-2.5">
               Nothing working right now. <button className="text-accent hover:underline" onClick={() => newChat()}>Start a chat</button>, or run an automation below.
-            </p>
+            </EmptyHint>
           ) : (
-            <div className="card mt-2.5 divide-y divide-[var(--line)]">
+            <PanelList className="mt-2.5">
               {nowChats.map((s) => (
                 <NowRow
                   key={s.id}
@@ -209,7 +210,7 @@ export function CommandCenterView() {
                   />
                 ) : null;
               })}
-            </div>
+            </PanelList>
           )}
         </section>
 
@@ -226,11 +227,11 @@ export function CommandCenterView() {
               <h2 className="text-[15px] font-semibold">Terminals</h2>
               <span className="text-[12px] text-ink-faint">{liveTerminals > 0 ? `${liveTerminals} live` : 'none live'}</span>
             </div>
-            <div className="card mt-2.5 divide-y divide-[var(--line)]">
+            <PanelList className="mt-2.5">
               {terminals.map((t) => (
                 <TerminalRow key={t.id} term={t} workspaceName={settings?.workspaces?.find((w) => w.id === t.workspaceId)?.name} onOpen={openTerminal} />
               ))}
-            </div>
+            </PanelList>
           </section>
         )}
 
@@ -247,7 +248,7 @@ function Stat({ value, label, live }: { value: number | string; label: string; l
   return (
     <span className="flex items-center gap-1.5">
       {live != null && (
-        <span className={`h-1.5 w-1.5 rounded-full ${live ? 'animate-pulse' : ''}`} style={{ background: live ? '#4ec98a' : 'var(--ink-faint)' }} />
+        <span className={`h-1.5 w-1.5 rounded-full ${live ? 'animate-pulse' : ''}`} style={{ background: live ? 'var(--success)' : 'var(--ink-faint)' }} />
       )}
       <span className="tabular-nums font-semibold text-ink">{value}</span>
       <span>{label}</span>
@@ -367,12 +368,12 @@ function NowRow({
   return (
     <div className="px-4 py-3">
       <div className="flex items-center gap-2.5">
-        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full" style={{ background: '#4ec98a' }} />
+        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full" style={{ background: 'var(--success)' }} />
         <button className="min-w-0 truncate text-left text-[13.5px] font-semibold hover:text-accent" onClick={() => onOpen(session.id)} title={task ? `${task.title} (automation)` : session.title}>
           {task ? task.title : session.title}
         </button>
         <AgentTypeBadge type={agentType} />
-        <span className="ml-auto shrink-0 tabular-nums text-[11.5px] font-medium" style={{ color: '#4ec98a' }}>
+        <span className="ml-auto shrink-0 tabular-nums text-[11.5px] font-medium" style={{ color: 'var(--success)' }}>
           {startedAt ? `working ${elapsed(now - startedAt)}` : 'working…'}
         </span>
         <button className="btn btn-outline shrink-0 px-2.5 py-1 text-[12px]" onClick={() => window.nekko.abortChat(session.id)}>Stop</button>
@@ -430,14 +431,14 @@ const TASK_KIND_META: Record<AutomationTask['kind'], { icon: string; label: stri
 
 /** Status resolution for an automation row: running now > next up > paused > done/error. */
 function taskState(t: AutomationTask, running: Set<string>, now: number): { label: string; color: string; live: boolean } {
-  if (t.lastSessionId && running.has(t.lastSessionId)) return { label: 'running now', color: '#4ec98a', live: true };
+  if (t.lastSessionId && running.has(t.lastSessionId)) return { label: 'running now', color: 'var(--success)', live: true };
   if (t.status === 'active') {
-    if (t.nextRunAt) return { label: inTime(t.nextRunAt - now), color: '#e0a44a', live: false };
-    return { label: 'active', color: '#4ec98a', live: false };
+    if (t.nextRunAt) return { label: inTime(t.nextRunAt - now), color: 'var(--warning)', live: false };
+    return { label: 'active', color: 'var(--success)', live: false };
   }
-  if (t.status === 'paused') return { label: 'paused', color: '#8a8f98', live: false };
-  if (t.status === 'error') return { label: 'error', color: '#e0574a', live: false };
-  return { label: 'done', color: '#5b9dd9', live: false };
+  if (t.status === 'paused') return { label: 'paused', color: 'var(--neutral)', live: false };
+  if (t.status === 'error') return { label: 'error', color: 'var(--danger)', live: false };
+  return { label: 'done', color: 'var(--info)', live: false };
 }
 
 /** The automations board: what fired, what's planned next, what's parked. */
@@ -459,11 +460,11 @@ function AutomationsBoard({ tasks, running, now, onOpen }: { tasks: AutomationTa
         <span className="text-[12px] text-ink-faint">{tasks.length === 0 ? 'scheduled, recurring & background work' : `${active} active of ${tasks.length}`}</span>
       </div>
       {sorted.length === 0 ? (
-        <p className="mt-2.5 rounded-xl border border-dashed border-line px-4 py-3.5 text-[12.5px] text-ink-faint">
+        <EmptyHint className="mt-2.5">
           No automations yet. Open a chat and use the <span className="font-medium text-ink-soft">⚡ Automate</span> menu to schedule a run, repeat it, or keep an agent working in the background.
-        </p>
+        </EmptyHint>
       ) : (
-        <div className="card mt-2.5 divide-y divide-[var(--line)]">
+        <PanelList className="mt-2.5">
           {sorted.map((t) => {
             const meta = TASK_KIND_META[t.kind];
             const st = taskState(t, running, now);
@@ -503,7 +504,7 @@ function AutomationsBoard({ tasks, running, now, onOpen }: { tasks: AutomationTa
               </div>
             );
           })}
-        </div>
+        </PanelList>
       )}
     </section>
   );
@@ -528,11 +529,11 @@ function SessionsList({
         <span className="text-[12px] text-ink-faint">recent chats, most recent first</span>
       </div>
       {sessions.length === 0 ? (
-        <p className="mt-2.5 rounded-xl border border-dashed border-line px-4 py-3.5 text-[12.5px] text-ink-faint">
+        <EmptyHint className="mt-2.5">
           No chats yet. <button className="text-accent hover:underline" onClick={onNewChat}>Start a chat</button> to kick one off.
-        </p>
+        </EmptyHint>
       ) : (
-        <div className="card mt-2.5 divide-y divide-[var(--line)]">
+        <PanelList className="mt-2.5">
           {shown.map((s) => {
             const msgs = s.messages.filter((m) => m.role === 'user' || m.role === 'assistant').length;
             const t = usage?.bySession[s.id];
@@ -550,7 +551,7 @@ function SessionsList({
               </button>
             );
           })}
-        </div>
+        </PanelList>
       )}
       {sessions.length > CAP && (
         <button className="mt-2 text-[12px] text-ink-faint hover:text-ink" onClick={() => setShowAll((v) => !v)}>
@@ -568,7 +569,7 @@ function TerminalRow({ term, workspaceName, onOpen }: { term: TerminalInfo; work
       <span className="min-w-0 shrink-0 text-[13px] font-medium">{term.title}</span>
       <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-faint">{term.cwd}</span>
       {workspaceName && <span className="hidden shrink-0 text-[11.5px] text-ink-faint sm:inline">{workspaceName}</span>}
-      <span className="shrink-0 tabular-nums text-[11.5px] font-medium" style={{ color: term.running ? '#4ec98a' : 'var(--ink-faint)' }}>
+      <span className="shrink-0 tabular-nums text-[11.5px] font-medium" style={{ color: term.running ? 'var(--success)' : 'var(--ink-faint)' }}>
         {term.running ? 'live' : 'exited'}
       </span>
     </button>
@@ -629,15 +630,15 @@ function InsightsSection({
 }
 
 const TIP_STYLE: Record<OptimizationTip['severity'], { color: string; icon: string; label: string }> = {
-  warn: { color: '#e0a44a', icon: '!', label: 'Heads up' },
-  suggest: { color: '#4ec98a', icon: '↳', label: 'Suggestion' },
-  info: { color: '#5b9dd9', icon: 'i', label: 'Insight' },
+  warn: { color: 'var(--warning)', icon: '!', label: 'Heads up' },
+  suggest: { color: 'var(--success)', icon: '↳', label: 'Suggestion' },
+  info: { color: 'var(--info)', icon: 'i', label: 'Insight' },
 };
 
 function OptimizePanel({ tips, onOpenModels }: { tips: OptimizationTip[]; onOpenModels: () => void }) {
   const totalSaving = tips.reduce((s, t) => s + (t.saving ?? 0), 0);
   if (tips.length === 0) {
-    return <p className="rounded-xl border border-dashed border-line px-4 py-3.5 text-[12.5px] text-ink-faint">No tips right now, your usage looks lean.</p>;
+    return <EmptyHint>No tips right now, your usage looks lean.</EmptyHint>;
   }
   return (
     <>
@@ -771,7 +772,7 @@ function CostPanel({ usage, sessions }: { usage: UsageSummary | null; sessions: 
             <div className="mt-3 flex h-24 items-end gap-1">
               {recentCost.map((d) => (
                 <div key={d.date} className="flex flex-1 flex-col justify-end" title={`${d.date}: ${formatUSD(d.cost ?? 0)}`}>
-                  <div className="rounded-t" style={{ height: `${((d.cost ?? 0) / maxDayCost) * 100}%`, background: '#e0a44a', minHeight: (d.cost ?? 0) > 0 ? 2 : 0 }} />
+                  <div className="rounded-t" style={{ height: `${((d.cost ?? 0) / maxDayCost) * 100}%`, background: 'var(--warning)', minHeight: (d.cost ?? 0) > 0 ? 2 : 0 }} />
                 </div>
               ))}
             </div>
@@ -896,8 +897,8 @@ function StatusPill({ state, onlineLabel = 'online', offlineLabel = 'offline' }:
   if (state === 'checking') return <span className="chip">checking…</span>;
   const online = state === 'online';
   return (
-    <span className="chip !text-white" style={{ background: online ? '#4ec98a' : '#8a8f98' }}>
+    <Badge tone={online ? 'success' : 'neutral'} variant="solid">
       {online && <CheckIcon className="h-3 w-3" />} {online ? onlineLabel : offlineLabel}
-    </span>
+    </Badge>
   );
 }

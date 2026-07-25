@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ArtifactKind, ExperimentNode, MazeNode, ModelInfo, TrainingRun } from '@kotrain/shared';
 import { formatRuntime, layoutMaze, runOutputDir, runStats } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { LogSurface, StatTile } from './primitives/index.js';
+import { STATUS } from '../tokens.js';
 
 /**
  * Shared building blocks for the Training and Goals dashboards: the stats
@@ -12,12 +14,12 @@ import { useStore } from '../store.js';
  */
 
 const STATUS_COLOR: Record<TrainingRun['status'], string> = {
-  draft: 'var(--ink-faint, #8a8a97)',
-  running: '#60a5fa',
-  paused: '#f59e0b',
-  completed: '#4ade80',
-  stopped: '#8a8a97',
-  failed: '#f87171',
+  draft: 'var(--ink-faint)',
+  running: STATUS.running,
+  paused: STATUS.warning,
+  completed: STATUS.success,
+  stopped: STATUS.neutral,
+  failed: STATUS.danger,
 };
 
 export function RunStatusChip({ run }: { run: TrainingRun }) {
@@ -43,7 +45,7 @@ export function RunStatTiles({ run }: { run: TrainingRun }) {
   const s = runStats(run);
   const best = run.experiments.find((e) => e.id === run.bestExperimentId);
   const tiles: Array<{ label: string; value: string; color?: string; sub?: string }> = [
-    { label: `Best ${s.bestMetric ?? 'score'}`, value: fmtScore(s.best), color: '#22d3ee', sub: best?.title.slice(0, 26) },
+    { label: `Best ${s.bestMetric ?? 'score'}`, value: fmtScore(s.best), color: 'var(--accent-2)', sub: best?.title.slice(0, 26) },
     { label: 'Experiments', value: String(s.experiments) },
     { label: 'Success rate', value: s.successRate != null ? `${Math.round(s.successRate * 100)}%` : '—' },
     { label: 'Emergent niches', value: String(s.niches) },
@@ -54,11 +56,7 @@ export function RunStatTiles({ run }: { run: TrainingRun }) {
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
       {tiles.map((t) => (
-        <div key={t.label} className="card px-3 py-2.5">
-          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">{t.label}</div>
-          <div className="mt-0.5 text-lg font-bold tabular-nums" style={t.color ? { color: t.color } : undefined}>{t.value}</div>
-          {t.sub && <div className="truncate text-[10px] text-[var(--ink-faint)]">{t.sub}</div>}
-        </div>
+        <StatTile key={t.label} label={t.label} value={t.value} sub={t.sub} color={t.color} />
       ))}
     </div>
   );
@@ -69,11 +67,11 @@ export function ChampionCard({ run }: { run: TrainingRun }) {
   const best = run.experiments.find((e) => e.id === run.bestExperimentId);
   if (!best) return null;
   return (
-    <div className="card border border-emerald-500/25 px-3.5 py-3">
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-emerald-400">
+    <div className="card px-3.5 py-3" style={{ borderColor: 'color-mix(in srgb, var(--success) 35%, var(--line))' }}>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em]" style={{ color: STATUS.success }}>
         Current champion{best.approach ? ` · ${best.approach}` : ''}
       </div>
-      <div className="mt-1 font-mono text-[12.5px] font-semibold text-emerald-300">{best.title}</div>
+      <div className="mt-1 font-mono text-[12.5px] font-semibold" style={{ color: STATUS.success }}>{best.title}</div>
       {best.note && <div className="mt-1 text-[11.5px] leading-snug text-[var(--ink-soft)]">{best.note}</div>}
     </div>
   );
@@ -176,13 +174,13 @@ export function RunNowStrip({ run }: { run: TrainingRun }) {
       ? `Running: ${activeExp.title}`
       : 'Working…';
   return (
-    <div className="card flex items-center gap-2.5 border border-blue-500/25 px-3.5 py-2.5">
+    <div className="card flex items-center gap-2.5 px-3.5 py-2.5" style={{ borderColor: 'color-mix(in srgb, var(--running) 35%, var(--line))' }}>
       <span className="relative flex h-2.5 w-2.5 shrink-0">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
-        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-400" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: STATUS.running }} />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: STATUS.running }} />
       </span>
       <div className="min-w-0">
-        <div className="truncate text-[12.5px] font-semibold text-blue-300">{headline}</div>
+        <div className="truncate text-[12.5px] font-semibold" style={{ color: STATUS.running }}>{headline}</div>
         {lastLog && <div className="truncate text-[11px] text-[var(--ink-soft)]">{lastLog.text}</div>}
       </div>
     </div>
@@ -190,12 +188,12 @@ export function RunNowStrip({ run }: { run: TrainingRun }) {
 }
 
 function nodeColor(exp: ExperimentNode, run: TrainingRun, parentScore?: number): { fill: string; ring?: string } {
-  if (exp.id === run.bestExperimentId) return { fill: '#fbbf24', ring: 'rgba(251,191,36,0.35)' };
-  if (exp.status === 'running') return { fill: '#60a5fa', ring: 'rgba(96,165,250,0.35)' };
-  if (exp.status === 'failed') return { fill: 'rgba(248,113,113,0.55)' };
+  if (exp.id === run.bestExperimentId) return { fill: STATUS.highlight, ring: 'color-mix(in srgb, var(--highlight) 35%, transparent)' };
+  if (exp.status === 'running') return { fill: STATUS.running, ring: 'color-mix(in srgb, var(--running) 35%, transparent)' };
+  if (exp.status === 'failed') return { fill: 'color-mix(in srgb, var(--danger) 55%, transparent)' };
   const improved =
     exp.score != null && parentScore != null && (run.config?.minimizeMetric ? exp.score < parentScore : exp.score > parentScore);
-  if (improved || (exp.score != null && parentScore == null && exp.status !== 'planned')) return { fill: '#4ade80' };
+  if (improved || (exp.score != null && parentScore == null && exp.status !== 'planned')) return { fill: STATUS.success };
   return { fill: 'color-mix(in srgb, var(--ink-faint) 65%, transparent)' };
 }
 
@@ -299,7 +297,7 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
                     className="select-none"
                     fontFamily="var(--font-mono, monospace)"
                     fontSize="9"
-                    fill={n.exp.id === run.bestExperimentId ? '#fbbf24' : 'var(--ink-faint)'}
+                    fill={n.exp.id === run.bestExperimentId ? STATUS.highlight : 'var(--ink-faint)'}
                   >
                     {n.exp.title.slice(0, 26)}
                   </text>
@@ -394,24 +392,41 @@ export function HintComposer({
   );
 }
 
-/** Activity feed: milestones, failures, hints, and info as the run progresses. */
-export function RunLog({ run, max = 60 }: { run: TrainingRun; max?: number }) {
-  const KIND_COLOR = { info: 'var(--ink-faint)', milestone: '#4ade80', hint: '#f59e0b', error: '#f87171' } as const;
-  const entries = [...run.log].slice(-max).reverse();
+const LOG_KIND_COLOR = {
+  info: 'var(--ink-faint)',
+  milestone: STATUS.success,
+  hint: STATUS.warning,
+  error: STATUS.danger,
+} as const;
+
+/**
+ * Activity feed: milestones, failures, hints, and info as the run progresses.
+ *
+ * A long run streams thousands of lines, so the feed is a windowed
+ * `LogSurface` — oldest first, newest at the bottom, following the tail while
+ * the reader is parked there — rather than a growing pile of DOM nodes.
+ */
+export function RunLog({ run, max = 5000 }: { run: TrainingRun; max?: number }) {
+  const entries = run.log.length > max ? run.log.slice(-max) : run.log;
   if (!entries.length) return null;
   return (
-    <div className="card max-h-64 overflow-y-auto px-3.5 py-2.5">
+    <div className="card px-3.5 py-2.5">
       <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Activity</div>
-      <div className="mt-1.5 space-y-1">
-        {entries.map((l, i) => (
-          <div key={`${l.at}-${i}`} className="flex gap-2 text-[11.5px] leading-snug">
+      <LogSurface
+        items={entries}
+        label="Run activity log"
+        rowHeight={20}
+        className="mt-1.5 max-h-64"
+        keyOf={(l, i) => `${l.at}-${i}`}
+        renderRow={(l) => (
+          <div className="flex w-full min-w-0 gap-2 text-[11.5px]">
             <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--ink-faint)]">
               {new Date(l.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
-            <span style={{ color: KIND_COLOR[l.kind] }}>{l.text}</span>
+            <span className="min-w-0 flex-1 truncate" style={{ color: LOG_KIND_COLOR[l.kind] }} title={l.text}>{l.text}</span>
           </div>
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 }

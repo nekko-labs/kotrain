@@ -166,13 +166,13 @@ function FileDiff({ sessionId, change, onChanged }: { sessionId: string; change:
                   key={i}
                   onClick={() => toggle(i)}
                   className={`flex cursor-pointer ${reverted ? 'opacity-50' : ''}`}
-                  style={{ background: add ? 'rgba(78,201,138,0.12)' : 'rgba(224,87,74,0.12)' }}
+                  style={{ background: add ? 'var(--success-soft)' : 'var(--danger-soft)' }}
                   title={reverted ? 'Will be reverted, click to keep' : 'Click to revert this line'}
                 >
-                  <span className="w-5 shrink-0 select-none text-center" style={{ color: add ? '#4ec98a' : '#e0574a' }}>
+                  <span className="w-5 shrink-0 select-none text-center" style={{ color: add ? 'var(--success)' : 'var(--danger)' }}>
                     {add ? '+' : '-'}
                   </span>
-                  <span className={`whitespace-pre-wrap break-words ${reverted ? 'line-through' : ''}`} style={{ color: add ? '#4ec98a' : '#e0574a' }}>
+                  <span className={`whitespace-pre-wrap break-words ${reverted ? 'line-through' : ''}`} style={{ color: add ? 'var(--success)' : 'var(--danger)' }}>
                     {op.text || ' '}
                   </span>
                 </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import type { PairingGrant, RemoteDevice, RemoteStatus } from '@kotrain/shared';
+import { Badge } from './primitives/index.js';
 
 /**
  * Settings card for phone remote control: expose this machine over a relay,
@@ -109,9 +110,9 @@ export function RemoteAccess() {
         <span className="text-base">📱</span>
         <h2 className="font-semibold">Remote access</h2>
         {status.enabled && (
-          <span className="chip !text-white" style={{ background: status.online ? '#4ec98a' : '#e0a54a' }}>
+          <Badge tone={status.online ? 'success' : 'warning'} variant="solid">
             {status.online ? 'online' : 'connecting…'}
-          </span>
+          </Badge>
         )}
       </div>
       <p className="mt-1 text-[12px] text-ink-faint">
@@ -191,10 +192,10 @@ export function RemoteAccess() {
                       <span
                         className="h-2 w-2 rounded-full"
                         title={connected.has(d.id) ? 'Connected now' : 'Offline'}
-                        style={{ background: connected.has(d.id) ? '#4ec98a' : 'var(--line)' }}
+                        style={{ background: connected.has(d.id) ? 'var(--success)' : 'var(--line)' }}
                       />
                       <span className="ml-auto text-ink-faint">{connected.has(d.id) ? 'connected' : `seen ${ago(d.lastSeenAt, now)}`}</span>
-                      <button className="btn btn-ghost py-0.5 text-[12px]" style={{ color: '#e0574a' }} onClick={() => revoke(d)}>
+                      <button className="btn btn-ghost py-0.5 text-[12px]" style={{ color: 'var(--danger)' }} onClick={() => revoke(d)}>
                         Revoke
                       </button>
                     </li>

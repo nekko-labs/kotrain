@@ -1,0 +1,65 @@
+import React from 'react';
+
+/**
+ * A titled block of a view: heading, an optional muted meta line beside it,
+ * optional right-aligned actions, then the content. Every view builds its
+ * sections out of this instead of re-declaring the same header markup.
+ */
+export function Section({
+  title, meta, actions, children, className = '',
+}: {
+  title: React.ReactNode;
+  meta?: React.ReactNode;
+  actions?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={className}>
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        {meta != null && <span className="text-[12px] text-ink-faint">{meta}</span>}
+        {actions != null && <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** A card whose children are rows, separated by the theme's hairline. */
+export function PanelList({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <div className={`card divide-y divide-[var(--line)] ${className}`}>{children}</div>;
+}
+
+/** The dashed "nothing here yet" hint used across the views. */
+export function EmptyHint({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p className={`rounded-xl border border-dashed border-line px-4 py-3.5 text-[12.5px] text-ink-faint ${className}`}>
+      {children}
+    </p>
+  );
+}
+
+/** A tiny uppercase label above a group of rows or fields. */
+export function FieldLabel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <p className={`text-[10px] font-semibold uppercase tracking-wide text-ink-faint ${className}`}>{children}</p>;
+}
+
+/** A number + caption tile (run stats, usage summaries). */
+export function StatTile({
+  value, label, sub, color, className = '',
+}: {
+  value: React.ReactNode;
+  label: React.ReactNode;
+  sub?: React.ReactNode;
+  color?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`card px-3 py-2.5 ${className}`}>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-ink-faint">{label}</div>
+      <div className="mt-0.5 text-lg font-bold tabular-nums" style={color ? { color } : undefined}>{value}</div>
+      {sub != null && <div className="truncate text-[10px] text-ink-faint">{sub}</div>}
+    </div>
+  );
+}
