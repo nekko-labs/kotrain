@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useStore, type View } from '../store.js';
+import { SHORTCUTS } from '../shortcuts.js';
 import { Modal } from './primitives/index.js';
 
 interface Command {
@@ -11,7 +12,7 @@ interface Command {
 
 /** Ctrl/Cmd+K command palette for fast navigation and actions. */
 export function CommandPalette() {
-  const { paletteOpen, setPaletteOpen, setView, newChat, toggleContextPanel } = useStore();
+  const { paletteOpen, setPaletteOpen, setView, newChat, newTerminal, toggleContextPanel } = useStore();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -20,7 +21,8 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(() => {
     const go = (v: View, label: string): Command => ({ id: `go-${v}`, label, hint: 'Navigate', run: () => setView(v) });
     return [
-      { id: 'new-chat', label: 'New chat', hint: 'Ctrl+N', run: () => newChat() },
+      { id: 'new-chat', label: 'New agent', hint: SHORTCUTS.newAgent.label, run: () => newChat() },
+      { id: 'new-terminal', label: 'New terminal', hint: SHORTCUTS.newTerminal.label, run: () => newTerminal() },
       go('chat', 'Go to Chat'),
       go('skills', 'Go to Skills'),
       go('models', 'Go to Models'),
@@ -29,7 +31,7 @@ export function CommandPalette() {
       go('settings', 'Go to Settings'),
       { id: 'toggle-context', label: 'Toggle context panel', run: () => toggleContextPanel() },
     ];
-  }, [setView, newChat, toggleContextPanel]);
+  }, [setView, newChat, newTerminal, toggleContextPanel]);
 
   const filtered = commands.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()));
 
