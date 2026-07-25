@@ -34,6 +34,7 @@ export const IpcChannels = {
   lmsProbe: 'lms:probe',
   serverStop: 'server:stop',
   gpuStats: 'gpu:stats',
+  systemStats: 'system:stats',
 
   sessionsList: 'sessions:list',
   sessionCreate: 'session:create',
@@ -203,6 +204,8 @@ export interface NekkoApi {
   stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
   /** GPU/VRAM stats for the metrics bar + Command Center (null if unavailable). */
   getGpuStats(): Promise<import('./models.js').GpuStats | null>;
+  /** CPU load + RAM use for the monitor surfaces (null if unavailable). */
+  getSystemStats(): Promise<import('./monitor.js').SystemStats | null>;
 
   listSessions(): Promise<Session[]>;
   createSession(workspaceId?: string): Promise<Session>;

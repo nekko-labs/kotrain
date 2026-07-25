@@ -3,11 +3,11 @@ import { MiniNekko } from '../Mascot.js';
 import { fmtTok } from './transcript.js';
 
 /**
- * The console's turn footer: while a turn streams it shows elapsed time,
+ * The console's reply footer: while a reply streams it shows elapsed time,
  * throughput and tokens generated; when idle it keeps a muted summary of the
- * last turn so the numbers stay visible at the end of the chat.
+ * last reply so the numbers stay visible at the end of the chat.
  */
-export function TurnFooter({
+export function ReplyFooter({
   streaming, waiting, elapsed, tps, out, last,
 }: {
   streaming: boolean; waiting: boolean; elapsed: number; tps: number; out: number;
@@ -26,7 +26,7 @@ export function TurnFooter({
   if (last && last.out > 0) {
     return (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[11px] text-ink-faint/80">
-        <span>Last turn</span>
+        <span>Last reply</span>
         <span>· {fmtTok(last.out)} tokens</span>
         {last.tps > 0 && <span>· {last.tps} tok/s</span>}
         {last.secs > 0 && <span>· {last.secs}s</span>}

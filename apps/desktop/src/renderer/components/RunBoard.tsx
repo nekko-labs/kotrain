@@ -51,7 +51,7 @@ export function RunStatTiles({ run }: { run: TrainingRun }) {
     { label: 'Emergent niches', value: String(s.niches) },
     { label: 'Self-repairs', value: String(s.repairs) },
     { label: 'Runtime', value: formatRuntime(s.runtimeMs) },
-    { label: 'Turns', value: String(s.turns) },
+    { label: 'Iterations', value: String(s.turns) },
   ];
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
@@ -331,7 +331,7 @@ export function IdeaMaze({ run }: { run: TrainingRun }) {
 }
 
 /**
- * Guidance composer: fold a course-correction into the run's next turn. Not a
+ * Guidance composer: fold a course-correction into the run's next iteration. Not a
  * chat, one steer at a time, queued as a pending hint and consumed on the next
  * iteration. `title`/`helper`/`buttonLabel` let a surface frame it its own way
  * (Goals presents it full-width as "Steer the mission").
@@ -340,7 +340,7 @@ export function HintComposer({
   run,
   placeholder,
   title = 'Guide the agent',
-  helper = "Folded into the agent's next turn: new approaches to try, course corrections, or pointers to new data.",
+  helper = "Folded into the agent's next iteration: new approaches to try, course corrections, or pointers to new data.",
   buttonLabel = 'Send',
 }: {
   run: TrainingRun;
@@ -381,7 +381,7 @@ export function HintComposer({
       {pending.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {pending.map((h) => (
-            <span key={h.id} className="rounded-full border border-amber-400/40 px-2 py-0.5 text-[11px] text-amber-300" title="Will be folded into the agent's next turn">
+            <span key={h.id} className="rounded-full border border-amber-400/40 px-2 py-0.5 text-[11px] text-amber-300" title="Will be folded into the agent's next iteration">
               ⏳ {h.text.slice(0, 60)}
             </span>
           ))}

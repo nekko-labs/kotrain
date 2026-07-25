@@ -10,5 +10,5 @@ export { ConsoleBlock } from './ConsoleBlock.js';
 export { MessageBubble } from './MessageBubble.js';
 export { ReasoningBlock } from './ReasoningBlock.js';
 export { ToolCallBlock } from './ToolCallBlock.js';
-export { TurnFooter } from './TurnFooter.js';
+export { ReplyFooter } from './ReplyFooter.js';
 export { fmtTime, fmtTok, toStreamBlocks, type Activity, type StreamBlock } from './transcript.js';

@@ -30,6 +30,7 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.lmsProbe]: ([id]) => host.lmsAvailable(id),
     [C.serverStop]: ([id]) => host.stopServer(id),
     [C.gpuStats]: () => host.getGpuStats(),
+    [C.systemStats]: () => host.getSystemStats(),
 
     [C.sessionsList]: () => host.listSessions(),
     [C.sessionCreate]: ([wid]) => host.createSession(wid),

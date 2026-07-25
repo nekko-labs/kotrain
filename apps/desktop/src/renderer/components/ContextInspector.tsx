@@ -4,7 +4,7 @@ import { getSessionWorkspaceIds, estimateTokens } from '@kotrain/shared';
 import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
-import { useGpuStats, VramDock } from './GpuStats.js';
+import { ResourceDock } from './ResourceMonitor.js';
 import { CONTEXT_SOURCE } from '../tokens.js';
 
 const SOURCE_LABEL: Record<ContextItem['source'], string> = {
@@ -25,10 +25,10 @@ const SOURCE_EXPLAIN: Record<ContextItem['source'], string> = {
   system: "Kotrain's base instructions to the model, its role, available tools, and safety rules. Always included.",
   guideline: 'Your project guideline files (AGENTS.md / CLAUDE.md and similar) that tell the model how to work in this repo.',
   memory: 'Facts Kotrain remembers across chats, your preferences and project notes, that match this conversation.',
-  'attached-file': 'Files you attached to this chat. Included in full on every turn.',
+  'attached-file': 'Files you attached to this chat. Included in full on every reply.',
   connector: 'Content pulled from your connected tools and integrations that is relevant to this prompt.',
-  'index-snippet': "Code snippets retrieved from your workspace index that match this turn's prompt.",
-  conversation: 'The running back-and-forth of this chat. Grows every turn — the biggest driver of context as a chat gets long.',
+  'index-snippet': "Code snippets retrieved from your workspace index that match this reply's prompt.",
+  conversation: 'The running back-and-forth of this chat. It grows with every reply, the biggest driver of context as a chat gets long.',
   skill: 'The skill armed in the composer. Its instructions are added to your message when you send.',
 };
 
@@ -57,7 +57,7 @@ function baseName(p: string): string {
  * The Context Inspector, Kotrain's signature panel. Two parts:
  *  1. Sources, the folders, attached files, and key context files (spec.md,
  *     guidelines) wired into this chat, each addable/openable.
- *  2. Breakdown, exactly what enters the prompt this turn, grouped by
+ *  2. Breakdown, exactly what enters the prompt on the next reply, grouped by
  *     provenance, each item toggleable and pinnable, with live token counts.
  */
 export function ContextInspector({ sessionId }: { sessionId: string | null }) {
@@ -69,8 +69,6 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   const [bundle, setBundle] = useState<ContextBundle | null>(null);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(new Set());
-  // GPU/VRAM stats for the pinned footer (null on machines with no NVIDIA GPU).
-  const gpu = useGpuStats();
 
   const session = sessions.find((s) => s.id === sessionId) ?? null;
   const workspaces = settings?.workspaces ?? [];
@@ -232,7 +230,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? 'var(--danger)' : 'var(--accent)' }} />
         </div>
         <p className="mt-1.5 text-[11px] text-ink-faint">
-          {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · updates every turn.
+          {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · updates every reply.
         </p>
       </div>
 
@@ -253,7 +251,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
 
         {/* Where the tokens go — a compact, always-accurate breakdown. */}
         {breakdown.length > 0 && (
-          <Section title="In the window" info="Everything that enters the model's prompt this turn, by source. The conversation grows every turn, which is what makes a long chat fill the window.">
+          <Section title="In the window" info="Everything that enters the model's prompt on the next reply, by source. The conversation grows with every reply, which is what makes a long chat fill the window.">
             <div className="space-y-1">
               {breakdown.map(([src, n]) => (
                 <div key={src} className="flex items-center gap-2 text-[12px]">
@@ -295,8 +293,8 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
         </Section>
 
         {/* Sources: attached files */}
-        <Section title="Files" info="Files you attach are pinned into every turn of this chat verbatim, use them for specs, snippets, or docs the model should always see." onAdd={addFiles} addLabel="Attach files">
-          {attached.length === 0 && <Hint>Attach files to pin them into every turn of this chat.</Hint>}
+        <Section title="Files" info="Files you attach are pinned into every reply of this chat verbatim, use them for specs, snippets, or docs the model should always see." onAdd={addFiles} addLabel="Attach files">
+          {attached.length === 0 && <Hint>Attach files to pin them into every reply of this chat.</Hint>}
           {attached.map((p) => (
             <Row
               key={p}
@@ -341,9 +339,10 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
 
       </div>
 
-      {/* VRAM: pinned at the foot of the panel so it stays visible while the
-          sources/breakdown above scroll. Hidden on machines with no GPU. */}
-      {gpu && <VramDock stats={gpu} />}
+      {/* Resource monitors: pinned at the foot of the panel so they stay visible
+          while the sources/breakdown above scroll. The floating chip warps into
+          this section while it's on screen. */}
+      <ResourceDock />
     </div>
   );
 }

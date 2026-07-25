@@ -85,6 +85,14 @@ interface UiState {
   paletteOpen: boolean;
   activeWorkspaceId: string | null;
 
+  /**
+   * Where the chat's full monitoring section sits on screen (null when it isn't
+   * mounted). The floating monitor chip reads this so it can fly into the
+   * section instead of covering it.
+   */
+  monitorDockRect: { x: number; y: number; w: number; h: number } | null;
+  setMonitorDockRect: (r: { x: number; y: number; w: number; h: number } | null) => void;
+
   // Workbench: tabbed, splittable panes (chats + terminals) and live terminals.
   terminals: TerminalInfo[];
   groups: WbGroup[];
@@ -212,6 +220,15 @@ export const useStore = create<UiState>((set, get) => ({
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setPaletteOpen: (open) => set({ paletteOpen: open }),
+  monitorDockRect: null,
+  setMonitorDockRect: (r) =>
+    set((s) => {
+      const p = s.monitorDockRect;
+      // The dock reports on every resize; skip no-op writes so the chip's warp
+      // transform isn't recomputed for nothing.
+      if (p === r || (p && r && p.x === r.x && p.y === r.y && p.w === r.w && p.h === r.h)) return s;
+      return { monitorDockRect: r };
+    }),
   newChat: async () => {
     const s = await window.nekko.createSession(get().activeWorkspaceId ?? undefined);
     await get().refreshSessions();

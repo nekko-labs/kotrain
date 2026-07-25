@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
 import { useT } from './i18n.js';
 import { Mascot } from './components/Mascot.js';
-import { GpuHud } from './components/GpuHud.js';
+import { ResourceHud } from './components/ResourceMonitor.js';
 import { Toasts } from './components/Toasts.js';
 import { CommandPalette } from './components/CommandPalette.js';
 import { UpdateBanner } from './components/UpdateBanner.js';
@@ -209,7 +209,7 @@ export function App() {
 
       <UpdateBanner />
       <RelayPairing />
-      <GpuHud />
+      <ResourceHud />
       <Mascot mood={mascotMood} enabled={settings?.mascotEnabled ?? true} />
       <CommandPalette />
       <Toasts />

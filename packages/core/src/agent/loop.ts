@@ -1,4 +1,5 @@
 import type { AgentEvent, ChatMessage, ToolCall, ToolResult } from '@kotrain/shared';
+import { DEFAULT_MAX_STEPS } from '@kotrain/shared';
 import type { Provider, ToolSpec } from '../providers/types.js';
 import { BUILTIN_TOOLS } from './tools.js';
 
@@ -13,7 +14,7 @@ export interface RunAgentOptions {
   /** Executes a tool call in the host and returns its result. */
   executeTool: (call: ToolCall) => Promise<ToolResult>;
   signal?: AbortSignal;
-  /** Max tool-use round trips before giving up. */
+  /** Max tool-use round trips before wrapping up (see DEFAULT_MAX_STEPS). */
   maxIterations?: number;
   /** Sampling temperature (from the effort setting). */
   temperature?: number;
@@ -74,21 +75,28 @@ function isEmptyTurn(t: Turn): boolean {
   return !t.text.trim() && !t.reasoning.trim() && t.calls.length === 0;
 }
 
+/** Nudge for the wrap-up pass once the step budget is spent. */
+const WRAP_UP_PROMPT =
+  'You have reached this reply\'s tool-step limit, so no further tool calls are possible. ' +
+  'Answer now with what you already know: what you did, what you found, and the concrete next steps you would take. ' +
+  'Do not ask to run more tools.';
+
 export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEvent> {
   const tools = opts.tools ?? BUILTIN_TOOLS;
-  const maxIterations = opts.maxIterations ?? 12;
+  const maxIterations = opts.maxIterations ?? DEFAULT_MAX_STEPS;
 
   // Stream one provider response, yielding its events and accumulating the
   // result into `turn`. `extraMessages` are appended to the sent history only
   // (never persisted) so a retry can nudge the model without polluting the
-  // transcript.
-  async function* stream(turn: Turn, extraMessages: ChatMessage[] = []): AsyncGenerator<AgentEvent> {
+  // transcript. `sendTools` overrides the offered tools (the wrap-up pass
+  // withholds them entirely).
+  async function* stream(turn: Turn, extraMessages: ChatMessage[] = [], sendTools = tools): AsyncGenerator<AgentEvent> {
     let reasoningStartedAt = 0;
     for await (const chunk of opts.provider.chat({
       model: opts.model,
       messages: [...windowHistory(opts.history, opts.maxHistoryTurns), ...extraMessages],
       system: opts.system,
-      tools,
+      tools: sendTools,
       temperature: opts.temperature,
       think: opts.think,
       signal: opts.signal,
@@ -202,5 +210,33 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
     }
   }
 
-  yield { type: 'error', sessionId: opts.sessionId, message: 'Reached max tool iterations' };
+  // Budget spent. Instead of discarding everything the model just did (which is
+  // what surfacing an error here used to do), take one last pass with the tools
+  // withheld so the work comes back as a real answer the user can act on.
+  if (opts.signal?.aborted) {
+    yield { type: 'error', sessionId: opts.sessionId, message: 'Aborted' };
+    return;
+  }
+  const wrapUp: Turn = { text: '', reasoning: '', calls: [] };
+  try {
+    yield* stream(
+      wrapUp,
+      [{ id: id('nudge'), role: 'user', content: WRAP_UP_PROMPT, createdAt: Date.now() }],
+      [],
+    );
+  } catch (e) {
+    yield { type: 'error', sessionId: opts.sessionId, message: (e as Error).message };
+    return;
+  }
+
+  const note = `_Stopped at this reply's ${maxIterations}-step tool limit. Ask me to continue and I'll pick up from here (or raise the limit in Settings → Agent loop)._`;
+  const wrapMsg: ChatMessage = {
+    id: id('msg'),
+    role: 'assistant',
+    content: wrapUp.text.trim() ? `${wrapUp.text.trim()}\n\n${note}` : note,
+    ...(wrapUp.reasoning ? { reasoning: wrapUp.reasoning, reasoningSeconds: wrapUp.reasoningSeconds } : {}),
+    createdAt: Date.now(),
+  };
+  opts.history.push(wrapMsg);
+  yield { type: 'done', sessionId: opts.sessionId, messageId: wrapMsg.id };
 }

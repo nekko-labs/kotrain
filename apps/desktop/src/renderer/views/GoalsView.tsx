@@ -10,7 +10,7 @@ import { ArtifactsCard, HintComposer, RunLog, RunModelPicker, RunStatusChip } fr
  * iterates (re-planning when reality disagrees) until the goal is finished.
  * Built to stay legible over hours or days: a big elapsed/status header, the
  * live plan checklist, and a prominent activity feed. Course-correct any time
- * via hints that fold into the agent's next turn. Model testing belongs in the
+ * via hints that fold into the agent's next iteration. Model testing belongs in the
  * Training tab; this surface is about getting work finished.
  */
 export function GoalsView() {
@@ -176,13 +176,13 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
   );
 }
 
-/** Compact mission meta: the loop guardrails made visible (phase, turn budget,
+/** Compact mission meta: the loop guardrails made visible (phase, iteration budget,
  *  time budget) so a long-running goal reads as bounded, not a runaway chat. */
 function MissionMeta({ run }: { run: TrainingRun }) {
   const s = runStats(run);
   const cap = run.config?.maxTurns ?? RUN_MAX_TURNS_DEFAULT;
   const rows: Array<{ k: string; v: string }> = [
-    { k: 'Turn budget', v: `${s.turns} / ${cap}` },
+    { k: 'Iteration budget', v: `${s.turns} / ${cap}` },
     { k: 'Time budget', v: run.config?.timeBudgetMin ? `${formatRuntime(s.runtimeMs)} / ~${run.config.timeBudgetMin}m` : formatRuntime(s.runtimeMs) },
   ];
   return (
@@ -226,7 +226,7 @@ function GoalStatTiles({ run }: { run: TrainingRun }) {
       color: 'var(--accent)',
       sub: p.total ? `${p.done} done${p.skipped ? `, ${p.skipped} skipped` : ''} of ${p.total}` : 'plan comes first',
     },
-    { label: 'Iterations', value: String(s.turns), sub: 'agent turns' },
+    { label: 'Iterations', value: String(s.turns), sub: 'agent rounds' },
     { label: 'Attempts', value: String(s.experiments), sub: s.repairs ? `${s.repairs} self-repaired` : undefined },
     { label: 'Runtime', value: formatRuntime(s.runtimeMs) },
   ];

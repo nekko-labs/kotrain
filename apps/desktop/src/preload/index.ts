@@ -35,6 +35,7 @@ const api: NekkoApi = {
   lmsAvailable: (providerId) => inv(IpcChannels.lmsProbe, providerId),
   stopServer: (providerId) => inv(IpcChannels.serverStop, providerId),
   getGpuStats: () => inv(IpcChannels.gpuStats),
+  getSystemStats: () => inv(IpcChannels.systemStats),
 
   listSessions: () => inv(IpcChannels.sessionsList),
   createSession: (workspaceId) => inv(IpcChannels.sessionCreate, workspaceId),

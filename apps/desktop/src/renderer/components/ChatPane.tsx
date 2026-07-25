@@ -12,7 +12,7 @@ import {
   ActivityGroup,
   ApprovalBar,
   MessageBubble,
-  TurnFooter,
+  ReplyFooter,
   toStreamBlocks,
   type Activity,
   type PendingApproval,
@@ -208,7 +208,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     }
     turnOutRef.current = 0;
 
-    // Build a short completion summary from the tools used this turn.
+    // Build a short completion summary from the tools used in this reply.
     if (liveTools.length > 0) {
       const names = liveTools.map((t) => t.name);
       const unique = Array.from(new Set(names));
@@ -276,7 +276,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     return () => clearInterval(t);
   }, [streaming]);
 
-  // The concrete model to run this turn: the picked one, or, in Auto mode -
+  // The concrete model to run this reply on: the picked one, or, in Auto mode -
   // the best available model for the prompt (favorites break ties).
   const resolveModelId = (text: string): string | null => {
     if (modelId !== AUTO_MODEL_ID) return modelId;
@@ -345,7 +345,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     });
   };
 
-  // Queue the draft to run after the current turn (and any earlier queued
+  // Queue the draft to run after the current reply (and any earlier queued
   // items). Useful for lining up follow-ups while an agent is working.
   const queueDraft = async () => {
     const text = draft.trim();
@@ -613,7 +613,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 <span>✓</span> {doneSummary}
               </div>
             )}
-            <TurnFooter
+            <ReplyFooter
               streaming={streaming}
               waiting={streaming && !liveText && liveActivity.length === 0}
               elapsed={elapsed}
@@ -846,7 +846,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   <button
                     className="btn btn-ghost h-8 px-2.5 py-0 text-[12px]"
                     onClick={queueDraft}
-                    title={streaming ? 'Queue this to run after the current turn' : 'Queue this to run after any queued items'}
+                    title={streaming ? 'Queue this to run after the current reply' : 'Queue this to run after any queued items'}
                   >
                     Queue
                   </button>

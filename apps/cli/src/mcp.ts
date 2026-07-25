@@ -81,7 +81,7 @@ const TOOLS = [
   },
   {
     name: 'open_paw_train_stop',
-    description: 'Stop a training run (the in-flight turn finishes, then the run ends).',
+    description: 'Stop a training run (the in-flight iteration finishes, then the run ends).',
     inputSchema: { type: 'object', properties: { runId: { type: 'string' } }, required: ['runId'] },
   },
   {

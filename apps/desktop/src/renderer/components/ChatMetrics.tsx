@@ -185,7 +185,7 @@ export function ChatMetrics({
               💭 thinking {thinkingOn ? 'on' : 'off'}
             </button>
           ) : (
-            <span className="flex shrink-0 items-center gap-1" title="Whether the model streamed reasoning this turn">
+            <span className="flex shrink-0 items-center gap-1" title="Whether the model streamed reasoning while writing this reply">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${thinking && streaming ? 'animate-pulse' : ''}`}
                 style={{ background: thinking ? 'var(--accent)' : 'var(--ink-faint)' }}
