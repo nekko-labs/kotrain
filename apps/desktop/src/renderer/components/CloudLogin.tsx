@@ -91,7 +91,7 @@ export function CloudLogin({ onAuthed }: { onAuthed: () => void }) {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {error && <p className="text-center text-[12px]" style={{ color: '#e0574a' }}>{error}</p>}
+        {error && <p className="text-center text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
         <button className="btn btn-primary" type="submit" disabled={busy || !email || !password}>
           {busy ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Sign up'}
         </button>

@@ -5,6 +5,7 @@ import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icon
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
 import { useGpuStats, VramDock } from './GpuStats.js';
+import { CONTEXT_SOURCE } from '../tokens.js';
 
 const SOURCE_LABEL: Record<ContextItem['source'], string> = {
   'attached-file': 'Files',
@@ -17,16 +18,7 @@ const SOURCE_LABEL: Record<ContextItem['source'], string> = {
   skill: 'Skill',
 };
 
-const SOURCE_COLOR: Record<ContextItem['source'], string> = {
-  'attached-file': '#5b9dd9',
-  guideline: '#c08adb',
-  memory: '#e0a44a',
-  connector: '#4ec98a',
-  'index-snippet': '#8a8f98',
-  system: '#8a8f98',
-  conversation: '#6d5efc',
-  skill: '#e0574a',
-};
+const SOURCE_COLOR = CONTEXT_SOURCE;
 
 /** Plain-language explanation of each context source, shown on hover. */
 const SOURCE_EXPLAIN: Record<ContextItem['source'], string> = {
@@ -237,7 +229,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
           <span className="chip">{total.toLocaleString()} tok</span>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? '#e0574a' : 'var(--accent)' }} />
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? 'var(--danger)' : 'var(--accent)' }} />
         </div>
         <p className="mt-1.5 text-[11px] text-ink-faint">
           {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · updates every turn.
@@ -265,7 +257,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
             <div className="space-y-1">
               {breakdown.map(([src, n]) => (
                 <div key={src} className="flex items-center gap-2 text-[12px]">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SOURCE_COLOR[src as ContextItem['source']] ?? '#8a8f98' }} />
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SOURCE_COLOR[src as ContextItem['source']] ?? 'var(--neutral)' }} />
                   <span className="min-w-0 flex-1 truncate text-ink-soft">{SOURCE_LABEL[src as ContextItem['source']] ?? src}</span>
                   <span className="shrink-0 text-ink-faint">{n.toLocaleString()} tok</span>
                 </div>

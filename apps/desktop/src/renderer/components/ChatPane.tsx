@@ -1,16 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
+import type { AgentEvent, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
 import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
 import { ChatMetrics } from './ChatMetrics.js';
 import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { PrCard, PrBadge } from './PrCard.js';
-import { MiniNekko } from './Mascot.js';
-import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon } from '../icons.js';
+import {
+  ActivityGroup,
+  ApprovalBar,
+  MessageBubble,
+  TurnFooter,
+  toStreamBlocks,
+  type Activity,
+  type PendingApproval,
+} from './agent-console/index.js';
+import { Modal } from './primitives/index.js';
+import { SendIcon, PanelIcon, DownloadIcon, PlusIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 const NO_PRS: PrInfo[] = []; // stable empty ref so the store selector doesn't churn
@@ -22,12 +30,6 @@ function readImage(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
-}
-
-interface PendingApproval {
-  call: ToolCall;
-  reason: string;
-  severity: 'low' | 'medium' | 'high';
 }
 
 /**
@@ -87,15 +89,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
-
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(null);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [lightbox]);
 
   // Track how many files the agent changed this chat (for the Changes button).
   useEffect(() => {
@@ -620,7 +613,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 <span>✓</span> {doneSummary}
               </div>
             )}
-            <TurnStatus
+            <TurnFooter
               streaming={streaming}
               waiting={streaming && !liveText && liveActivity.length === 0}
               elapsed={elapsed}
@@ -893,313 +886,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         />
       )}
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setLightbox(null)}
+        <Modal
+          title="Attached image"
+          onClose={() => setLightbox(null)}
+          scrim="rgba(0,0,0,0.5)"
+          overlayClassName="p-4"
         >
-          <div onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox} alt="Full-size attachment" className="max-h-[90vh] max-w-[90vw] object-contain" />
-          </div>
-        </div>
+          <img src={lightbox} alt="Full-size attachment" className="max-h-[90vh] max-w-[90vw] object-contain" />
+        </Modal>
       )}
-    </div>
-  );
-}
-
-/** One step of an assistant turn: a tool call, a reasoning block, or a bit of
- *  narration text between tools. Grouped into a single collapsible section. */
-type Activity =
-  | { kind: 'tool'; call: ToolCall }
-  | { kind: 'reasoning'; text: string; duration: number | null }
-  | { kind: 'note'; text: string };
-
-/** A render block of the transcript: a message bubble (user or the final
- *  assistant answer) or a grouped run of the model's working steps. */
-type StreamBlock =
-  | { type: 'msg'; message: ChatMessage }
-  | { type: 'activity'; key: string; items: Activity[] };
-
-/**
- * Fold a transcript into render blocks, collapsing each run of the model's
- * working steps (reasoning, tool calls, and inter-tool narration) into one
- * activity group so a many-step turn reads as a single expandable line instead
- * of a wall of "Used <tool>" rows. Only the final answer stays a bubble.
- */
-function toStreamBlocks(messages: ChatMessage[]): StreamBlock[] {
-  const blocks: StreamBlock[] = [];
-  let run: Activity[] = [];
-  let runKey = '';
-  const flush = () => {
-    if (run.length) { blocks.push({ type: 'activity', key: `act_${runKey}`, items: run }); run = []; }
-  };
-  messages.forEach((m, i) => {
-    if (m.role === 'tool') return;
-    if (m.role === 'user') { flush(); blocks.push({ type: 'msg', message: m }); return; }
-    // Assistant messages that still call tools are working steps; the one that
-    // stops calling tools is the answer.
-    if (m.toolCalls?.length) {
-      if (!run.length) runKey = `${m.id}_${i}`;
-      if (m.reasoning) run.push({ kind: 'reasoning', text: m.reasoning, duration: m.reasoningSeconds ?? null });
-      if (m.content.trim()) run.push({ kind: 'note', text: m.content });
-      m.toolCalls.forEach((c) => run.push({ kind: 'tool', call: c }));
-    } else {
-      flush();
-      blocks.push({ type: 'msg', message: m });
-    }
-  });
-  flush();
-  return blocks;
-}
-
-const fmtTok = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `${n}`);
-
-/** Short local time for a message timestamp (e.g. "3:42 PM"). */
-function fmtTime(ts: number): string {
-  if (!ts) return '';
-  try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
-  catch { return ''; }
-}
-
-/**
- * A collapsed, expandable summary of a run of the model's working steps. Reads
- * as one line ("Worked on 6 steps · read_file, grep") that expands to the
- * individual tool calls, reasoning, and narration.
- */
-function ActivityGroup({ items, streaming = false }: { items: Activity[]; streaming?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const tools = items.filter((it): it is Extract<Activity, { kind: 'tool' }> => it.kind === 'tool');
-  const toolCount = tools.length;
-  const hasScript = tools.some((t) => t.call.name === 'bash');
-  const names = Array.from(new Set(tools.map((t) => t.call.name)));
-  const summary = streaming
-    ? (toolCount ? `Working · ${tools[tools.length - 1].call.name}` : 'Thinking')
-    : (toolCount ? `Worked on ${toolCount} step${toolCount === 1 ? '' : 's'}` : 'Thought it through');
-  return (
-    <div className="fade-in mt-1 font-mono text-[12px]">
-      <button
-        className="flex w-full items-center gap-1.5 py-0.5 text-left text-ink-faint hover:text-ink-soft"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
-        <span className={`shrink-0 ${hasScript ? 'text-red-400' : 'text-green-400'}`}>⚒</span>
-        <span className="font-medium text-ink-soft">{summary}</span>
-        {!streaming && names.length > 0 && <span className="min-w-0 truncate text-ink-faint">· {names.join(', ')}</span>}
-        {streaming && <span className="dots" />}
-      </button>
-      {open && (
-        <div className="ml-[7px] mt-0.5 space-y-0.5 border-l border-line pl-2.5">
-          {items.map((it, i) => {
-            if (it.kind === 'tool') return <ToolCard key={`${it.call.id}_${i}`} call={it.call} />;
-            if (it.kind === 'reasoning') return <ReasoningBlock key={`r${i}`} text={it.text} live={false} duration={it.duration} />;
-            return (
-              <div key={`n${i}`} className="py-0.5 font-sans text-[12.5px] text-ink-soft">
-                <Markdown text={it.text} />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * The live subtext under the conversation: while a turn streams it shows
- * elapsed time, throughput, and tokens generated; when idle it keeps a muted
- * summary of the last turn so the numbers stay visible at the end of the chat.
- */
-function TurnStatus({
-  streaming, waiting, elapsed, tps, out, last,
-}: {
-  streaming: boolean; waiting: boolean; elapsed: number; tps: number; out: number;
-  last: { out: number; tps: number; secs: number } | null;
-}) {
-  if (streaming) {
-    return (
-      <div className="fade-in flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1 text-[11.5px] text-ink-faint">
-        <span className="flex items-center gap-2 text-ink-soft"><MiniNekko size={16} /> {waiting ? 'Nekko is working' : 'Streaming'}<span className="dots" /></span>
-        {elapsed > 0 && <span>· {elapsed}s</span>}
-        {tps > 0 && <span>· {tps} tok/s</span>}
-        {out > 0 && <span>· {fmtTok(out)} tokens</span>}
-      </div>
-    );
-  }
-  if (last && last.out > 0) {
-    return (
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[11px] text-ink-faint/80">
-        <span>Last turn</span>
-        <span>· {fmtTok(last.out)} tokens</span>
-        {last.tps > 0 && <span>· {last.tps} tok/s</span>}
-        {last.secs > 0 && <span>· {last.secs}s</span>}
-      </div>
-    );
-  }
-  return null;
-}
-
-/** Compact thinking indicator — matches tool card style. */
-function ReasoningBlock({ text, live, duration }: { text: string; live: boolean; duration: number | null }) {
-  const [open, setOpen] = useState(false);
-  useEffect(() => { if (!live) setOpen(false); }, [live]);
-  return (
-    <div className="fade-in mt-1">
-      <button className="flex w-full items-center gap-1.5 py-0.5 text-left text-[12px] font-mono text-ink-faint hover:text-ink-soft" onClick={() => setOpen((o) => !o)}>
-        <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
-        <span>💭 {live ? 'Thinking…' : duration != null ? `Thought for ${duration}s` : 'Thought process'}</span>
-      </button>
-      {open && <pre className="ml-[18px] mt-0.5 max-h-60 overflow-y-auto whitespace-pre-wrap border-l border-line pl-2 text-[12px] font-mono leading-relaxed text-ink-faint">{text}</pre>}
-    </div>
-  );
-}
-
-function MessageBubble({
-  message,
-  onResend,
-  onReset,
-  onImageClick,
-  chronological,
-}: {
-  message: ChatMessage;
-  onResend?: (id: string, text: string) => void;
-  /** Rewind the chat to this message and re-run it (replaces the old Regenerate). */
-  onReset?: (id: string, text: string) => void;
-  onImageClick?: (src: string) => void;
-  chronological?: boolean;
-}) {
-  const [copied, setCopied] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const isUser = message.role === 'user';
-  const displayText = isUser && message.skill ? message.skill.input : message.content;
-  const [draft, setDraft] = useState(displayText);
-  if (message.role === 'tool') return null;
-  const copy = () => {
-    navigator.clipboard?.writeText(message.content).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); });
-  };
-
-  if (editing) {
-    return (
-      <div className="flex justify-end">
-        <div className="w-full max-w-[85%]">
-          <textarea className="input max-h-48 min-h-[60px] resize-none text-[14px]" value={draft} autoFocus onChange={(e) => setDraft(e.target.value)} />
-          <div className="mt-1.5 flex justify-end gap-2">
-            <button className="btn btn-ghost py-1 text-[12px]" onClick={() => { setEditing(false); setDraft(displayText); }}>Cancel</button>
-            <button className="btn btn-primary py-1 text-[12px]" onClick={() => { setEditing(false); onResend?.(message.id, draft); }}>Save &amp; send</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // In chronological mode, render reasoning, tools, and text as separate
-  // interleaved blocks so the layout is consistent with the live streaming view.
-  if (chronological && !isUser) {
-    const parts: React.ReactNode[] = [];
-    if (message.reasoning) {
-      parts.push(<ReasoningBlock key="reasoning" text={message.reasoning} live={false} duration={message.reasoningSeconds ?? null} />);
-    }
-    if (displayText) {
-      parts.push(
-        <div key="text" className="group fade-in flex justify-start">
-          <div className="msg-ai">
-            <Markdown text={message.content} />
-            {displayText && message.content && (
-              <div className="mt-1 flex gap-3 text-[10.5px] opacity-0 transition-opacity group-hover:opacity-100 text-ink-faint">
-                <button onClick={copy} title="Copy message" className="hover:text-ink">{copied ? '✓ copied' : 'Copy'}</button>
-              </div>
-            )}
-          </div>
-        </div>,
-      );
-    }
-    if (message.toolCalls?.length) {
-      message.toolCalls.forEach((c) => parts.push(<ToolCard key={c.id} call={c} />));
-    }
-    return <>{parts}</>;
-  }
-
-  return (
-    <div className={`group fade-in flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={isUser ? 'msg-user' : 'msg-ai'}>
-        {isUser && message.skill && (
-          <span className="skill-pill mb-2 inline-flex text-[11px]">
-            <span className="skill-pill-slash">/</span>{message.skill.name}
-          </span>
-        )}
-        {isUser && message.images?.length ? (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {message.images.map((image, i) => (
-              <img
-                key={`${image.slice(0, 24)}-${i}`}
-                src={image}
-                alt={`Attached image ${i + 1}`}
-                className="h-[104px] w-[104px] cursor-pointer rounded-lg object-cover"
-                onClick={() => onImageClick?.(image)}
-              />
-            ))}
-          </div>
-        ) : null}
-        {!isUser && message.reasoning && (
-          <ReasoningBlock text={message.reasoning} live={false} duration={message.reasoningSeconds ?? null} />
-        )}
-        {displayText && (isUser ? <p className="whitespace-pre-wrap text-[14px]">{displayText}</p> : <Markdown text={message.content} />)}
-        {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
-        {displayText && message.content && (
-          <div className={`mt-1.5 flex items-center gap-3 text-[10.5px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 ${isUser ? 'justify-end' : ''}`}>
-            {isUser && message.createdAt > 0 && (
-              <span className="text-ink-faint/70" title={new Date(message.createdAt).toLocaleString()}>{fmtTime(message.createdAt)}</span>
-            )}
-            <button onClick={copy} title="Copy prompt" className="hover:text-ink">{copied ? '✓ copied' : 'Copy'}</button>
-            {onResend && <button onClick={() => { setDraft(displayText); setEditing(true); }} title="Edit & resend" className="hover:text-ink">Edit</button>}
-            {onReset && (
-              <button
-                onClick={() => onReset(message.id, displayText)}
-                title="Rewind the chat to this message and re-run it"
-                className="hover:text-ink"
-              >
-                Reset here
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ToolCard({ call }: { call: ToolCall }) {
-  const isSpawn = call.name === 'spawn_agent';
-  const [open, setOpen] = useState(false);
-  const isScript = call.name === 'bash';
-  return (
-    <div className="mt-1 font-mono text-[12px]">
-      <button className={`flex w-full items-center gap-1.5 py-0.5 text-left ${isScript ? 'text-red-400' : 'text-green-400'} hover:text-ink-soft`} onClick={() => setOpen((value) => !value)}>
-        <span className="w-3 shrink-0 text-[10px]">{open ? '▾' : '▸'}</span>
-        <span className="font-medium">{isSpawn ? '🤖 ' : ''}Used <span className="font-mono">{call.name}</span> tool</span>
-      </button>
-      {open && <pre className="ml-[18px] mt-0.5 overflow-x-auto whitespace-pre-wrap border-l border-line pl-2 text-ink-faint">{JSON.stringify(call.input, null, 2)}</pre>}
-    </div>
-  );
-}
-
-function ApprovalBar({ approval, onDecide }: { approval: PendingApproval; onDecide: (ok: boolean) => void }) {
-  const color = approval.severity === 'high' ? '#e0574a' : approval.severity === 'medium' ? '#e0a44a' : '#8a8f98';
-  return (
-    <div className="border-t border-line px-5 py-3" style={{ background: 'var(--surface-2)' }}>
-      <div className="mx-auto flex max-w-3xl items-center gap-3">
-        <ShieldIcon className="h-5 w-5" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] font-semibold">Approval required</span>
-            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white" style={{ background: color }}>{approval.severity}</span>
-            <span className="text-[12px] text-ink-faint">{approval.reason}</span>
-          </div>
-          <code className="mt-0.5 block truncate font-mono text-[12px] text-ink-soft">
-            {String((approval.call.input as Record<string, unknown>).command ?? JSON.stringify(approval.call.input))}
-          </code>
-        </div>
-        <button className="btn btn-outline" onClick={() => onDecide(false)}>Deny</button>
-        <button className="btn btn-primary" onClick={() => onDecide(true)}>Approve</button>
-      </div>
     </div>
   );
 }

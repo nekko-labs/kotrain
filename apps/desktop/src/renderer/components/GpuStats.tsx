@@ -21,7 +21,7 @@ export function useGpuStats(pollMs = 4000): GpuStats | null {
 }
 
 const GB = (mb: number) => (mb / 1024).toFixed(mb / 1024 >= 10 ? 0 : 1);
-const usedColor = (pct: number) => (pct > 90 ? '#e0574a' : pct > 70 ? '#e0a44a' : '#4ec98a');
+const usedColor = (pct: number) => (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)');
 
 /**
  * Compact VRAM readout for the metrics bar: "VRAM 6.2 / 24 GB" with a mini bar

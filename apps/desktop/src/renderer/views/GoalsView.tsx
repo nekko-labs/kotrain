@@ -107,7 +107,7 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
         </div>
         <div className="text-right">
           <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Working for</div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: run.status === 'running' ? '#60a5fa' : 'inherit' }}>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: run.status === 'running' ? 'var(--running)' : 'inherit' }}>
             {formatRuntime(s.runtimeMs)}
           </div>
         </div>
@@ -246,7 +246,7 @@ function GoalStatTiles({ run }: { run: TrainingRun }) {
 const STEP_GLYPH: Record<PlanStep['status'], { glyph: string; color: string }> = {
   pending: { glyph: '○', color: 'var(--ink-faint)' },
   active: { glyph: '◉', color: 'var(--accent)' },
-  done: { glyph: '✓', color: '#4ade80' },
+  done: { glyph: '✓', color: 'var(--success)' },
   skipped: { glyph: '⊘', color: 'var(--ink-faint)' },
 };
 

@@ -60,8 +60,8 @@ function PaneBody({ pane }: { pane: WbPane }) {
 type AgentStatus = 'working' | 'input' | 'error';
 const STATUS_META: Record<AgentStatus, { color: string; label: string; pulse: boolean }> = {
   working: { color: 'var(--accent)', label: 'Working…', pulse: true },
-  input: { color: '#e0a23a', label: 'Needs your input', pulse: true },
-  error: { color: '#e0574a', label: 'Stopped on an error', pulse: false },
+  input: { color: 'var(--warning)', label: 'Needs your input', pulse: true },
+  error: { color: 'var(--danger)', label: 'Stopped on an error', pulse: false },
 };
 
 function StatusDot({ status, className = '' }: { status: AgentStatus; className?: string }) {

@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { AgentEvent, DesignBoard, DesignPage } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { PlusIcon, CloseIcon, ExternalIcon, TrashIcon } from '../icons.js';
+import { Modal } from '../components/primitives/index.js';
 
 /**
  * Design board: create designs two ways, both first-class.
@@ -352,6 +353,7 @@ const SKETCH_COLORS = ['#111827', '#6d5efc', '#ef4444', '#2563eb', '#059669'];
 const SKETCH_SIZES = [2, 4, 8];
 
 function SketchStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenerate: (dataUrl: string, note: string) => void }) {
+  const titleId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const strokesRef = useRef<Stroke[]>([]);
@@ -442,9 +444,17 @@ function SketchStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenera
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--paper)' }}>
+    <Modal
+      title="Sketch a design"
+      labelledBy={titleId}
+      onClose={onCancel}
+      align="stretch"
+      scrim="var(--paper)"
+      closeOnScrimClick={false}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
-        <span className="text-[13px] font-semibold">✏️ Sketch a design</span>
+        <span id={titleId} className="text-[13px] font-semibold">✏️ Sketch a design</span>
         <span className="hidden text-[11px] text-ink-faint md:inline">boxes + labels are enough, the model fills in the design</span>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           {SKETCH_COLORS.map((c) => (
@@ -498,7 +508,7 @@ function SketchStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenera
           Generate prototype →
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -515,37 +525,42 @@ const PROMPT_IDEAS = [
 function PromptStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenerate: (prompt: string, label?: string) => void }) {
   const [prompt, setPrompt] = useState('');
   const [label, setLabel] = useState('');
+  const titleId = useId();
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onCancel}>
-      <div className="card w-full max-w-xl p-5" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold tracking-tight">✨ Describe it. Watch it appear.</h2>
-        <p className="mt-1 text-[12.5px] text-ink-faint">
-          One prompt in, a working design out. Refine it afterwards with follow-ups, you're the designer, the model just drafts fast.
-        </p>
-        <textarea
-          className="input mt-3 min-h-[88px] w-full resize-y text-[13px]"
-          placeholder="What should it be? Audience, vibe, key sections…"
-          value={prompt}
-          autoFocus
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim(), label.trim() || undefined); }}
-        />
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {PROMPT_IDEAS.map((idea) => (
-            <button key={idea} className="chip max-w-full truncate text-[11px] hover:text-ink" onClick={() => setPrompt(idea)}>
-              {idea}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <input className="input flex-1 text-[12px]" placeholder="Card label (optional)" value={label} onChange={(e) => setLabel(e.target.value)} />
-          <button className="btn btn-ghost py-1.5 text-[12.5px]" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary py-1.5 text-[12.5px]" disabled={!prompt.trim()} onClick={() => onGenerate(prompt.trim(), label.trim() || undefined)}>
-            Generate →
+    <Modal
+      title="Describe a design"
+      labelledBy={titleId}
+      onClose={onCancel}
+      overlayClassName="p-4"
+      className="card w-full max-w-xl p-5"
+    >
+      <h2 id={titleId} className="text-lg font-bold tracking-tight">✨ Describe it. Watch it appear.</h2>
+      <p className="mt-1 text-[12.5px] text-ink-faint">
+        One prompt in, a working design out. Refine it afterwards with follow-ups, you're the designer, the model just drafts fast.
+      </p>
+      <textarea
+        className="input mt-3 min-h-[88px] w-full resize-y text-[13px]"
+        placeholder="What should it be? Audience, vibe, key sections…"
+        value={prompt}
+        autoFocus
+        onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim(), label.trim() || undefined); }}
+      />
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {PROMPT_IDEAS.map((idea) => (
+          <button key={idea} className="chip max-w-full truncate text-[11px] hover:text-ink" onClick={() => setPrompt(idea)}>
+            {idea}
           </button>
-        </div>
+        ))}
       </div>
-    </div>
+      <div className="mt-3 flex items-center gap-2">
+        <input className="input flex-1 text-[12px]" placeholder="Card label (optional)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <button className="btn btn-ghost py-1.5 text-[12.5px]" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-primary py-1.5 text-[12.5px]" disabled={!prompt.trim()} onClick={() => onGenerate(prompt.trim(), label.trim() || undefined)}>
+          Generate →
+        </button>
+      </div>
+    </Modal>
   );
 }
 

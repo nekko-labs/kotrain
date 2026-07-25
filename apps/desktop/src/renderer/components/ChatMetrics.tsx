@@ -2,17 +2,18 @@ import React from 'react';
 import type { ContextBundle, ContextItem, EffortLevel } from '@kotrain/shared';
 import { formatUSD } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { CONTEXT_SOURCE, STATUS } from '../tokens.js';
 
-/** Label + bar color per context source (mirrors the Context Inspector). */
-const SOURCE_META: Record<string, { label: string; color: string }> = {
-  system: { label: 'System prompt', color: '#8a8f98' },
-  conversation: { label: 'Conversation', color: '#6d5efc' },
-  guideline: { label: 'Guidelines', color: '#c08adb' },
-  memory: { label: 'Memory', color: '#e0a44a' },
-  'attached-file': { label: 'Files', color: '#5b9dd9' },
-  connector: { label: 'Connectors', color: '#4ec98a' },
-  'index-snippet': { label: 'Code index', color: '#5bc8c0' },
-  skill: { label: 'Skill', color: '#e0574a' },
+/** Label per context source; colors come from the shared provenance tokens. */
+const SOURCE_LABEL: Record<string, string> = {
+  system: 'System prompt',
+  conversation: 'Conversation',
+  guideline: 'Guidelines',
+  memory: 'Memory',
+  'attached-file': 'Files',
+  connector: 'Connectors',
+  'index-snippet': 'Code index',
+  skill: 'Skill',
 };
 const FREE_COLOR = 'var(--surface-2)';
 
@@ -75,7 +76,10 @@ export function ChatMetrics({
     .map(([src, n]) => ({
       src,
       n,
-      meta: SOURCE_META[src] ?? { label: src, color: '#8a8f98' },
+      meta: {
+        label: SOURCE_LABEL[src] ?? src,
+        color: CONTEXT_SOURCE[src as ContextItem['source']] ?? STATUS.neutral,
+      },
       pctWin: windowTokens ? (n / windowTokens) * 100 : 0,
     }));
   const free = windowTokens ? Math.max(0, windowTokens - used) : 0;
@@ -103,7 +107,7 @@ export function ChatMetrics({
           <span className="h-1.5 w-16 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
             <span
               className="block h-full rounded-full"
-              style={{ width: `${pct}%`, background: pct > 85 ? '#e0574a' : 'var(--accent)' }}
+              style={{ width: `${pct}%`, background: pct > 85 ? 'var(--danger)' : 'var(--accent)' }}
             />
           </span>
           {/* Expanded tooltip: segmented bar + per-source rows with %, plus free space. */}

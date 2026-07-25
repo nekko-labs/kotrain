@@ -141,10 +141,10 @@ export function analyzePrompt(raw: string): PromptAnalysis {
 }
 
 export const GRADE_COLOR: Record<PromptAnalysis['grade'], string> = {
-  A: '#4ec98a', B: '#7bc86c', C: '#e0a23a', D: '#e0823a', F: '#e0574a',
+  A: 'var(--success)', B: '#7bc86c', C: 'var(--warning)', D: '#e0823a', F: 'var(--danger)',
 };
 export const SEVERITY_COLOR: Record<Severity, string> = {
-  critical: '#e0574a', warn: '#e0a23a', info: '#5b9dd9',
+  critical: 'var(--danger)', warn: 'var(--warning)', info: 'var(--info)',
 };
 
 // --- Project / folder mention detection ------------------------------------

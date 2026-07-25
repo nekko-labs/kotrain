@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
+import { Modal } from './primitives/index.js';
 
 /**
  * Camera QR scanner using getUserMedia + jsQR (pure JS, no native plugin, works
@@ -53,7 +54,15 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
   }, [onResult]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black p-6">
+    <Modal
+      title="Scan a pairing QR code"
+      onClose={onClose}
+      closeOnScrimClick={false}
+      scrim="#000"
+      zIndex={60}
+      overlayClassName="p-6"
+      className="flex w-full flex-col items-center"
+    >
       <video ref={videoRef} className="max-h-[70vh] w-full max-w-md rounded-2xl object-cover" muted playsInline />
       <div className="pointer-events-none absolute inset-0 m-auto h-56 w-56 rounded-2xl border-2 border-white/70" style={{ maxHeight: '40vh', maxWidth: '70vw' }} />
       <p className="mt-4 text-center text-[13px] text-white/80">
@@ -62,6 +71,6 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
       <button className="btn btn-outline mt-4 !text-white" style={{ borderColor: 'rgba(255,255,255,0.4)' }} onClick={onClose}>
         Cancel
       </button>
-    </div>
+    </Modal>
   );
 }

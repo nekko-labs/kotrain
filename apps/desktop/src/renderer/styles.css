@@ -20,6 +20,31 @@
   --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.04), 0 2px 8px rgba(20, 20, 30, 0.05);
   --shadow-md: 0 4px 16px rgba(20, 20, 30, 0.08), 0 1px 3px rgba(20, 20, 30, 0.06);
   --ring: color-mix(in srgb, var(--accent) 35%, transparent);
+  /* Semantic status colors. Every screen reads state through these (never a
+     raw hex), so a theme change moves every badge, dot and chip at once. */
+  --success: #3aa870;
+  --danger: #d24738;
+  --warning: #c9871f;
+  --info: #3f7fb8;
+  --neutral: #8a8f98;
+  --running: #3b82f6;
+  --highlight: #d99b12;
+  --success-soft: color-mix(in srgb, var(--success) 14%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 14%, transparent);
+  --warning-soft: color-mix(in srgb, var(--warning) 14%, transparent);
+  --info-soft: color-mix(in srgb, var(--info) 14%, transparent);
+  --neutral-soft: color-mix(in srgb, var(--neutral) 14%, transparent);
+  /* Context/provenance categories, shared by the metrics bar, the context
+     inspector and the prompt analyzer so one source is one color app-wide. */
+  --cat-system: var(--neutral);
+  --cat-conversation: var(--accent);
+  --cat-guideline: #a06fbf;
+  --cat-memory: var(--warning);
+  --cat-file: var(--info);
+  --cat-connector: var(--success);
+  --cat-index: #3f9e97;
+  --cat-skill: var(--danger);
+  --cat-spec: #3f9e97;
   /* Make native controls (select popups, scrollbars) match the theme so we
      never get light text on a light system-rendered dropdown. */
   color-scheme: light;
@@ -40,6 +65,22 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
   --ring: color-mix(in srgb, var(--accent) 45%, transparent);
+  /* Brighter status hues so state stays legible on the dark surfaces. */
+  --success: #4ec98a;
+  --danger: #e0574a;
+  --warning: #e0a44a;
+  --info: #5b9dd9;
+  --neutral: #8a8f98;
+  --running: #60a5fa;
+  --highlight: #fbbf24;
+  --success-soft: color-mix(in srgb, var(--success) 18%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 18%, transparent);
+  --warning-soft: color-mix(in srgb, var(--warning) 18%, transparent);
+  --info-soft: color-mix(in srgb, var(--info) 18%, transparent);
+  --neutral-soft: color-mix(in srgb, var(--neutral) 18%, transparent);
+  --cat-guideline: #c08adb;
+  --cat-index: #5bc8c0;
+  --cat-spec: #5bc8c0;
   color-scheme: dark;
 }
 

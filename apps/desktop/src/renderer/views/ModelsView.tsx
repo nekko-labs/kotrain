@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { ModelInfo, ProviderConfig, ProviderKind } from '@kotrain/shared';
 import { PROVIDER_DEFAULTS, isLocalProvider } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { Badge } from '../components/primitives/index.js';
 import { PlusIcon, TrashIcon, CheckIcon, StarIcon } from '../icons.js';
 
 const KINDS: ProviderKind[] = ['ollama', 'lmstudio', 'vllm', 'anthropic', 'openai', 'openrouter', 'openai-compat'];
@@ -61,14 +62,14 @@ export function ModelsView() {
 
         <ProviderSection
           title="Local"
-          accent="#4ec98a"
+          accent="var(--success)"
           subtitle="On-device model servers, private, free, fast."
           providers={local}
           onChanged={refreshProviders}
         />
         <ProviderSection
           title="Cloud"
-          accent="#5b9dd9"
+          accent="var(--info)"
           subtitle="Hosted APIs, Anthropic, OpenAI, OpenRouter, or any compatible endpoint."
           providers={cloud}
           onChanged={refreshProviders}
@@ -186,7 +187,7 @@ function AddProvider({ onDone }: { onDone: () => void }) {
       <div className="mt-4 flex items-center justify-between gap-2">
         <div className="min-w-0 text-[12px]">
           {result && (
-            <span style={{ color: result.ok ? '#4ec98a' : '#e0574a' }} className="inline-flex items-center gap-1.5">
+            <span style={{ color: result.ok ? 'var(--success)' : 'var(--danger)' }} className="inline-flex items-center gap-1.5">
               {result.ok && <CheckIcon className="h-3.5 w-3.5" />}
               {result.ok ? 'Connected' : result.message}
             </span>
@@ -292,12 +293,12 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold">{provider.label}</h3>
             {conn.state === 'ok' && (
-              <span className="chip !text-white" style={{ background: '#4ec98a' }}>
+              <Badge tone="success" variant="solid" className="px-2 py-0.5">
                 <CheckIcon className="h-3 w-3" /> Connected
-              </span>
+              </Badge>
             )}
             {conn.state === 'fail' && (
-              <span className="chip !text-white" style={{ background: '#e0574a' }} title={conn.message}>Offline</span>
+              <Badge tone="danger" variant="solid" title={conn.message}>Offline</Badge>
             )}
             {conn.state === 'testing' && <span className="chip">checking…</span>}
             {provider.discovered && <span className="chip">discovered</span>}
@@ -318,7 +319,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
         {local && (
           <button
             className="btn btn-outline py-1.5 text-[12px]"
-            style={{ color: '#e0574a', borderColor: 'rgba(224,87,74,0.4)' }}
+            style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
             onClick={stopServer}
             disabled={stopping || conn.state === 'fail'}
             title="Stop this local model server (kills its process and unloads its models)"
@@ -326,7 +327,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
             {stopping ? 'Stopping…' : 'Stop server'}
           </button>
         )}
-        {conn.state === 'fail' && <span className="text-[12px]" style={{ color: '#e0574a' }}>{conn.message}</span>}
+        {conn.state === 'fail' && <span className="text-[12px]" style={{ color: 'var(--danger)' }}>{conn.message}</span>}
       </div>
 
       {isOllama && (
@@ -372,7 +373,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
                 m.loaded ? (
                   <button
                     className="chip !text-white"
-                    style={{ background: '#4ec98a' }}
+                    style={{ background: 'var(--success)' }}
                     disabled={busy === m.id}
                     onClick={() => setLoaded(m, false)}
                     title="Loaded in memory — click to unload"
@@ -385,13 +386,9 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
                   </button>
                 )
               ) : local && m.loaded ? (
-                <span
-                  className="chip !text-white"
-                  style={{ background: '#4ec98a' }}
-                  title={lms?.reason ?? 'Loaded in memory. Use “Stop server” to unload.'}
-                >
+                <Badge tone="success" variant="solid" title={lms?.reason ?? 'Loaded in memory. Use “Stop server” to unload.'}>
                   <CheckIcon className="h-3 w-3" /> loaded
-                </span>
+                </Badge>
               ) : null}
             </div>
           </div>
