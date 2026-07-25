@@ -140,6 +140,78 @@ export function analyzePrompt(raw: string): PromptAnalysis {
   return { grade, score, parts, findings, tokens, model };
 }
 
+// --- Part fill suggestions ---------------------------------------------------
+// Powers the click-to-fill behavior of the composer's missing-part chips: for a
+// part the prompt lacks, produce a starter snippet tailored to what the prompt
+// is about (code, writing, data…), via plain text matching so it stays instant
+// and offline. Each snippet is worded to satisfy that part's detector above.
+
+export interface PartFill {
+  snippet: string;
+  /** Where the snippet belongs in the draft. */
+  placement: 'start' | 'end';
+}
+
+/** Rough topic of the prompt, used to pick the best-matching snippet. */
+function promptDomain(t: string): 'code' | 'writing' | 'data' | 'general' {
+  if (/```|\b(bug|error|stack trace|refactor|function|component|endpoint|api|code|typescript|javascript|python|rust|test|compile|repo|commit)\b/i.test(t)) return 'code';
+  if (/\b(email|blog|article|post|essay|copy|announcement|newsletter|headline|tweet|caption|story)\b/i.test(t)) return 'writing';
+  if (/\b(data|csv|json|rows|dataset|spreadsheet|metrics|numbers|report|chart|trend)\b/i.test(t)) return 'data';
+  return 'general';
+}
+
+const ROLE_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'You are a senior software engineer who writes precise, minimal changes.',
+  writing: 'You are an experienced editor with a sharp, plain-language style.',
+  data: 'You are a meticulous data analyst who shows their working.',
+  general: 'You are an expert in this domain.',
+};
+const TASK_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'Fix the issue described above and explain the root cause.',
+  writing: 'Draft the text described above.',
+  data: 'Analyze the data above and summarize the key findings.',
+  general: 'Write a response that addresses the request above.',
+};
+const FORMAT_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'Format: markdown, with code in fenced blocks and a one-line summary first.',
+  writing: 'Format: markdown, with a short title and two or three tight paragraphs.',
+  data: 'Format: a markdown table of the findings, then three bullet takeaways.',
+  general: 'Format: a short markdown answer with bullet points for the key items.',
+};
+const CONSTRAINTS_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'Constraints: keep the diff minimal; do not touch unrelated code; note any tradeoffs.',
+  writing: 'Constraints: at most 200 words; plain language; no filler.',
+  data: 'Constraints: only conclusions the data supports; do not invent numbers; at most 5 bullets.',
+  general: 'Constraints: be specific; do not invent facts; at most 5 bullet points.',
+};
+
+/**
+ * A starter snippet for a missing prompt part, matched to the prompt's topic.
+ * Returns null for unknown part ids (or parts with no sensible fill).
+ */
+export function suggestPartFill(partId: string, text: string): PartFill | null {
+  const d = promptDomain(text);
+  const isQuestion = /\?|^\s*(why|how|what|when|where|who)\b/i.test(text);
+  switch (partId) {
+    case 'role':
+      return { snippet: ROLE_FILL[d], placement: 'start' };
+    case 'task':
+      return { snippet: isQuestion ? 'Explain the answer clearly, step by step.' : TASK_FILL[d], placement: 'end' };
+    case 'context':
+      return { snippet: 'Context:\n"""\n[paste the relevant background, code, or reference material here]\n"""', placement: 'end' };
+    case 'examples':
+      return { snippet: 'Example:\nInput: [a sample input]\nOutput: [what you expect back]', placement: 'end' };
+    case 'format':
+      return { snippet: /\b(classify|categori[sz]e|extract|label|tag)\b/i.test(text)
+        ? 'Format: return valid JSON only, e.g. { "items": [] }.'
+        : FORMAT_FILL[d], placement: 'end' };
+    case 'constraints':
+      return { snippet: CONSTRAINTS_FILL[d], placement: 'end' };
+    default:
+      return null;
+  }
+}
+
 export const GRADE_COLOR: Record<PromptAnalysis['grade'], string> = {
   A: '#4ec98a', B: '#7bc86c', C: '#e0a23a', D: '#e0823a', F: '#e0574a',
 };

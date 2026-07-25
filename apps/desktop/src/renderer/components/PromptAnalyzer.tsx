@@ -3,11 +3,13 @@ import type { ContextItem, SpecDocStatus, WorkspaceFolder } from '@kotrain/share
 import {
   analyzePrompt,
   detectFolderMentions,
+  suggestPartFill,
   GRADE_COLOR,
   SEVERITY_COLOR,
   type Finding,
   type MentionMatch,
   type MentionProject,
+  type PartFill,
   type Severity,
 } from '../promptAnalysis.js';
 import { FolderIcon } from '../icons.js';
@@ -62,6 +64,7 @@ export function PromptAnalyzer({
   workspaces = [],
   contextItems = [],
   activeWorkspaceIds = [],
+  onFill,
 }: {
   text: string;
   sessionId?: string;
@@ -70,6 +73,8 @@ export function PromptAnalyzer({
   contextItems?: ContextItem[];
   /** Workspace ids grounding this chat (primary + supporting). */
   activeWorkspaceIds?: string[];
+  /** Insert a starter snippet for a missing part into the draft. */
+  onFill?: (fill: PartFill) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [specDocs, setSpecDocs] = useState<Record<string, SpecDocStatus[]>>({});
@@ -226,17 +231,46 @@ export function PromptAnalyzer({
             </div>
           )}
 
+          {/* Present parts read as badges; missing ones are buttons that insert
+              a starter snippet matched to what the prompt is about. */}
           <div className="flex flex-wrap gap-1">
-            {a.parts.map((p) => (
-              <span
-                key={p.id}
-                title={p.hint}
-                className="cursor-help rounded-full border px-2 py-0.5 text-[11px]"
-                style={p.present ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : { borderColor: 'var(--line)', color: 'var(--ink-faint)' }}
-              >
-                {p.present ? '✓' : '+'} {p.label}
-              </span>
-            ))}
+            {a.parts.map((p) => {
+              if (p.present) {
+                return (
+                  <span
+                    key={p.id}
+                    title={p.hint}
+                    className="cursor-help rounded-full border px-2 py-0.5 text-[11px]"
+                    style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                  >
+                    ✓ {p.label}
+                  </span>
+                );
+              }
+              const fill = onFill ? suggestPartFill(p.id, text) : null;
+              if (!fill) {
+                return (
+                  <span
+                    key={p.id}
+                    title={p.hint}
+                    className="cursor-help rounded-full border px-2 py-0.5 text-[11px]"
+                    style={{ borderColor: 'var(--line)', color: 'var(--ink-faint)' }}
+                  >
+                    + {p.label}
+                  </span>
+                );
+              }
+              return (
+                <button
+                  key={p.id}
+                  title={`${p.hint} Click to insert: "${fill.snippet}"`}
+                  className="rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] text-ink-faint transition-colors hover:border-solid hover:border-accent hover:text-accent"
+                  onClick={() => onFill?.(fill)}
+                >
+                  + {p.label}
+                </button>
+              );
+            })}
           </div>
 
           <p className="text-[11px] text-ink-faint">

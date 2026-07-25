@@ -68,7 +68,7 @@ export function ChatControls({
   };
 
   return (
-    <div ref={ref} className="flex min-w-0 items-center gap-1.5 text-[12px]">
+    <div ref={ref} className="flex shrink-0 items-center gap-1.5 text-[12px]">
       {/* Mode */}
       <div className="relative">
         <button

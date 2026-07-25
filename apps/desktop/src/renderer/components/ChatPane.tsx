@@ -10,7 +10,7 @@ import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { PrCard, PrBadge } from './PrCard.js';
 import { MiniNekko } from './Mascot.js';
-import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon } from '../icons.js';
+import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon, StarIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 const NO_PRS: PrInfo[] = []; // stable empty ref so the store selector doesn't churn
@@ -766,10 +766,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         <div className="border-t border-line px-4 pb-4 pt-1.5">
           <div className="mx-auto w-full max-w-3xl">
             {/* The instrument strip: how this agent runs. Execution controls on
-                the left, model + reasoning on the right — one row, one hairline. */}
-            <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
+                the left, model + reasoning on the right — one row, one hairline.
+                Never wraps: the model chip is the flexible member and truncates
+                first, so a long model name can't push the cluster onto a second
+                line. */}
+            <div className="flex items-center gap-1.5 pb-1.5">
               <ChatControls session={session} isCloudModel={isCloudModel} onChange={setSession} />
-              <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+              <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5">
                 {autoPickName && (
                   <span className="chip shrink-0 text-[10px]" title="Model Auto will use for this message">→ {autoPickName}</span>
                 )}
@@ -778,9 +781,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   providerId={providerId}
                   models={models}
                   modelId={modelId}
-                  favoriteModels={new Set(settings?.favoriteModels ?? [])}
                   onProvider={setProviderId}
-                  onModel={(v) => {
+                  onModel={(_pid, v) => {
                     setModelId(v);
                     window.nekko.setSessionOptions(sessionId, { autoModel: v === AUTO_MODEL_ID }).catch(() => {});
                   }}
@@ -851,6 +853,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               workspaces={settings?.workspaces ?? []}
               contextItems={ctx?.items ?? []}
               activeWorkspaceIds={session ? getSessionWorkspaceIds(session) : []}
+              onFill={({ snippet, placement }) => {
+                setDraft((d) =>
+                  placement === 'start' ? `${snippet}\n\n${d.replace(/^\s+/, '')}` : `${d.replace(/\s+$/, '')}\n\n${snippet}`,
+                );
+                composerRef.current?.focus();
+              }}
             />
 
             <div className="relative w-full">
@@ -1116,7 +1124,6 @@ function ModelPicker({
   providerId,
   models,
   modelId,
-  favoriteModels,
   onProvider,
   onModel,
 }: {
@@ -1124,11 +1131,16 @@ function ModelPicker({
   providerId: string | null;
   models: ModelInfo[];
   modelId: string | null;
-  favoriteModels: Set<string>;
   onProvider: (id: string) => void;
-  onModel: (id: string) => void;
+  onModel: (providerId: string, id: string) => void;
 }) {
+  const settings = useStore((s) => s.settings);
+  const refreshSettings = useStore((s) => s.refreshSettings);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  // Models per provider, fetched when the menu opens so the list covers every
+  // provider (the `models` prop only holds the active provider's).
+  const [byProvider, setByProvider] = useState<Record<string, ModelInfo[]>>({});
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1142,19 +1154,91 @@ function ModelPicker({
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [open]);
 
-  const sorted = [...models].sort((a, b) => {
-    const fa = favoriteModels.has(`${providerId}::${a.id}`) ? 0 : 1;
-    const fb = favoriteModels.has(`${providerId}::${b.id}`) ? 0 : 1;
-    return fa - fb;
-  });
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    Promise.all(
+      providers.map((p) =>
+        window.nekko.listModels(p.id)
+          .then((m) => [p.id, m] as const)
+          .catch(() => [p.id, [] as ModelInfo[]] as const),
+      ),
+    ).then((entries) => { if (live) setByProvider(Object.fromEntries(entries)); });
+    return () => { live = false; };
+  }, [open, providers]);
+
+  const favSet = new Set(settings?.favoriteModels ?? []);
+  const toggleFavorite = async (key: string) => {
+    const next = new Set(settings?.favoriteModels ?? []);
+    next.has(key) ? next.delete(key) : next.add(key);
+    await window.nekko.updateSettings({ favoriteModels: [...next] });
+    refreshSettings();
+  };
+
+  const modelsOf = (pid: string): ModelInfo[] =>
+    byProvider[pid] ?? (pid === providerId ? models : []);
+  const q = query.trim().toLowerCase();
+  const matches = (m: ModelInfo) => !q || m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+
+  const groups = providers
+    .map((p) => ({ provider: p, models: modelsOf(p.id).filter(matches) }))
+    .filter((g) => g.models.length > 0);
+  const starred = groups.flatMap((g) =>
+    g.models
+      .filter((m) => favSet.has(`${g.provider.id}::${m.id}`))
+      .map((m) => ({ provider: g.provider, model: m })),
+  );
+  const total = providers.reduce((n, p) => n + modelsOf(p.id).length, 0);
+
   const providerLabel = providers.find((p) => p.id === providerId)?.label ?? 'No provider';
   const currentName =
     modelId === AUTO_MODEL_ID ? '✨ Auto' : models.find((m) => m.id === modelId)?.name ?? 'No model';
 
+  const pick = (pid: string, mid: string) => {
+    if (pid !== providerId) onProvider(pid);
+    onModel(pid, mid);
+    setOpen(false);
+  };
+
+  const row = (p: { id: string; label: string }, m: ModelInfo, showProvider: boolean) => {
+    const key = `${p.id}::${m.id}`;
+    const fav = favSet.has(key);
+    const selected = p.id === providerId && modelId === m.id;
+    return (
+      <div
+        key={key}
+        className={`flex w-full items-center rounded-lg hover:bg-surface-2 ${selected ? 'text-accent' : ''}`}
+      >
+        <button
+          role="option"
+          aria-selected={selected}
+          className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left text-[12px]"
+          onClick={() => pick(p.id, m.id)}
+        >
+          <span className="min-w-0 truncate">{m.name}</span>
+          {showProvider && <span className="shrink-0 text-[10px] text-ink-faint">{p.label}</span>}
+        </button>
+        <button
+          className={`shrink-0 rounded p-1.5 ${fav ? 'text-accent' : 'text-ink-faint hover:text-ink'}`}
+          title={fav ? 'Unstar' : 'Star (pin to the top of this list)'}
+          aria-label={fav ? `Unstar ${m.name}` : `Star ${m.name}`}
+          aria-pressed={fav}
+          onClick={() => toggleFavorite(key)}
+        >
+          <StarIcon className="h-3.5 w-3.5" filled={fav} />
+        </button>
+      </div>
+    );
+  };
+
+  const header = (label: string) => (
+    <p className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{label}</p>
+  );
+
   return (
-    <div ref={ref} className="relative min-w-0">
+    <div ref={ref} className="relative min-w-0 max-w-[240px]">
       <button
-        className="chip max-w-[240px] hover:text-ink"
+        className="chip max-w-full hover:text-ink"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -1165,47 +1249,45 @@ function ModelPicker({
         <span className="opacity-60">▾</span>
       </button>
       {open && (
-        <div className="card absolute bottom-8 right-0 z-40 flex max-h-96 w-72 flex-col p-1.5 shadow-lg">
-          <label className="block px-1 pb-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Provider</span>
-            <select
-              className="input mt-0.5 px-2 py-1 text-[12px]"
-              aria-label="Provider"
-              value={providerId ?? ''}
-              onChange={(e) => onProvider(e.target.value)}
-            >
-              {providers.length === 0 && <option value="">No provider</option>}
-              {providers.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-          </label>
+        <div className="card absolute bottom-8 right-0 z-40 flex max-h-96 w-80 flex-col p-1.5 shadow-lg">
+          {total > 8 && (
+            <input
+              className="input mb-1 rounded-lg px-2.5 py-1 text-[12px]"
+              placeholder="Filter models…"
+              value={query}
+              autoFocus
+              aria-label="Filter models"
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          )}
           <div className="min-h-0 flex-1 overflow-y-auto" role="listbox" aria-label="Model">
-            {models.length === 0 && <p className="px-2.5 py-1.5 text-[11px] text-ink-faint">No models for this provider.</p>}
-            {models.length > 1 && (
+            {providers.length === 0 && <p className="px-2.5 py-1.5 text-[11px] text-ink-faint">No provider configured.</p>}
+            {providers.length > 0 && groups.length === 0 && (
+              <p className="px-2.5 py-1.5 text-[11px] text-ink-faint">{q ? 'No models match.' : 'No models available.'}</p>
+            )}
+            {total > 1 && !q && (
               <button
                 role="option"
                 aria-selected={modelId === AUTO_MODEL_ID}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2 ${modelId === AUTO_MODEL_ID ? 'text-accent' : ''}`}
-                onClick={() => { onModel(AUTO_MODEL_ID); setOpen(false); }}
+                onClick={() => { onModel(providerId ?? '', AUTO_MODEL_ID); setOpen(false); }}
                 title="Kotrain picks the best model for each message"
               >
                 ✨ Auto <span className="text-[11px] text-ink-faint">(pick best)</span>
               </button>
             )}
-            {sorted.map((m) => {
-              const fav = favoriteModels.has(`${providerId}::${m.id}`);
-              return (
-                <button
-                  key={m.id}
-                  role="option"
-                  aria-selected={modelId === m.id}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2 ${modelId === m.id ? 'text-accent' : ''}`}
-                  onClick={() => { onModel(m.id); setOpen(false); }}
-                >
-                  {fav && <span className="shrink-0 text-accent">★</span>}
-                  <span className="min-w-0 truncate">{m.name}</span>
-                </button>
-              );
-            })}
+            {starred.length > 0 && !q && (
+              <>
+                {header('★ Starred')}
+                {starred.map((s) => row(s.provider, s.model, true))}
+              </>
+            )}
+            {groups.map((g) => (
+              <React.Fragment key={g.provider.id}>
+                {header(g.provider.label)}
+                {g.models.map((m) => row(g.provider, m, false))}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       )}
