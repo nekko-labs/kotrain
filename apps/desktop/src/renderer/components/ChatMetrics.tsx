@@ -18,14 +18,17 @@ export function ContextGauge({
   bundle,
   cost,
   skill,
+  draftTokens = 0,
 }: {
   bundle: ContextBundle | null;
   cost?: number;
   /** The skill armed in the composer, folded into the token count when present. */
   skill?: { name: string; tokens: number } | null;
+  /** Tokens of the unsent draft, so the gauge tracks what you're typing. */
+  draftTokens?: number;
 }) {
   const included = (bundle?.items ?? []).filter((i: ContextItem) => i.included);
-  const used = included.reduce((s, i) => s + i.tokens, 0) + (skill?.tokens ?? 0);
+  const used = included.reduce((s, i) => s + i.tokens, 0) + (skill?.tokens ?? 0) + draftTokens;
   const windowTokens = bundle?.contextWindow ?? 0;
   const pct = windowTokens ? Math.min(100, (used / windowTokens) * 100) : 0;
 
@@ -34,6 +37,7 @@ export function ContextGauge({
     return acc;
   }, {});
   if (skill?.tokens) bySource.skill = (bySource.skill ?? 0) + skill.tokens;
+  if (draftTokens) bySource.draft = (bySource.draft ?? 0) + draftTokens;
 
   // Rows for the breakdown, biggest first, each with its share of the window.
   const rows = Object.entries(bySource)
@@ -153,15 +157,17 @@ export function EffortMenu() {
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
-        className="chip shrink-0 text-[11px] hover:text-ink"
+        className="ctl-menu whitespace-nowrap"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         title="How much reasoning effort the model spends per reply (applies to all chats)"
       >
-        <span className="opacity-60">Effort:</span> {effort} ▾
+        <span className="ctl-menu-label">Effort</span>
+        <span className="capitalize">{effort}</span>
+        <span className="ctl-caret">▾</span>
       </button>
       {open && (
         <div className="card absolute bottom-8 right-0 z-40 w-56 p-1.5 shadow-lg" role="menu">

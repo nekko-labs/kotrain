@@ -28,7 +28,9 @@ export function Section({
 
 /** A card whose children are rows, separated by the theme's hairline. */
 export function PanelList({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`card divide-y divide-[var(--line)] ${className}`}>{children}</div>;
+  // `overflow-hidden` clips the rows to the card's radius, so a row's hover fill
+  // can't square off the list's rounded top and bottom corners.
+  return <div className={`card divide-y divide-[var(--line)] overflow-hidden ${className}`}>{children}</div>;
 }
 
 /** The dashed "nothing here yet" hint used across the views. */
