@@ -11,10 +11,14 @@ const MODE_DESC: Record<ChatMode, string> = {
 };
 
 /**
- * The per-chat execution controls, rendered as a chip cluster inside the
- * instrument strip above the composer: tool-execution mode, which tools are
- * enabled, and Offline / Incognito switches. Layout (row, alignment, measure)
- * belongs to the parent strip.
+ * The per-chat execution row of the instrument strip above the composer: how
+ * tools run (mode, which tools) on the left, and the two privacy switches
+ * (Offline, Incognito) parked on the right behind a hairline divider, so
+ * "what this agent may do" reads apart from "what it may reach".
+ *
+ * The two families look different on purpose: value pickers are bordered fields
+ * with a caret (`.ctl-menu`), switches are quiet until hovered and show their
+ * on-state with color and a lit dot rather than a filled pill (`.ctl-toggle`).
  */
 export function ChatControls({
   session,
@@ -68,17 +72,19 @@ export function ChatControls({
   };
 
   return (
-    <div ref={ref} className="flex shrink-0 items-center gap-1.5 text-[12px]">
+    <div ref={ref} className="flex w-full min-w-0 items-center gap-1.5 text-[12px]">
       {/* Mode */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
-          className="chip hover:text-ink"
+          className="ctl-menu whitespace-nowrap"
           onClick={() => { setModeOpen((o) => !o); setToolsOpen(false); }}
           aria-haspopup="menu"
           aria-expanded={modeOpen}
           title={MODE_DESC[mode]}
         >
-          <span className="opacity-60">Mode:</span> {MODE_LABEL[mode]} ▾
+          <span className="ctl-menu-label">Mode</span>
+          {MODE_LABEL[mode]}
+          <span className="ctl-caret">▾</span>
         </button>
         {modeOpen && (
           <div className="card absolute bottom-8 left-0 z-40 w-60 p-1.5 shadow-lg" role="menu">
@@ -99,16 +105,19 @@ export function ChatControls({
       </div>
 
       {/* Tools */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
-          className="chip hover:text-ink"
+          className="ctl-menu whitespace-nowrap"
           onClick={() => { setToolsOpen((o) => !o); setModeOpen(false); setToolQuery(''); }}
           disabled={offline}
           aria-haspopup="menu"
           aria-expanded={toolsOpen}
           title={offline ? 'Tools are off in Offline mode' : 'Enable/disable tools for this chat'}
         >
-          <WrenchIcon className="h-3 w-3" /> Tools {offline ? 'off' : `${enabledCount}/${tools.length}`} ▾
+          <WrenchIcon className="h-3 w-3 text-ink-faint" />
+          <span className="ctl-menu-label">Tools</span>
+          <span className="tabular-nums">{offline ? 'off' : `${enabledCount}/${tools.length}`}</span>
+          <span className="ctl-caret">▾</span>
         </button>
         {toolsOpen && !offline && (
           <div className="card absolute bottom-8 left-0 z-40 flex max-h-80 w-64 flex-col p-1.5 shadow-lg">
@@ -150,28 +159,34 @@ export function ChatControls({
         )}
       </div>
 
-      {/* Offline */}
-      <button
-        className={`chip ${offline ? '!text-white' : 'hover:text-ink'}`}
-        style={offline ? { background: 'var(--accent)' } : undefined}
-        onClick={() => !isCloudModel && patch({ offline: !offline })}
-        disabled={isCloudModel}
-        aria-pressed={offline}
-        title={isCloudModel ? 'Offline mode is only for local models' : 'No tools, no connectors, no internet'}
-      >
-        <PlaneIcon className="h-3 w-3" /> Offline
-      </button>
+      {/* The privacy switches sit apart from the execution controls: pushed to
+          the right edge of the row, behind a hairline. */}
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <span className="mr-0.5 h-4 w-px bg-line" aria-hidden="true" />
 
-      {/* Incognito */}
-      <button
-        className={`chip ${incognito ? '!text-white' : 'hover:text-ink'}`}
-        style={incognito ? { background: '#6b6f76' } : undefined}
-        onClick={() => patch({ incognito: !incognito })}
-        aria-pressed={incognito}
-        title="Don't save this chat or update memory"
-      >
-        <MaskIcon className="h-3 w-3" /> Incognito
-      </button>
+        {/* Offline */}
+        <button
+          className="ctl-toggle whitespace-nowrap"
+          onClick={() => !isCloudModel && patch({ offline: !offline })}
+          disabled={isCloudModel}
+          aria-pressed={offline}
+          title={isCloudModel ? 'Offline mode is only for local models' : 'No tools, no connectors, no internet'}
+        >
+          <span className="ctl-dot" />
+          <PlaneIcon className="h-3 w-3" /> Offline
+        </button>
+
+        {/* Incognito */}
+        <button
+          className="ctl-toggle ctl-toggle-neutral whitespace-nowrap"
+          onClick={() => patch({ incognito: !incognito })}
+          aria-pressed={incognito}
+          title="Don't save this chat or update memory"
+        >
+          <span className="ctl-dot" />
+          <MaskIcon className="h-3 w-3" /> Incognito
+        </button>
+      </div>
     </div>
   );
 }

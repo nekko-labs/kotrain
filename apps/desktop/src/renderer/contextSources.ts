@@ -1,5 +1,5 @@
 import type { ContextItem } from '@kotrain/shared';
-import { CONTEXT_SOURCE, STATUS } from './tokens.js';
+import { CONTEXT_SOURCE, STATUS, SURFACE } from './tokens.js';
 
 /**
  * Label, bar color, and plain-language explanation for each context source.
@@ -7,7 +7,7 @@ import { CONTEXT_SOURCE, STATUS } from './tokens.js';
  * Context Inspector, so the color vocabulary can never drift between the two.
  * Colors resolve through the semantic provenance tokens (see tokens.ts).
  */
-export const SOURCE_META: Record<ContextItem['source'], { label: string; color: string; explain: string }> = {
+export const SOURCE_META: Record<ContextItem['source'] | 'draft', { label: string; color: string; explain: string }> = {
   system: {
     label: 'System prompt',
     color: CONTEXT_SOURCE.system,
@@ -47,6 +47,13 @@ export const SOURCE_META: Record<ContextItem['source'], { label: string; color: 
     label: 'Skill',
     color: CONTEXT_SOURCE.skill,
     explain: 'The skill armed in the composer. Its instructions are added to your message when you send.',
+  },
+  // Renderer-only: the unsent draft never reaches the host's context bundle, but
+  // it is what the next reply will cost, so both gauges count it live.
+  draft: {
+    label: 'Your message',
+    color: SURFACE.accent,
+    explain: "What you're typing now. It joins the conversation the moment you send, so it already counts against the window.",
   },
 };
 

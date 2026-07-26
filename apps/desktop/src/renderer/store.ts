@@ -120,6 +120,15 @@ interface UiState {
   activeSkillBySession: Record<string, SkillDef | null>;
   setActiveSkill: (sessionId: string, skill: SkillDef | null) => void;
 
+  /**
+   * What's typed but unsent in each chat's composer. The pane owns the text;
+   * this mirror exists so the Context Inspector on the right can count the
+   * draft's tokens while you type (the host's context bundle only knows about
+   * sent messages).
+   */
+  draftBySession: Record<string, string>;
+  setSessionDraft: (sessionId: string, text: string) => void;
+
   setActiveWorkspace: (id: string | null) => void;
   pushToast: (kind: Toast['kind'], message: string) => void;
   dismissToast: (id: string) => void;
@@ -276,6 +285,12 @@ export const useStore = create<UiState>((set, get) => ({
   activeSkillBySession: {},
   setActiveSkill: (sessionId, skill) =>
     set((s) => ({ activeSkillBySession: { ...s.activeSkillBySession, [sessionId]: skill } })),
+
+  draftBySession: {},
+  setSessionDraft: (sessionId, text) =>
+    set((s) => (s.draftBySession[sessionId] === text
+      ? s
+      : { draftBySession: { ...s.draftBySession, [sessionId]: text } })),
 
   setActiveSession: (id) => set({ activeSessionId: id }),
 

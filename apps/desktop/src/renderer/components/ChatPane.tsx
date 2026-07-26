@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
 import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
 import { useStore } from '../store.js';
@@ -24,6 +25,144 @@ function readImage(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Turn a chat image into a Blob. Chat images are data URLs, and the renderer's
+ * CSP has no `data:` in connect-src, so `fetch()` on one fails ("Failed to
+ * fetch") — decode it by hand instead, and keep fetch only for real URLs.
+ */
+async function imageBlob(src: string): Promise<Blob> {
+  const match = /^data:([^;,]*)(;base64)?,([\s\S]*)$/.exec(src);
+  if (!match) return fetch(src).then((r) => r.blob());
+  const type = match[1] || 'image/png';
+  if (!match[2]) return new Blob([decodeURIComponent(match[3])], { type });
+  const binary = atob(match[3]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+
+/** Re-encode an image as PNG, the only format Chromium will put on the
+ *  clipboard. Draws straight from the source URL, which already renders in the
+ *  page, so no extra object URL is needed. */
+function toPngBlob(src: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')?.drawImage(img, 0, 0);
+      canvas.toBlob((out) => (out ? resolve(out) : reject(new Error('Could not encode the image.'))), 'image/png');
+    };
+    img.onerror = () => reject(new Error('Could not read the image.'));
+    img.src = src;
+  });
+}
+
+/** Put a chat image on the system clipboard (as PNG, whatever it arrived as). */
+async function copyImageToClipboard(src: string): Promise<void> {
+  const blob = await imageBlob(src);
+  const png = blob.type === 'image/png' ? blob : await toPngBlob(src);
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+}
+
+/** Save a chat image to disk, keeping its original format. Goes through a blob
+ *  URL rather than the data URL, which Chromium won't always download. */
+async function downloadImage(src: string): Promise<void> {
+  const blob = await imageBlob(src);
+  const ext = (/^image\/([a-z0-9.+-]+)/i.exec(blob.type)?.[1] ?? 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kotrain-image.${ext === 'jpeg' ? 'jpg' : ext || 'png'}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * Right-click menu for a chat image: copy it to the clipboard, or save it. A
+ * webview's native menu isn't available here, so this is the app's own, placed
+ * at the pointer and flipped when it would run off the edge.
+ */
+function ImageMenu({ x, y, src, onClose }: { x: number; y: number; src: string; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Close on a press *outside* the menu, tested against the element rather
+    // than by stopping propagation: this menu is portalled to `body`, so a press
+    // inside it reaches the document listener anyway, and closing on mousedown
+    // would unmount the item before its click could fire.
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
+    const onScroll = () => onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Escape dismisses the top layer only. Captured on `window`, one step
+      // ahead of the lightbox's own document-capture handler, so stopping
+      // propagation here actually keeps the lightbox open.
+      e.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('scroll', onScroll, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [onClose]);
+
+  const WIDTH = 176;
+  const HEIGHT = 76;
+  const left = Math.min(x, Math.max(8, window.innerWidth - WIDTH - 8));
+  const top = Math.min(y, Math.max(8, window.innerHeight - HEIGHT - 8));
+
+  const copy = async () => {
+    onClose();
+    try {
+      await copyImageToClipboard(src);
+      useStore.getState().pushToast('success', 'Image copied to the clipboard.');
+    } catch {
+      useStore.getState().pushToast('error', "Couldn't copy that image.");
+    }
+  };
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="card fixed w-44 p-1.5 shadow-lg"
+      style={{ left, top, zIndex: 60 }}
+      role="menu"
+      aria-label="Image actions"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <button
+        role="menuitem"
+        className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
+        onClick={copy}
+      >
+        Copy image
+      </button>
+      <button
+        role="menuitem"
+        className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
+        onClick={async () => {
+          onClose();
+          try {
+            await downloadImage(src);
+          } catch {
+            useStore.getState().pushToast('error', "Couldn't save that image.");
+          }
+        }}
+      >
+        Save image…
+      </button>
+    </div>,
+    document.body,
+  );
 }
 
 interface PendingApproval {
@@ -69,6 +208,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // PRs referenced in this chat (for the header badge + inline cards).
   const prs = useStore((s) => s.prsBySession[sessionId] ?? NO_PRS);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  // Right-click menu for a chat image (copy / save), placed at the pointer.
+  const [imageMenu, setImageMenu] = useState<{ x: number; y: number; src: string } | null>(null);
   const [reasoningDuration, setReasoningDuration] = useState<number | null>(null);
   const [changeCount, setChangeCount] = useState(0);
   const [doneSummary, setDoneSummary] = useState<string | null>(null);
@@ -336,6 +477,11 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     const t = setTimeout(() => saveDraft(sessionId, latestDraft.current), 400);
     return () => clearTimeout(t);
   }, [sessionId, draft, pendingImages]);
+
+  // Mirror the draft into the store (undebounced) so the Context Inspector on
+  // the right counts what you're typing at the same moment the composer's own
+  // gauge does.
+  useEffect(() => { useStore.getState().setSessionDraft(sessionId, draft); }, [sessionId, draft]);
 
   // Flush on unmount (tab switch, leaving the Chat view) and on window close, so
   // the last keystrokes can't be lost inside the debounce window.
@@ -633,6 +779,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     }
   };
 
+  const openImageMenu = (e: React.MouseEvent, src: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImageMenu({ x: e.clientX, y: e.clientY, src });
+  };
+
   const addImages = async (files: File[]) => {
     const images = await Promise.all(files.map((file) => readImage(file).catch(() => null)));
     setPendingImages((current) => [...current, ...images.filter((image): image is string => !!image)]);
@@ -752,6 +904,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                       onResend={!streaming && isUser && b.message.id !== 'tmp' ? editResend : undefined}
                       onReset={!streaming && isUser && b.message.id !== 'tmp' ? editResend : undefined}
                       onImageClick={setLightbox}
+                      onImageContextMenu={openImageMenu}
                       chronological
                     />
                   );
@@ -823,60 +976,57 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
         <div className="border-t border-line px-4 pb-4 pt-1.5">
           <div className="mx-auto w-full max-w-3xl">
-            {/* The instrument strip: how this agent runs. Execution controls on
-                the left, model + reasoning on the right — one row, one hairline.
-                Never wraps: the model chip is the flexible member and truncates
-                first, so a long model name can't push the cluster onto a second
-                line. */}
-            <div className="flex items-center gap-1.5 pb-1.5">
+            {/* The instrument strip, two rows so a long model name has room and
+                nothing wraps: how this agent RUNS on top (mode + tools, with the
+                privacy switches on the right), which BRAIN it uses underneath
+                (model, reasoning, effort) plus the Automate action. The model
+                chip is the flexible member of its row and truncates first. */}
+            <div className="flex items-center gap-1.5 pb-1">
               <ChatControls session={session} isCloudModel={isCloudModel} onChange={setSession} />
-              <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5">
-                {autoPickName && (
-                  <span className="chip shrink-0 text-[10px]" title="Model Auto will use for this message">→ {autoPickName}</span>
-                )}
-                <ModelPicker
-                  providers={providers}
-                  providerId={providerId}
-                  models={models}
-                  modelId={modelId}
-                  onProvider={setProviderId}
-                  onModel={(_pid, v) => {
-                    setModelId(v);
-                    window.nekko.setSessionOptions(sessionId, { autoModel: v === AUTO_MODEL_ID }).catch(() => {});
-                  }}
-                />
-                {thinkingSupported ? (
-                  <button
-                    className="chip shrink-0 text-[11px] hover:text-ink"
-                    onClick={() => setThinkingPref(!thinkingOn)}
-                    aria-pressed={thinkingOn}
-                    title={thinkingOn ? 'Reasoning is on for this chat — click to turn off' : 'Reasoning is off for this chat — click to turn on'}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${thinkingOn && streaming ? 'animate-pulse' : ''}`}
-                      style={{ background: thinkingOn ? 'var(--accent)' : 'var(--ink-faint)' }}
-                    />
-                    <ThoughtIcon className="h-3 w-3" /> Thinking {thinkingOn ? 'on' : 'off'}
-                  </button>
-                ) : thinking ? (
-                  <span className="chip shrink-0 text-[11px]" title="The model streamed reasoning while writing this reply">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${streaming ? 'animate-pulse' : ''}`}
-                      style={{ background: 'var(--accent)' }}
-                    />
-                    <ThoughtIcon className="h-3 w-3" /> Thinking
-                  </span>
-                ) : null}
-                <EffortMenu />
+            </div>
+            <div className="flex items-center gap-1.5 pb-1.5">
+              <ModelPicker
+                providers={providers}
+                providerId={providerId}
+                models={models}
+                modelId={modelId}
+                onProvider={setProviderId}
+                onModel={(_pid, v) => {
+                  setModelId(v);
+                  window.nekko.setSessionOptions(sessionId, { autoModel: v === AUTO_MODEL_ID }).catch(() => {});
+                }}
+              />
+              {autoPickName && (
+                <span className="shrink-0 text-[10px] text-ink-faint" title="Model Auto will use for this message">→ {autoPickName}</span>
+              )}
+              {thinkingSupported ? (
                 <button
-                  className="chip shrink-0 hover:text-ink"
-                  onClick={() => setScheduleOpen(true)}
-                  aria-label="Automate: schedule, repeat, or run in the background"
-                  title="Automate: schedule, repeat, or run in the background"
+                  className="ctl-toggle whitespace-nowrap"
+                  onClick={() => setThinkingPref(!thinkingOn)}
+                  aria-pressed={thinkingOn}
+                  title={thinkingOn ? 'Reasoning is on for this chat — click to turn off' : 'Reasoning is off for this chat — click to turn on'}
                 >
-                  <BoltIcon className="h-3 w-3" />
+                  <span className={`ctl-dot ${thinkingOn && streaming ? 'animate-pulse' : ''}`} />
+                  <ThoughtIcon className="h-3 w-3" /> Thinking {thinkingOn ? 'on' : 'off'}
                 </button>
-              </div>
+              ) : thinking ? (
+                <span
+                  className="ctl-toggle ctl-toggle-on whitespace-nowrap"
+                  title="The model streamed reasoning while writing this reply"
+                >
+                  <span className={`ctl-dot ${streaming ? 'animate-pulse' : ''}`} />
+                  <ThoughtIcon className="h-3 w-3" /> Thinking
+                </span>
+              ) : null}
+              <EffortMenu />
+              <button
+                className="ctl-toggle ml-auto shrink-0 whitespace-nowrap"
+                onClick={() => setScheduleOpen(true)}
+                aria-label="Automate: schedule, repeat, or run in the background"
+                title="Automate: schedule, repeat, or run in the background"
+              >
+                <BoltIcon className="h-3 w-3" /> Automate
+              </button>
             </div>
 
             {/* Queued follow-ups (animated in/out so the composer never jumps). */}
@@ -920,30 +1070,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             />
 
             <div className="relative w-full">
-              {pendingImages.length > 0 && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface-2 p-2">
-                  {pendingImages.map((image, i) => (
-                    <div key={`${image.slice(0, 24)}-${i}`} className="group relative shrink-0">
-                      <img
-                        src={image}
-                        alt={`Pending attachment ${i + 1}`}
-                        className="h-20 w-20 cursor-pointer rounded-lg object-cover"
-                        onClick={() => setLightbox(image)}
-                      />
-                      <button
-                        className="absolute -right-1 -top-1 hidden h-4 w-4 rounded-full bg-ink text-[10px] leading-4 text-paper group-hover:block"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingImages((current) => current.filter((_, index) => index !== i));
-                        }}
-                        title="Remove image"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
               {atMenuOpen && (
                 <div
                   className="card absolute bottom-full left-0 z-40 mb-2 w-full max-w-md overflow-hidden p-1.5 shadow-lg"
@@ -1021,6 +1147,35 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 </div>
               )}
               <div className="composer">
+                {/* Attachments ride inside the composer, at the top, separated by
+                    a hairline. Floated above it they covered the instrument
+                    strip. */}
+                {pendingImages.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto border-b border-line px-3 py-2.5">
+                    {pendingImages.map((image, i) => (
+                      <div key={`${image.slice(0, 24)}-${i}`} className="group relative shrink-0">
+                        <img
+                          src={image}
+                          alt={`Pending attachment ${i + 1}`}
+                          className="h-16 w-16 cursor-pointer rounded-lg border border-line object-cover"
+                          onClick={() => setLightbox(image)}
+                          onContextMenu={(e) => openImageMenu(e, image)}
+                          title="Click to preview · right-click to copy or save"
+                        />
+                        <button
+                          className="absolute -right-1 -top-1 hidden h-4 w-4 rounded-full bg-ink text-[10px] leading-4 text-paper group-hover:block"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingImages((current) => current.filter((_, index) => index !== i));
+                          }}
+                          title="Remove image"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {activeSkill && (
                   <div className="flex items-center gap-2 px-3.5 pt-2.5">
                     <span className="skill-pill text-[12px]" title={activeSkill.description}>
@@ -1176,6 +1331,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     bundle={ctx}
                     cost={cost}
                     skill={activeSkill ? { name: activeSkill.name, tokens: estimateTokens(activeSkill.template) } : null}
+                    draftTokens={draft.trim() ? estimateTokens(draft) : 0}
                   />
                   <div className="flex-1" />
                   {draft.trim() && hasProvider && (
@@ -1229,8 +1385,17 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           scrim="rgba(0,0,0,0.5)"
           overlayClassName="p-4"
         >
-          <img src={lightbox} alt="Full-size attachment" className="max-h-[90vh] max-w-[90vw] object-contain" />
+          <img
+            src={lightbox}
+            alt="Full-size attachment"
+            className="max-h-[90vh] max-w-[90vw] object-contain"
+            onContextMenu={(e) => openImageMenu(e, lightbox)}
+            title="Right-click to copy or save"
+          />
         </Modal>
+      )}
+      {imageMenu && (
+        <ImageMenu x={imageMenu.x} y={imageMenu.y} src={imageMenu.src} onClose={() => setImageMenu(null)} />
       )}
     </div>
   );
@@ -1360,15 +1525,15 @@ function ModelPicker({
   return (
     <div ref={ref} className="relative min-w-0 max-w-[240px]">
       <button
-        className="chip max-w-full hover:text-ink"
+        className="ctl-menu max-w-full"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
         title={`Model: ${currentName} · ${providerLabel}`}
       >
-        <span className="min-w-0 truncate font-medium text-ink-soft">{currentName}</span>
-        <span className="hidden min-w-0 truncate opacity-60 md:inline">· {providerLabel}</span>
-        <span className="opacity-60">▾</span>
+        <span className="min-w-0 truncate">{currentName}</span>
+        <span className="ctl-menu-label hidden min-w-0 truncate md:inline">· {providerLabel}</span>
+        <span className="ctl-caret">▾</span>
       </button>
       {open && (
         <div className="card absolute bottom-8 right-0 z-40 flex max-h-96 w-80 flex-col p-1.5 shadow-lg">
@@ -1584,6 +1749,7 @@ function MessageBubble({
   onResend,
   onReset,
   onImageClick,
+  onImageContextMenu,
   chronological,
 }: {
   message: ChatMessage;
@@ -1591,6 +1757,7 @@ function MessageBubble({
   /** Rewind the chat to this message and re-run it (replaces the old Regenerate). */
   onReset?: (id: string, text: string) => void;
   onImageClick?: (src: string) => void;
+  onImageContextMenu?: (e: React.MouseEvent, src: string) => void;
   chronological?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
@@ -1665,6 +1832,8 @@ function MessageBubble({
                 alt={`Attached image ${i + 1}`}
                 className="h-[104px] w-[104px] cursor-pointer rounded-lg object-cover"
                 onClick={() => onImageClick?.(image)}
+                onContextMenu={(e) => onImageContextMenu?.(e, image)}
+                title="Click to preview · right-click to copy or save"
               />
             ))}
           </div>
@@ -1672,7 +1841,9 @@ function MessageBubble({
         {!isUser && message.reasoning && (
           <ReasoningBlock text={message.reasoning} live={false} duration={message.reasoningSeconds ?? null} />
         )}
-        {displayText && (isUser ? <p className="whitespace-pre-wrap text-[14px]">{displayText}</p> : <Markdown text={message.content} />)}
+        {/* Your own messages render as markdown too: people type dashed lists and
+            `code` in the composer and expect them to come out formatted. */}
+        {displayText && <Markdown text={isUser ? displayText : message.content} />}
         {message.toolCalls?.map((c) => <ToolCard key={c.id} call={c} />)}
         {displayText && message.content && (
           <div className={`mt-1.5 flex items-center gap-3 text-[11px] text-ink-faint opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${isUser ? 'justify-end' : ''}`}>

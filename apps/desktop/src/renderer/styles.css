@@ -224,6 +224,67 @@ h1 { letter-spacing: -0.02em; }
     background: var(--surface-2);
     color: var(--ink-soft);
   }
+  /* The composer's instrument strip uses three deliberately different shapes so
+     a row of settings never reads as one undifferentiated run of pills:
+     `.ctl-menu` for value pickers (a bordered field with a caret), `.ctl-toggle`
+     for on/off switches (quiet until hovered; state carried by color + a lit
+     dot, never a filled background), and plain icon buttons for actions. */
+  .ctl-menu {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-medium;
+    background: transparent;
+    color: var(--ink-soft);
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .ctl-menu:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  .ctl-menu:disabled {
+    opacity: 0.45;
+  }
+  .ctl-menu-label {
+    color: var(--ink-faint);
+    font-weight: 400;
+  }
+  .ctl-caret {
+    color: var(--ink-faint);
+    font-size: 9px;
+    line-height: 1;
+  }
+  .ctl-toggle {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium;
+    background: transparent;
+    color: var(--ink-faint);
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .ctl-toggle:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  .ctl-toggle:disabled {
+    opacity: 0.45;
+  }
+  /* `.ctl-toggle-on` is the same lit state for a read-only indicator (a span
+     that reports state rather than a button that changes it). */
+  .ctl-toggle[aria-pressed='true'],
+  .ctl-toggle-on {
+    color: var(--accent);
+  }
+  /* Incognito is a privacy switch, not an accent-worthy one: it reads in plain
+     ink when on so Offline stays the only accent-colored state in the strip. */
+  .ctl-toggle-neutral[aria-pressed='true'] {
+    color: var(--ink);
+  }
+  .ctl-dot {
+    @apply h-1.5 w-1.5 shrink-0 rounded-full;
+    background: var(--ink-faint);
+    opacity: 0.5;
+  }
+  .ctl-toggle[aria-pressed='true'] .ctl-dot,
+  .ctl-toggle-on .ctl-dot {
+    background: currentColor;
+    opacity: 1;
+  }
   /* Keyboard-shortcut hint, sat at the end of a menu row or a button. */
   .kbd {
     @apply inline-flex shrink-0 items-center rounded-md border border-line px-1.5 py-px font-sans text-[10px] font-medium;

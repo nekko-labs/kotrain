@@ -58,6 +58,9 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   // The skill armed in this chat's composer (renderer-only until sent), so we can
   // show it in the window and count its tokens live.
   const activeSkill = useStore((s) => (sessionId ? s.activeSkillBySession[sessionId] ?? null : null));
+  // What's typed but unsent, so the panel's total tracks the composer as you
+  // type instead of only moving once a reply lands.
+  const draft = useStore((s) => (sessionId ? s.draftBySession[sessionId] ?? '' : ''));
 
   const refreshBundle = () => {
     if (!sessionId) return;
@@ -182,7 +185,8 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     pinned: pinned.has(i.id),
   }));
   const skillTokens = activeSkill ? estimateTokens(activeSkill.template) : 0;
-  const total = visible.filter((i) => i.included).reduce((s, i) => s + i.tokens, 0) + skillTokens;
+  const draftTokens = draft.trim() ? estimateTokens(draft) : 0;
+  const total = visible.filter((i) => i.included).reduce((s, i) => s + i.tokens, 0) + skillTokens + draftTokens;
   const windowTokens = bundle?.contextWindow ?? 128000;
   const pct = Math.min(100, (total / windowTokens) * 100);
   const guidelineItems = visible.filter((i) => i.source === 'guideline');
@@ -197,6 +201,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
       return acc;
     }, {});
   if (skillTokens) bySource.skill = (bySource.skill ?? 0) + skillTokens;
+  if (draftTokens) bySource.draft = (bySource.draft ?? 0) + draftTokens;
   const breakdown = Object.entries(bySource)
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]);
@@ -212,7 +217,7 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? 'var(--danger)' : 'var(--accent)' }} />
         </div>
         <p className="mt-1.5 text-[11px] text-ink-faint">
-          {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · updates every reply.
+          {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · {draftTokens > 0 ? 'includes what you’re typing.' : 'updates as you type.'}
         </p>
       </div>
 
