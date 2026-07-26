@@ -56,6 +56,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [cost, setCost] = useState(0);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  // The + menu has two pages: attachments, and the chat's skills.
+  const [attachMenuPage, setAttachMenuPage] = useState<'root' | 'skills'>('root');
   const [pendingImages, setPendingImages] = useState<string[]>(() => loadDraft(sessionId)?.images ?? []);
   // The context panel toggle lives in the store so the ⌘\ shortcut and the
   // command palette's "Toggle context panel" act on this pane too.
@@ -92,6 +94,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
   const turnStart = useRef(0);
   const reasoningStart = useRef(0);
   const turnOutRef = useRef(0);
@@ -106,7 +109,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
-      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) setAttachMenuOpen(false);
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) closeAttachMenu();
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -544,6 +547,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // `/` menu until the user types args.
   const installedSkillDefs = useStore((s) => s.installedSkillDefs);
   const skillMatches = slashQuery !== null && !slashQuery.includes(' ') ? matchSkills(slashQuery, installedSkillDefs) : [];
+  // Every skill this chat can run, in the same order `/` offers them (built-ins
+  // plus installed, highlighted first). The + menu lists these.
+  const allSkills = matchSkills('', installedSkillDefs);
   const slashMenuOpen = !menuClosed && (skillMatches.length > 0 || slashMatches.length > 0);
 
   const atQuery = (draft.match(/(?:^|\s)@([^\s@]*)$/) ?? [])[1] ?? null;
@@ -561,6 +567,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atQuery, session?.workspaceId]);
+
+  /** Close the + menu and reset it to its first page. */
+  const closeAttachMenu = (refocus = false) => {
+    setAttachMenuOpen(false);
+    setAttachMenuPage('root');
+    if (refocus) attachButtonRef.current?.focus();
+  };
 
   const armSkill = (sk: SkillDef) => {
     if (sk.kind === 'goal') {
@@ -1041,34 +1054,109 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   disabled={!hasProvider}
                 />
                 <div className="flex items-center gap-2 px-2 pb-2 pt-1">
-                  <div ref={attachMenuRef} className="relative">
+                  <div
+                    ref={attachMenuRef}
+                    className="relative"
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Escape' || !attachMenuOpen) return;
+                      e.stopPropagation();
+                      // Escape steps back a page before it closes the menu.
+                      if (attachMenuPage === 'skills') setAttachMenuPage('root');
+                      else closeAttachMenu(true);
+                    }}
+                  >
                     <button
+                      ref={attachButtonRef}
                       className="grid h-8 w-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
-                      onClick={() => setAttachMenuOpen((open) => !open)}
-                      title="Attach photo, file, or folder"
+                      onClick={() => (attachMenuOpen ? closeAttachMenu() : setAttachMenuOpen(true))}
+                      title="Add a photo, file, folder, or skill"
+                      aria-label="Add a photo, file, folder, or skill"
+                      aria-haspopup="menu"
+                      aria-expanded={attachMenuOpen}
                     >
                       <PlusIcon className="h-4 w-4" />
                     </button>
-                    {attachMenuOpen && (
-                      <div className="card absolute bottom-full left-0 z-40 mb-2 w-44 p-1.5 shadow-lg">
+                    {attachMenuOpen && attachMenuPage === 'root' && (
+                      <div className="card absolute bottom-full left-0 z-40 mb-2 w-48 p-1.5 shadow-lg" role="menu">
                         <button
+                          role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                          onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }}
+                          onClick={() => { closeAttachMenu(); imageInputRef.current?.click(); }}
                         >
                           Photo
                         </button>
                         <button
+                          role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                          onClick={() => { setAttachMenuOpen(false); void addFiles(); }}
+                          onClick={() => { closeAttachMenu(); void addFiles(); }}
                         >
                           File
                         </button>
                         <button
+                          role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                          onClick={() => { setAttachMenuOpen(false); void window.nekko.addWorkspace(); }}
+                          onClick={() => { closeAttachMenu(); void window.nekko.addWorkspace(); }}
                         >
                           Folder
                         </button>
+                        {/* Skills are reachable by typing `/`, but only if you know
+                            to. The + menu is where someone new goes looking. */}
+                        <div className="my-1 border-t border-line" />
+                        <button
+                          role="menuitem"
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
+                          onClick={() => setAttachMenuPage('skills')}
+                          aria-haspopup="menu"
+                        >
+                          <span className="flex-1">Skill</span>
+                          {allSkills.length > 0 && (
+                            <span className="tabular-nums text-[11px] text-ink-faint">{allSkills.length}</span>
+                          )}
+                          <span className="text-[10px] text-ink-faint">&#9656;</span>
+                        </button>
+                      </div>
+                    )}
+                    {attachMenuOpen && attachMenuPage === 'skills' && (
+                      <div className="card absolute bottom-full left-0 z-40 mb-2 w-72 p-1.5 shadow-lg" role="menu" aria-label="Skills">
+                        <div className="flex items-center gap-1 px-1 pb-1">
+                          <button
+                            className="rounded px-1 text-[11px] text-ink-faint hover:text-ink"
+                            onClick={() => setAttachMenuPage('root')}
+                            aria-label="Back to attachments"
+                          >
+                            &#9666;
+                          </button>
+                          <span className="text-[10px] uppercase tracking-wide text-ink-faint">Skills</span>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                          {allSkills.length === 0 && (
+                            <p className="px-2.5 py-2 text-[11px] text-ink-faint">
+                              No skills registered yet. Add one to run it from any chat.
+                            </p>
+                          )}
+                          {allSkills.map((sk) => (
+                            <button
+                              key={sk.id}
+                              role="menuitem"
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
+                              onClick={() => { closeAttachMenu(); armSkill(sk); }}
+                              title={sk.description}
+                            >
+                              {sk.highlighted && <span className="shrink-0 text-[12px] text-accent">&#9733;</span>}
+                              <span className="shrink-0 font-mono text-[12px] text-accent">/{sk.name}</span>
+                              <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{sk.description}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-1 border-t border-line pt-1">
+                          <button
+                            role="menuitem"
+                            className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[12px] text-accent hover:bg-surface-2"
+                            onClick={() => { closeAttachMenu(); useStore.getState().setView('skills'); }}
+                          >
+                            <PlusIcon className="h-3.5 w-3.5" /> Add skill
+                          </button>
+                        </div>
                       </div>
                     )}
                     <input
