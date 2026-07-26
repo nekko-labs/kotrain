@@ -134,9 +134,9 @@ function iconSvg(size, px = size) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="space" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#191934"/>
-      <stop offset="0.5" stop-color="#0f0f1c"/>
-      <stop offset="1" stop-color="#07070d"/>
+      <stop offset="0" stop-color="#221f45"/>
+      <stop offset="0.5" stop-color="#121222"/>
+      <stop offset="1" stop-color="#090911"/>
     </linearGradient>
     <radialGradient id="nebula" cx="0.3" cy="0.26" r="0.72">
       <stop offset="0" stop-color="#6d5efc" stop-opacity="0.42"/>
@@ -179,6 +179,11 @@ function iconSvg(size, px = size) {
     <circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${(head * 2.1).toFixed(1)}" fill="url(#bloom)"/>
     <circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${(head * 0.62).toFixed(1)}" fill="url(#core)"/>
   </g>
+
+  <!-- Rim light. A dark tile on a dark taskbar loses its own edge; a hairline of
+       the accent gives it back without lightening the art. -->
+  <rect x="3" y="3" width="506" height="506" rx="${corner - 3}" ry="${corner - 3}"
+        fill="none" stroke="#8b7dff" stroke-opacity="0.22" stroke-width="${size >= 48 ? 6 : 10}"/>
 </svg>`;
 }
 
