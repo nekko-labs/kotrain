@@ -1,11 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import type { ContextBundle, ContextItem } from '@kotrain/shared';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ContextBundle, Session, WorkspaceFolder } from '@kotrain/shared';
 import { getSessionWorkspaceIds, estimateTokens } from '@kotrain/shared';
-import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon } from '../icons.js';
+import { FolderIcon, FileIcon, PlusIcon, TrashIcon, ExternalIcon, ChevronIcon } from '../icons.js';
 import { useStore } from '../store.js';
 import { SpecPanel } from './SpecPanel.js';
 import { ResourceDock } from './ResourceMonitor.js';
+import { DirTree } from './FileTree.js';
 import { sourceMeta } from '../contextSources.js';
+
+/** Remembered height of the Folders section when a tree is open. */
+const EXPLORER_KEY = 'kotrain.contextPanel.explorerHeight';
+const DEFAULT_EXPLORER_H = 260;
+const MIN_EXPLORER_H = 110;
+const MIN_CONTEXT_H = 180;
+
+function readExplorerHeight(): number {
+  if (typeof window === 'undefined') return DEFAULT_EXPLORER_H;
+  const n = Number(window.localStorage.getItem(EXPLORER_KEY));
+  return Number.isFinite(n) && n >= MIN_EXPLORER_H ? n : DEFAULT_EXPLORER_H;
+}
 
 /** A small "i" badge that reveals an explanation on hover or keyboard focus. */
 function InfoHint({ text }: { text: string }) {
@@ -36,11 +49,15 @@ function baseName(p: string): string {
 }
 
 /**
- * The Context Inspector, Kotrain's signature panel. Two parts:
- *  1. Sources, the folders, attached files, and key context files (spec.md,
- *     guidelines) wired into this chat, each addable/openable.
- *  2. Breakdown, exactly what enters the prompt on the next reply, grouped by
- *     provenance, each item toggleable and pinnable, with live token counts.
+ * The Context Inspector, Kotrain's signature panel. Two stacked sections split
+ * by a draggable divider, the way VS Code stacks its sidebar views:
+ *  1. Folders (top), the project folders grounding this chat as accordions. Each
+ *     one expands into its file tree, so browsing and opening a file happens in
+ *     the same place you choose what the agent can see.
+ *  2. Context (bottom), exactly what enters the prompt on the next reply,
+ *     grouped by provenance, each item toggleable and pinnable, with live token
+ *     counts. It takes the whole panel while every folder is collapsed and gives
+ *     ground as soon as a tree opens.
  */
 export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   const settings = useStore((s) => s.settings);
@@ -51,6 +68,14 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
   const [bundle, setBundle] = useState<ContextBundle | null>(null);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(new Set());
+  // Which folder trees are open. Empty = the Context section owns the panel.
+  const [openTrees, setOpenTrees] = useState<Set<string>>(new Set());
+  // The height you asked for (persisted), and the room there is for it.
+  const [explorerH, setExplorerH] = useState(readExplorerHeight);
+  const explorerHRef = useRef(explorerH);
+  const [splitH, setSplitH] = useState(0);
+  // The area the divider splits (Folders + Context), excluding the pinned dock.
+  const splitRef = useRef<HTMLDivElement>(null);
 
   const session = sessions.find((s) => s.id === sessionId) ?? null;
   const workspaces = settings?.workspaces ?? [];
@@ -80,6 +105,34 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, attached.length, session?.workspaceId, session?.supportingWorkspaceIds?.length, session?.messages.length]);
 
+  // A folder that goes away shouldn't leave its tree "open" and hold height.
+  useEffect(() => {
+    setOpenTrees((prev) => {
+      const next = new Set([...prev].filter((id) => workspaces.some((w) => w.id === id)));
+      return next.size === prev.size ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaces.length]);
+
+  // Track how much room the divider actually has. The space to divide is the
+  // split area, not the whole panel, since the resource dock at the foot is
+  // pinned and can be tall. The height you dragged to is kept as-is and only
+  // clamped for display, so collapsing the dock hands the room back instead of
+  // stranding the split where a cramped panel left it. The dock's own rectangle
+  // (it publishes one when open, none when collapsed) is a dependency as well as
+  // an observer target: collapsing it changes the room available without resizing
+  // anything this component renders.
+  const dockRect = useStore((s) => s.monitorDockRect);
+  useLayoutEffect(() => {
+    const el = splitRef.current;
+    if (!el) return;
+    const measure = () => setSplitH(el.clientHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [openTrees.size, dockRect?.h]);
+
   if (!sessionId) return <Empty />;
 
   const persist = (nextExcluded: Set<string>, nextPinned: Set<string>) => {
@@ -94,20 +147,6 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     } else {
       nextExcluded.add(id);
       nextPinned.delete(id);
-    }
-    setExcluded(nextExcluded);
-    setPinned(nextPinned);
-    persist(nextExcluded, nextPinned);
-  };
-
-  const togglePin = (id: string) => {
-    const nextExcluded = new Set(excluded);
-    const nextPinned = new Set(pinned);
-    if (nextPinned.has(id)) {
-      nextPinned.delete(id);
-    } else {
-      nextPinned.add(id);
-      nextExcluded.delete(id);
     }
     setExcluded(nextExcluded);
     setPinned(nextPinned);
@@ -161,11 +200,6 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
       ...(session.supportingWorkspaceIds ?? []).filter((wid) => wid !== id),
     ]);
   };
-  const useFolder = async (id: string) => {
-    const included = getSessionWorkspaceIds(session ?? { workspaceId: undefined }).includes(id);
-    if (included) await makePrimary(id);
-    else await includeFolder(id);
-  };
   const addFiles = async () => {
     const picked = await window.nekko.openFilesDialog();
     if (!picked.length) return;
@@ -178,6 +212,41 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     await refreshSessions();
   };
   const open = (target: string) => window.nekko.openPath(target);
+  const openInPane = (path: string) => useStore.getState().openFilePane(path);
+
+  const toggleTree = (id: string) =>
+    setOpenTrees((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // --- The draggable divider between Folders and Context ---
+  // The pointerup handler closes over the height at drag start, so the live value
+  // is read from a ref when persisting.
+  explorerHRef.current = explorerH;
+  // What the Folders section gets on screen: the asked-for height, capped so the
+  // Context section below it always keeps a usable minimum.
+  const maxExplorerH = Math.max(MIN_EXPLORER_H, (splitH || DEFAULT_EXPLORER_H + MIN_CONTEXT_H) - MIN_CONTEXT_H);
+  const shownExplorerH = Math.min(Math.max(explorerH, MIN_EXPLORER_H), maxExplorerH);
+
+  const startResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = shownExplorerH;
+    const onMove = (ev: PointerEvent) => {
+      setExplorerH(Math.min(maxExplorerH, Math.max(MIN_EXPLORER_H, startH + (ev.clientY - startY))));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      try {
+        window.localStorage.setItem(EXPLORER_KEY, String(Math.round(explorerHRef.current)));
+      } catch { /* best effort */ }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   const visible = (bundle?.items ?? []).map((i) => ({
     ...i,
@@ -206,130 +275,257 @@ export function ContextInspector({ sessionId }: { sessionId: string | null }) {
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]);
 
+  const treesOpen = openTrees.size > 0;
+
   return (
     <div className="flex h-full w-80 flex-col border-l border-line">
-      <div className="border-b border-line p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Context</h3>
-          <span className="chip">{total.toLocaleString()} tok</span>
-        </div>
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? 'var(--danger)' : 'var(--accent)' }} />
-        </div>
-        <p className="mt-1.5 text-[11px] text-ink-faint">
-          {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · {draftTokens > 0 ? 'includes what you’re typing.' : 'updates as you type.'}
-        </p>
-      </div>
-
-      <div className="flex-1 space-y-5 overflow-y-auto p-4">
-        {/* Armed skill: highlighted, with its token weight (Claude-Code style). */}
-        {activeSkill && (
-          <div className="rounded-xl border border-accent/40 p-3" style={{ background: 'var(--accent-soft)' }}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="skill-pill text-[12px]">
-                <span className="skill-pill-slash">/</span>{activeSkill.name}
-              </span>
-              <span className="shrink-0 text-[11px] font-medium text-accent">{skillTokens.toLocaleString()} tok</span>
-            </div>
-            <p className="mt-1.5 text-[11px] leading-snug text-ink-soft">{activeSkill.description}</p>
-            <p className="mt-1 text-[11px] text-ink-faint">Added to your message when you send. Not typed into the box.</p>
-          </div>
-        )}
-
-        {/* Where the tokens go — a compact, always-accurate breakdown. */}
-        {breakdown.length > 0 && (
-          <Section title="In the window" info="Everything that enters the model's prompt on the next reply, by source. The conversation grows with every reply, which is what makes a long chat fill the window.">
-            <div className="space-y-1">
-              {breakdown.map(([src, n]) => (
-                <div key={src} className="flex items-center gap-2 text-[12px]">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: sourceMeta(src).color }} />
-                  <span className="min-w-0 flex-1 truncate text-ink-soft">{sourceMeta(src).label}</span>
-                  <span className="shrink-0 text-ink-faint">{n.toLocaleString()} tok</span>
-                </div>
-              ))}
-              <div className="mt-1 flex items-center gap-2 border-t border-line pt-1.5 text-[12px] font-medium">
-                <span className="min-w-0 flex-1 text-ink">Total</span>
-                <span className="shrink-0 text-ink">{total.toLocaleString()} tok</span>
-              </div>
-            </div>
-          </Section>
-        )}
-
-        {/* Sources: folders */}
-        <Section title="Folders" info="Project folders grounding this chat. The active folder's files can be read and searched by the agent, and set the working directory for terminals and tools." onAdd={addFolder} addLabel="Add folder">
-          {workspaces.length === 0 && <Hint>No folder yet. Add one to ground the chat in your code.</Hint>}
-          {workspaces.map((w) => {
-            const included = getSessionWorkspaceIds(session ?? { workspaceId: undefined }).includes(w.id);
-            const primary = session?.workspaceId === w.id;
-            return (
-              <Row
+      <div ref={splitRef} className="flex min-h-0 flex-1 flex-col">
+        {/* ---- Folders + file explorer ---- */}
+        <section
+          className="flex min-h-0 shrink-0 flex-col"
+          style={treesOpen ? { height: shownExplorerH } : undefined}
+        >
+          <SectionHeader
+            title="Folders"
+            info="Project folders grounding this chat. The active folder's files can be read and searched by the agent, and set the working directory for terminals and tools. Expand one to browse and open its files."
+            onAdd={addFolder}
+            addLabel="Add folder"
+          />
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-2">
+            {workspaces.length === 0 && <Hint>No folder yet. Add one to ground the chat in your code.</Hint>}
+            {workspaces.map((w) => (
+              <FolderAccordion
                 key={w.id}
-                active={primary}
-                icon={<FolderIcon className="h-3.5 w-3.5" />}
-                title={baseName(w.path) || w.path}
-                subtitle={w.path}
-                onClick={() => useFolder(w.id)}
-                badge={included ? (primary ? 'primary' : 'supporting') : undefined}
-                badgeAction={included && !primary ? () => makePrimary(w.id) : undefined}
-                included={included}
-                onToggle={() => (included ? excludeFolder(w.id) : includeFolder(w.id))}
+                workspace={w}
+                session={session}
+                expanded={openTrees.has(w.id)}
+                onToggleExpanded={() => toggleTree(w.id)}
+                onMakePrimary={() => makePrimary(w.id)}
+                onInclude={() => includeFolder(w.id)}
+                onExclude={() => excludeFolder(w.id)}
                 onRemove={() => removeFolder(w.id)}
-              />
-            );
-          })}
-        </Section>
-
-        {/* Sources: attached files */}
-        <Section title="Files" info="Files you attach are pinned into every reply of this chat verbatim, use them for specs, snippets, or docs the model should always see." onAdd={addFiles} addLabel="Attach files">
-          {attached.length === 0 && <Hint>Attach files to pin them into every reply of this chat.</Hint>}
-          {attached.map((p) => (
-            <Row
-              key={p}
-              icon={<FileIcon className="h-3.5 w-3.5" />}
-              title={baseName(p)}
-              subtitle={p}
-              onClick={() => open(p)}
-              onRemove={() => removeFile(p)}
-            />
-          ))}
-        </Section>
-
-        {/* Sources: guidelines & memory */}
-        {(guidelineItems.length > 0 || memoryItems.length > 0) && (
-          <Section title="Guidelines" info="Always-on project guidelines and memory relevant to this chat.">
-            {guidelineItems.map((g) => (
-              <Row
-                key={g.id}
-                icon={<FileIcon className="h-3.5 w-3.5" />}
-                title={g.label}
-                subtitle={g.origin}
-                onClick={() => open(g.origin)}
-                included={g.included}
-                onToggle={() => toggle(g.id)}
+                onOpenFile={openInPane}
               />
             ))}
-            {memoryItems.map((m) => (
-              <Row
-                key={m.id}
-                icon={<FileIcon className="h-3.5 w-3.5" />}
-                title={m.label}
-                subtitle={m.preview}
-                included={m.included}
-                onToggle={() => toggle(m.id)}
-              />
-            ))}
-          </Section>
+          </div>
+        </section>
+
+        {/* The split handle. Only draggable while a tree is open, since a collapsed
+            Folders section is content-height by design. */}
+        {treesOpen ? (
+          <div
+            className="group relative h-1 shrink-0 cursor-row-resize border-y border-line"
+            style={{ background: 'var(--surface-2)' }}
+            onPointerDown={startResize}
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize the Folders section"
+            title="Drag to resize"
+          >
+            <span className="absolute inset-x-0 -top-1 -bottom-1 group-hover:bg-accent/25" />
+          </div>
+        ) : (
+          <div className="h-px shrink-0 bg-line" aria-hidden="true" />
         )}
 
-        {/* Spec-driven development */}
-        <SpecPanel sessionId={sessionId} session={session} />
+        {/* ---- Context ---- */}
+        <section className="flex min-h-0 flex-1 flex-col">
+          <div className="border-b border-line px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Context</h3>
+              <span className="chip">{total.toLocaleString()} tok</span>
+            </div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct > 85 ? 'var(--danger)' : 'var(--accent)' }} />
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-faint">
+              {Math.round(pct)}% of the {windowTokens.toLocaleString()}-token window · {draftTokens > 0 ? 'includes what you’re typing.' : 'updates as you type.'}
+            </p>
+          </div>
 
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+            {/* Armed skill: highlighted, with its token weight (Claude-Code style). */}
+            {activeSkill && (
+              <div className="rounded-xl border border-accent/40 p-3" style={{ background: 'var(--accent-soft)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="skill-pill text-[12px]">
+                    <span className="skill-pill-slash">/</span>{activeSkill.name}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-medium text-accent">{skillTokens.toLocaleString()} tok</span>
+                </div>
+                <p className="mt-1.5 text-[11px] leading-snug text-ink-soft">{activeSkill.description}</p>
+                <p className="mt-1 text-[11px] text-ink-faint">Added to your message when you send. Not typed into the box.</p>
+              </div>
+            )}
+
+            {/* Where the tokens go, a compact, always-accurate breakdown. */}
+            {breakdown.length > 0 && (
+              <Section title="In the window" info="Everything that enters the model's prompt on the next reply, by source. The conversation grows with every reply, which is what makes a long chat fill the window.">
+                <div className="space-y-1">
+                  {breakdown.map(([src, n]) => (
+                    <div key={src} className="flex items-center gap-2 text-[12px]">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: sourceMeta(src).color }} />
+                      <span className="min-w-0 flex-1 truncate text-ink-soft">{sourceMeta(src).label}</span>
+                      <span className="shrink-0 text-ink-faint">{n.toLocaleString()} tok</span>
+                    </div>
+                  ))}
+                  <div className="mt-1 flex items-center gap-2 border-t border-line pt-1.5 text-[12px] font-medium">
+                    <span className="min-w-0 flex-1 text-ink">Total</span>
+                    <span className="shrink-0 text-ink">{total.toLocaleString()} tok</span>
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {/* Sources: attached files */}
+            <Section title="Files" info="Files you attach are pinned into every reply of this chat verbatim, use them for specs, snippets, or docs the model should always see." onAdd={addFiles} addLabel="Attach files">
+              {attached.length === 0 && <Hint>Attach files to pin them into every reply of this chat.</Hint>}
+              {attached.map((p) => (
+                <Row
+                  key={p}
+                  icon={<FileIcon className="h-3.5 w-3.5" />}
+                  title={baseName(p)}
+                  subtitle={p}
+                  onClick={() => openInPane(p)}
+                  onRemove={() => removeFile(p)}
+                />
+              ))}
+            </Section>
+
+            {/* Sources: guidelines & memory */}
+            {(guidelineItems.length > 0 || memoryItems.length > 0) && (
+              <Section title="Guidelines" info="Always-on project guidelines and memory relevant to this chat.">
+                {guidelineItems.map((g) => (
+                  <Row
+                    key={g.id}
+                    icon={<FileIcon className="h-3.5 w-3.5" />}
+                    title={g.label}
+                    subtitle={g.origin}
+                    onClick={() => open(g.origin)}
+                    included={g.included}
+                    onToggle={() => toggle(g.id)}
+                  />
+                ))}
+                {memoryItems.map((m) => (
+                  <Row
+                    key={m.id}
+                    icon={<FileIcon className="h-3.5 w-3.5" />}
+                    title={m.label}
+                    subtitle={m.preview}
+                    included={m.included}
+                    onToggle={() => toggle(m.id)}
+                  />
+                ))}
+              </Section>
+            )}
+
+            {/* Spec-driven development */}
+            <SpecPanel sessionId={sessionId} session={session} />
+          </div>
+        </section>
       </div>
 
       {/* Resource monitors: pinned at the foot of the panel so they stay visible
           while the sources/breakdown above scroll. The floating chip warps into
           this section while it's on screen. */}
       <ResourceDock />
+    </div>
+  );
+}
+
+/**
+ * One project folder as an accordion: the row carries what the agent may see
+ * (primary / supporting / excluded), and expanding it reveals the folder's file
+ * tree so you can open a file without leaving the panel.
+ */
+function FolderAccordion({
+  workspace, session, expanded, onToggleExpanded, onMakePrimary, onInclude, onExclude, onRemove, onOpenFile,
+}: {
+  workspace: WorkspaceFolder;
+  session: Session | null;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onMakePrimary: () => void;
+  onInclude: () => void;
+  onExclude: () => void;
+  onRemove: () => void;
+  onOpenFile: (path: string) => void;
+}) {
+  const included = getSessionWorkspaceIds(session ?? { workspaceId: undefined }).includes(workspace.id);
+  const primary = session?.workspaceId === workspace.id;
+  const name = baseName(workspace.path) || workspace.path;
+
+  return (
+    <div
+      className={`group overflow-hidden rounded-lg border ${primary ? 'border-accent/40' : 'border-line'} ${included ? '' : 'opacity-50'}`}
+      style={primary ? { background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined}
+    >
+      <div className="flex items-center gap-1 px-1.5 py-1.5">
+        <button
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          onClick={onToggleExpanded}
+          aria-expanded={expanded}
+          title={expanded ? 'Collapse files' : 'Browse files'}
+        >
+          <ChevronIcon className={`h-3 w-3 shrink-0 text-ink-faint transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+          <FolderIcon className={`h-3.5 w-3.5 shrink-0 ${primary ? 'text-accent' : 'text-ink-faint'}`} />
+          <span className="truncate text-[13px] font-medium" title={workspace.path}>{name}</span>
+        </button>
+        {included && (
+          primary
+            ? <span className="chip shrink-0 text-[10px] uppercase">primary</span>
+            : (
+              <button
+                className="chip chip-action shrink-0 text-[10px] uppercase"
+                onClick={onMakePrimary}
+                title="Make this the primary folder"
+              >
+                supporting
+              </button>
+            )
+        )}
+        <button
+          className="shrink-0 rounded p-0.5 text-ink-faint opacity-0 transition-opacity hover:text-[var(--danger)] focus-visible:opacity-100 group-hover:opacity-100"
+          title="Remove this folder"
+          onClick={onRemove}
+        >
+          <TrashIcon className="h-3.5 w-3.5" />
+        </button>
+        <input
+          type="checkbox"
+          className="shrink-0 accent-[var(--accent)]"
+          checked={included}
+          aria-label={included ? `Stop using ${name} in this chat` : `Use ${name} in this chat`}
+          onChange={() => (included ? onExclude() : onInclude())}
+          title={included ? 'In this chat’s context' : 'Not in this chat’s context'}
+        />
+      </div>
+      {expanded && (
+        <div className="border-t border-line py-1" style={{ background: 'var(--surface-2)' }}>
+          <DirTree root={workspace.path} onOpen={onOpenFile} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A section header that sits flush against the panel edge (no inner card). */
+function SectionHeader({
+  title, info, onAdd, addLabel,
+}: {
+  title: string; info?: string; onAdd?: () => void; addLabel?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 pb-1.5 pt-3">
+      <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+        {title}
+        {info && <InfoHint text={info} />}
+      </span>
+      {onAdd && (
+        <button className="text-ink-faint hover:text-ink" title={addLabel} onClick={onAdd}>
+          <PlusIcon className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -452,12 +648,4 @@ function Empty() {
       <p className="mt-2 text-[12px] text-ink-faint">Start or open a chat to see and manage its context here.</p>
     </div>
   );
-}
-
-function groupBy<T>(arr: T[], key: (t: T) => string): Record<string, T[]> {
-  return arr.reduce<Record<string, T[]>>((acc, item) => {
-    const k = key(item);
-    (acc[k] ??= []).push(item);
-    return acc;
-  }, {});
 }

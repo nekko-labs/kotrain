@@ -224,6 +224,44 @@ h1 { letter-spacing: -0.02em; }
     background: var(--surface-2);
     color: var(--ink-soft);
   }
+  /* A chip that acts (load a model, toggle a view) rather than just reporting. */
+  .chip-action {
+    transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+  }
+  .chip-action:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .chip-action:disabled {
+    opacity: 0.55;
+  }
+  /* A loaded model reports its state at rest and offers the unload under the
+     cursor, so one chip covers both without a second control. */
+  .chip-loaded {
+    transition: background 0.12s ease, filter 0.12s ease;
+  }
+  .chip-loaded:hover:not(:disabled) {
+    background: var(--danger) !important;
+  }
+  .chip-loaded-hover {
+    display: none;
+  }
+  .chip-loaded:hover:not(:disabled) .chip-loaded-rest {
+    display: none;
+  }
+  .chip-loaded:hover:not(:disabled) .chip-loaded-hover {
+    display: inline;
+  }
+  /* Rendered markdown documents (the file viewer). The chat renderer keeps its
+     own tight rhythm; this only relaxes the first/last block so a document
+     doesn't open with a gap above its title. */
+  .md-doc > :first-child {
+    margin-top: 0;
+  }
+  .md-doc > :last-child {
+    margin-bottom: 0;
+  }
   /* The composer's instrument strip uses three deliberately different shapes so
      a row of settings never reads as one undifferentiated run of pills:
      `.ctl-menu` for value pickers (a bordered field with a caret), `.ctl-toggle`

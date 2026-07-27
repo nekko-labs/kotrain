@@ -79,3 +79,55 @@ describe('Markdown', () => {
     expect(html('   \n  ')).not.toContain('<p>');
   });
 });
+
+const doc = (text: string) => renderToStaticMarkup(<Markdown text={text} doc />);
+
+describe('Markdown (document mode)', () => {
+  it('gives headings a real tag and a size scale', () => {
+    expect(doc('# Title')).toContain('<h1');
+    expect(doc('## Section')).toContain('<h2');
+    expect(doc('###### Deep')).toContain('<h6');
+    // Chat mode keeps its flat, quiet headings.
+    expect(html('# Title')).not.toContain('<h1');
+  });
+
+  it('reflows a hard-wrapped paragraph instead of breaking every line', () => {
+    const out = doc('one line\nwrapped here');
+    expect(out).toContain('one line wrapped here');
+    expect(out).not.toContain('<br/>');
+  });
+
+  it('strips embedded HTML down to its text, and drops layout-only lines', () => {
+    const out = doc('<div align="center">\n\n# Kotrain\n\n</div>');
+    expect(out).not.toContain('&lt;div');
+    expect(out).toContain('<h1');
+    expect(out).toContain('Kotrain');
+  });
+
+  it('turns an HTML img into the same chip as markdown image syntax', () => {
+    const out = doc('<img src="docs/shot.png" alt="A screenshot" />');
+    expect(out).toContain('A screenshot');
+    expect(out).not.toContain('<img');
+  });
+
+  it('hides HTML comments', () => {
+    expect(doc('before\n\n<!-- hidden note -->\n\nafter')).not.toContain('hidden note');
+  });
+
+  it('renders task lists as checkboxes', () => {
+    const out = doc('- [x] shipped\n- [ ] todo');
+    expect(out).toContain('☑');
+    expect(out).toContain('☐');
+    expect(out).not.toContain('[x]');
+  });
+
+  it('leaves a relative link as plain text without a document folder', () => {
+    const out = doc('see [the guide](CONTRIBUTING.md)');
+    expect(out).toContain('the guide');
+    expect(out).not.toContain('<a');
+  });
+
+  it('does not mistake indexed code for a link', () => {
+    expect(html('read rows[0](x) carefully')).toContain('rows[0](x)');
+  });
+});
