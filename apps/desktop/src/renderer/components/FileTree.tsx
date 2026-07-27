@@ -4,25 +4,15 @@ import { FileTypeIcon } from '../fileIcons.js';
 import { FolderIcon } from '../icons.js';
 
 /**
- * A lightweight VS Code–style file explorer: a collapsible "Files" disclosure
- * per project that lazy-loads each folder's children on expand. Clicking a file
- * opens it in a FilePane (view/edit in-app). Not a full IDE tree, no rename/DnD
- * yet, just enough to browse and open without leaving Kotrain.
+ * A lightweight VS Code–style file explorer: the lazy-loading tree body for one
+ * folder, each directory fetching its children the first time it's expanded.
+ * Clicking a file opens it in a FilePane (view/edit in-app). Not a full IDE
+ * tree, no rename/DnD yet, just enough to browse and open without leaving
+ * Kotrain. The disclosure header belongs to the caller: in the Context panel
+ * each project folder's accordion row is the header for its tree.
  */
-export function ProjectFiles({ root, label = 'Files', onOpen }: { root: string; label?: string; onOpen: (path: string) => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-0.5">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-faint hover:bg-surface-2"
-      >
-        <span className="w-2 text-[9px]">{open ? '▾' : '▸'}</span>
-        <span>{label}</span>
-      </button>
-      {open && <div className="mt-0.5"><DirChildren path={root} depth={0} onOpen={onOpen} /></div>}
-    </div>
-  );
+export function DirTree({ root, onOpen }: { root: string; onOpen: (path: string) => void }) {
+  return <DirChildren path={root} depth={0} onOpen={onOpen} />;
 }
 
 function DirChildren({ path, depth, onOpen }: { path: string; depth: number; onOpen: (path: string) => void }) {

@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
-import { estimateCostUSD, recommendModel, AUTO_MODEL_ID, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
+import type { AgentEvent, AutoQuality, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
+import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { clearDraft, loadDraft, saveDraft } from '../composerDrafts.js';
 import { Markdown } from './Markdown.js';
-import { ContextInspector } from './ContextInspector.js';
 import { ContextGauge, EffortMenu } from './ChatMetrics.js';
 import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
@@ -219,6 +218,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [providerId, setProviderId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
+  // Whether this pane's model list has come back yet, so the "pick a model"
+  // nudge waits for the truth instead of flashing during the fetch.
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  // The model menu's open state lives here so the nudge below the transcript can
+  // open the very picker it points at.
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   // Live telemetry for the subtext under the chat: output tokens, elapsed
   // seconds, and a summary of the last completed reply.
   const [turnOut, setTurnOut] = useState(0);
@@ -284,13 +289,17 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // Models for this pane's provider (independent of other panes).
+  // Models for this pane's provider (independent of other panes). A chat that
+  // has never had a model picked is left unset on purpose: the nudge below the
+  // transcript asks for a choice rather than guessing one.
   useEffect(() => {
-    if (!providerId) { setModels([]); return; }
+    if (!providerId) { setModels([]); setModelsLoaded(false); return; }
+    setModelsLoaded(false);
     window.nekko.listModels(providerId).then((m) => {
       setModels(m);
-      setModelId((cur) => (cur === AUTO_MODEL_ID || (cur && m.some((x) => x.id === cur)) ? cur : m[0]?.id ?? null));
-    }).catch(() => setModels([]));
+      setModelId((cur) => (cur === AUTO_MODEL_ID || (cur && m.some((x) => x.id === cur)) ? cur : null));
+      setModelsLoaded(true);
+    }).catch(() => { setModels([]); setModelsLoaded(true); });
   }, [providerId]);
 
   // Per-chat estimated cost.
@@ -541,13 +550,23 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     return () => clearInterval(t);
   }, [streaming]);
 
+  // This chat's Auto profile: how hard Auto leans on capability (Cheap / Normal
+  // / Quality). Per-chat, because a throwaway question and a refactor rarely
+  // want the same spend.
+  const autoQuality: AutoQuality = session?.autoQuality ?? 'normal';
+
+  /** Resolve Auto mode against a prompt, with the reasoning for the chip. */
+  const autoPickFor = (text: string) => {
+    const favSet = new Set(settings?.favoriteModels ?? []);
+    const favs = new Set(models.filter((m) => favSet.has(`${providerId}::${m.id}`)).map((m) => m.id));
+    return pickAutoModel(models, text, { quality: autoQuality, preferred: favs });
+  };
+
   // The concrete model to run this reply on: the picked one, or, in Auto mode -
   // the best available model for the prompt (favorites break ties).
   const resolveModelId = (text: string): string | null => {
     if (modelId !== AUTO_MODEL_ID) return modelId;
-    const favSet = new Set(settings?.favoriteModels ?? []);
-    const favs = new Set(models.filter((m) => favSet.has(`${providerId}::${m.id}`)).map((m) => m.id));
-    return recommendModel(models, text, favs);
+    return autoPickFor(text)?.modelId ?? null;
   };
 
   /**
@@ -570,6 +589,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       toast(models.length === 0
         ? `No models available from ${label}. Start it, or pick another model below the chat.`
         : 'Pick a model below the chat first.');
+      // Open the picker rather than leaving them to hunt for it.
+      setModelMenuOpen(true);
       return null;
     }
     return { providerId, modelId: resolved };
@@ -845,12 +866,14 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     window.nekko.setSessionOptions(sessionId, { thinking: value }).then((s) => { if (s) setSession(s); }).catch(() => {});
   };
 
-  // Auto mode: preview the model the current draft would run on.
-  const autoPickName = (() => {
-    if (modelId !== AUTO_MODEL_ID || !draft.trim()) return null;
-    const picked = resolveModelId(draft);
-    return models.find((m) => m.id === picked)?.name ?? null;
-  })();
+  // Auto mode: the model the next message will actually run on. Shown whether or
+  // not anything is typed yet - "Auto" alone tells you nothing, and the pick
+  // moves as you type, which is exactly what's worth watching.
+  const autoPick = modelId === AUTO_MODEL_ID ? autoPickFor(draft) : null;
+
+  // Nothing picked yet, but there is something to pick from: guide the choice
+  // instead of failing on send.
+  const needsModel = hasProvider && modelsLoaded && !modelId;
 
   // The in-flight turn's reasoning + tool calls, folded into one activity block.
   const liveActivity: Activity[] = [
@@ -908,13 +931,22 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 <div className="fade-in mt-16 flex flex-col items-center gap-3 text-center">
                   <div className="grid h-12 w-12 place-items-center rounded-2xl text-2xl" style={{ background: 'var(--accent-soft)' }}>🐾</div>
                   <div>
-                    <h2 className="text-[15px] font-semibold">{hasProvider ? 'What should Nekko work on?' : 'Connect a model to get started'}</h2>
+                    <h2 className="text-[15px] font-semibold">
+                      {!hasProvider ? 'Connect a model to get started' : needsModel ? 'Pick a model to get started' : 'What should Nekko work on?'}
+                    </h2>
                     <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">
-                      {hasProvider
-                        ? 'Ask a question or hand over a task. Use / for skills and prompts, @ to attach files, + for photos and folders.'
-                        : 'Add a local server (Ollama, LM Studio, vLLM) or a cloud provider in Models.'}
+                      {!hasProvider
+                        ? 'Add a local server (Ollama, LM Studio, vLLM) or a cloud provider in Models.'
+                        : needsModel
+                          ? 'This chat has no model yet. Choose one below the composer, or let ✨ Auto pick per message.'
+                          : 'Ask a question or hand over a task. Use / for skills and prompts, @ to attach files, + for photos and folders.'}
                     </p>
                   </div>
+                  {!hasProvider ? (
+                    <button className="btn btn-primary" onClick={() => useStore.getState().setView('models')}>Open Models</button>
+                  ) : needsModel ? (
+                    <button className="btn btn-primary" onClick={() => setModelMenuOpen(true)}>Choose a model</button>
+                  ) : null}
                 </div>
               )}
               {session && (() => {
@@ -1010,12 +1042,37 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             <div className="flex items-center gap-1.5 pb-1">
               <ChatControls session={session} isCloudModel={isCloudModel} onChange={setSession} />
             </div>
+            {/* No model chosen yet: say so where the choice is made, rather than
+                letting Send fail with a toast. */}
+            {needsModel && (
+              <div
+                className="mb-1.5 flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px]"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
+                  background: 'var(--accent-soft)',
+                }}
+                role="status"
+              >
+                <span className="shrink-0 font-medium text-accent">Choose a model</span>
+                <span className="min-w-0 flex-1 text-ink-soft">
+                  {models.length === 0
+                    ? 'This provider has no models loaded. Start it, or switch provider below.'
+                    : 'This chat needs a model before it can reply.'}
+                </span>
+                <button className="btn btn-outline shrink-0 px-2.5 py-0.5 text-[11px]" onClick={() => setModelMenuOpen(true)}>
+                  Pick one
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 pb-1.5">
               <ModelPicker
                 providers={providers}
                 providerId={providerId}
                 models={models}
                 modelId={modelId}
+                open={modelMenuOpen}
+                onOpenChange={setModelMenuOpen}
+                needsChoice={needsModel}
                 onProvider={setProviderId}
                 onModel={(pid, v) => {
                   if (pid) setProviderId(pid);
@@ -1035,8 +1092,24 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     .catch(() => {});
                 }}
               />
-              {autoPickName && (
-                <span className="shrink-0 text-[10px] text-ink-faint" title="Model Auto will use for this message">→ {autoPickName}</span>
+              {modelId === AUTO_MODEL_ID && (
+                <AutoQualityMenu
+                  quality={autoQuality}
+                  onPick={(q) => {
+                    window.nekko
+                      .setSessionOptions(sessionId, { autoQuality: q })
+                      .then((s) => { if (s) setSession(s); })
+                      .catch(() => {});
+                  }}
+                />
+              )}
+              {autoPick && (
+                <span
+                  className="min-w-0 shrink truncate text-[10px] text-ink-faint"
+                  title={`Auto will run this message on ${autoPick.name}. ${autoPick.reason}`}
+                >
+                  → {autoPick.name}
+                </span>
               )}
               {thinkingSupported ? (
                 <button
@@ -1402,12 +1475,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         </div>
       </section>
 
-      {ctxOpen && (
-        <div className="hidden border-l border-line lg:block" style={{ background: 'var(--paper)' }}>
-          <ContextInspector sessionId={sessionId} />
-        </div>
-      )}
-
       {scheduleOpen && (
         <ScheduleTaskModal
           workspaceId={session?.workspaceId}
@@ -1450,6 +1517,9 @@ function ModelPicker({
   providerId,
   models,
   modelId,
+  open,
+  onOpenChange,
+  needsChoice,
   onProvider,
   onModel,
 }: {
@@ -1457,12 +1527,17 @@ function ModelPicker({
   providerId: string | null;
   models: ModelInfo[];
   modelId: string | null;
+  /** Open state is owned by the pane so the "choose a model" nudges can open it. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** No model picked yet: the chip asks for one instead of reading as a setting. */
+  needsChoice?: boolean;
   onProvider: (id: string) => void;
   onModel: (providerId: string, id: string) => void;
 }) {
   const settings = useStore((s) => s.settings);
   const refreshSettings = useStore((s) => s.refreshSettings);
-  const [open, setOpen] = useState(false);
+  const setOpen = (next: boolean) => onOpenChange(next);
   const [query, setQuery] = useState('');
   // Models per provider, fetched when the menu opens so the list covers every
   // provider (the `models` prop only holds the active provider's).
@@ -1565,12 +1640,13 @@ function ModelPicker({
     <div ref={ref} className="relative min-w-0 max-w-[240px]">
       <button
         className="ctl-menu max-w-full"
-        onClick={() => setOpen((o) => !o)}
+        style={needsChoice ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+        onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={`Model: ${currentName} · ${providerLabel}`}
+        title={needsChoice ? 'This chat has no model yet - pick one' : `Model: ${currentName} · ${providerLabel}`}
       >
-        <span className="min-w-0 truncate">{currentName}</span>
+        <span className="min-w-0 truncate">{needsChoice ? 'Choose a model' : currentName}</span>
         <span className="ctl-menu-label hidden min-w-0 truncate md:inline">· {providerLabel}</span>
         <span className="ctl-caret">▾</span>
       </button>
@@ -1618,6 +1694,60 @@ function ModelPicker({
               </React.Fragment>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * How hard ✨ Auto leans on capability for this chat. Sits beside the model chip
+ * and only while Auto is selected, so the strip doesn't carry a control that
+ * does nothing.
+ */
+function AutoQualityMenu({ quality, onPick }: { quality: AutoQuality; onPick: (q: AutoQuality) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        className="ctl-menu whitespace-nowrap"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={`Auto profile: ${AUTO_QUALITY_META[quality].label} - ${AUTO_QUALITY_META[quality].description}`}
+      >
+        <span className="ctl-menu-label">Auto</span>
+        {AUTO_QUALITY_META[quality].label}
+        <span className="ctl-caret">▾</span>
+      </button>
+      {open && (
+        <div className="card absolute bottom-8 left-0 z-40 w-60 p-1.5 shadow-lg" role="menu">
+          {AUTO_QUALITIES.map((q) => (
+            <button
+              key={q}
+              role="menuitemradio"
+              aria-checked={quality === q}
+              className={`flex w-full flex-col rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2 ${quality === q ? 'text-accent' : ''}`}
+              onClick={() => { onPick(q); setOpen(false); }}
+            >
+              <span className="text-[13px] font-medium">{AUTO_QUALITY_META[q].label}</span>
+              <span className="text-[11px] text-ink-faint">{AUTO_QUALITY_META[q].description}</span>
+            </button>
+          ))}
+          <p className="border-t border-line px-2.5 pb-0.5 pt-1.5 text-[10px] text-ink-faint">Applies to this chat only.</p>
         </div>
       )}
     </div>

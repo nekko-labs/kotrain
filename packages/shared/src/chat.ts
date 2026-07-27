@@ -80,6 +80,12 @@ export interface Session {
   specMethodology?: string;
   /** When set, the chat picks the best model per turn (model auto-mode). */
   autoModel?: boolean;
+  /**
+   * How hard Auto mode leans on capability for this chat: `cheap` always takes
+   * the smallest capable model, `quality` always the strongest, `normal` (the
+   * default) reads each prompt and picks between them.
+   */
+  autoQuality?: import('./model-select.js').AutoQuality;
   /** Tool-execution policy for this chat. */
   mode?: ChatMode;
   /**

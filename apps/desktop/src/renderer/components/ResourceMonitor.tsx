@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncEx
 import type { GpuStats, MonitorKind, SystemStats } from '@kotrain/shared';
 import { MONITOR_HINTS, MONITOR_KINDS, MONITOR_LABELS, monitorSources, resolveMonitors } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { ChevronIcon } from '../icons.js';
 
 /**
  * Resource monitoring: one sampler, two surfaces.
@@ -153,16 +154,27 @@ function Meter({ label, value, pct, sub }: { label: string; value: string; pct: 
  * It publishes its own rectangle to the store, which is what lets the floating
  * chip warp into this section instead of covering it.
  */
+const DOCK_OPEN_KEY = 'kotrain.resourceDock.open';
+
 export function ResourceDock() {
   const monitors = useMonitors();
   const { gpu, system } = useResourceSample();
   const setDockRect = useStore((s) => s.setMonitorDockRect);
   const ref = useRef<HTMLDivElement>(null);
+  // Collapsible, because the meters are tall and the panel above them (folders,
+  // file tree, context) is where the work happens.
+  const [open, setOpen] = useState(() =>
+    typeof window === 'undefined' ? true : window.localStorage.getItem(DOCK_OPEN_KEY) !== 'off');
+  const toggle = () => setOpen((v) => {
+    const next = !v;
+    try { window.localStorage.setItem(DOCK_OPEN_KEY, next ? 'on' : 'off'); } catch { /* best effort */ }
+    return next;
+  });
   const anyOn = MONITOR_KINDS.some((k) => monitors[k]);
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || !anyOn) return;
+    if (!el || !anyOn || !open) return;
     const report = () => {
       const r = el.getBoundingClientRect();
       setDockRect({ x: r.left, y: r.top, w: r.width, h: r.height });
@@ -176,7 +188,7 @@ export function ResourceDock() {
       window.removeEventListener('resize', report);
       setDockRect(null);
     };
-  }, [anyOn, setDockRect]);
+  }, [anyOn, open, setDockRect]);
 
   // Everything off: the chip takes over (it's the only way back on), so the
   // section stays out of the way entirely.
@@ -186,18 +198,31 @@ export function ResourceDock() {
   const gpuUtil = gpu ? Math.max(0, ...gpu.devices.map((d) => d.utilizationPct ?? 0)) : 0;
 
   return (
-    <div ref={ref} className="monitor-absorb shrink-0 border-t border-line p-4 text-[11px]">
-      <div className="mb-2.5 flex items-center justify-between">
+    <div ref={ref} className={`monitor-absorb shrink-0 border-t border-line px-4 text-[11px] ${open ? 'py-4' : 'py-2'}`}>
+      <button
+        className="flex w-full items-center justify-between text-left"
+        onClick={toggle}
+        aria-expanded={open}
+        title={open ? 'Collapse the resource meters' : 'Show the resource meters'}
+      >
         <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+          <ChevronIcon className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
           Resources
           {gpu && (monitors.gpu || monitors.vram) && (
             <span className="chip text-[9px]">{gpu.devices.length} GPU{gpu.devices.length === 1 ? '' : 's'}</span>
           )}
         </span>
-        <span className="text-[10px] text-ink-faint">live</span>
-      </div>
+        {/* Collapsed, the header still carries the numbers worth glancing at. */}
+        <span className="flex shrink-0 items-center gap-2 text-[10px] tabular-nums text-ink-faint">
+          {!open && monitors.cpu && system && <span>CPU {system.cpuPct}%</span>}
+          {!open && monitors.vram && gpu && <span>VRAM {Math.round(pctOf(gpu.usedMB, gpu.totalMB))}%</span>}
+          {open && 'live'}
+        </span>
+      </button>
 
-      <div className="space-y-2.5">
+      {!open ? null : (
+      <>
+      <div className="mt-2.5 space-y-2.5">
         {monitors.cpu && (
           <Meter
             label="CPU"
@@ -256,6 +281,8 @@ export function ResourceDock() {
       <p className="mt-2 text-right text-[10px] text-ink-faint">
         {(monitors.gpu || monitors.vram) && gpu ? 'os + nvidia-smi' : 'os'}
       </p>
+      </>
+      )}
     </div>
   );
 }

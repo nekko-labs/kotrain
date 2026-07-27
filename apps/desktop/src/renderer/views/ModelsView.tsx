@@ -316,12 +316,15 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button className="btn btn-outline py-1.5 text-[12px]" onClick={test}>Test connection</button>
-        {local && (
+        {/* Stopping a server only makes sense while one is answering: an offline
+            (or not-yet-probed) provider has no process to stop, and a greyed-out
+            button just invites a click that can't work. */}
+        {local && conn.state === 'ok' && (
           <button
             className="btn btn-outline py-1.5 text-[12px]"
             style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
             onClick={stopServer}
-            disabled={stopping || conn.state === 'fail'}
+            disabled={stopping}
             title="Stop this local model server (kills its process and unloads its models)"
           >
             {stopping ? 'Stopping…' : 'Stop server'}
@@ -372,16 +375,30 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
               {canManage ? (
                 m.loaded ? (
                   <button
-                    className="chip !text-white"
+                    className="chip chip-loaded !text-white"
                     style={{ background: 'var(--success)' }}
                     disabled={busy === m.id}
                     onClick={() => setLoaded(m, false)}
-                    title="Loaded in memory — click to unload"
+                    title="Loaded in memory, click to unload"
                   >
-                    <CheckIcon className="h-3 w-3" /> {busy === m.id ? 'unloading…' : 'loaded'}
+                    <CheckIcon className="h-3 w-3" />
+                    {busy === m.id ? (
+                      'unloading…'
+                    ) : (
+                      <>
+                        {/* Reads as state at rest, as an action under the cursor. */}
+                        <span className="chip-loaded-rest">loaded</span>
+                        <span className="chip-loaded-hover">unload</span>
+                      </>
+                    )}
                   </button>
                 ) : (
-                  <button className="chip" disabled={busy === m.id} onClick={() => setLoaded(m, true)}>
+                  <button
+                    className="chip chip-action"
+                    disabled={busy === m.id}
+                    onClick={() => setLoaded(m, true)}
+                    title={`Load ${m.name} into memory`}
+                  >
                     {busy === m.id ? 'loading…' : 'load'}
                   </button>
                 )

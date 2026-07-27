@@ -66,3 +66,10 @@ export const MaskIcon = (p: P) => (<S {...p}><path d="M4 8c0-1 1-2 2.5-2h11C19 6
 export const ListIcon = (p: P) => (<S {...p}><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" /></S>);
 export const ToolStepIcon = (p: P) => (<S {...p}><path d="M12 3 3 8l9 5 9-5zM3 8v8l9 5 9-5V8" /></S>);
 export const ThoughtIcon = (p: P) => (<S {...p}><path d="M12 4a5 5 0 0 0-4.9 4A4 4 0 0 0 8 16h8a4 4 0 0 0 1-7.9A5 5 0 0 0 12 4z" /><path d="M9 20h.01M6.5 22h.01" /></S>);
+// Editor actions.
+export const UndoIcon = (p: P) => (<S {...p}><path d="M3 8h9a5 5 0 0 1 0 10H7" /><path d="m7 4-4 4 4 4" /></S>);
+export const RedoIcon = (p: P) => (<S {...p}><path d="M21 8h-9a5 5 0 0 0 0 10h5" /><path d="m17 4 4 4-4 4" /></S>);
+export const CopyIcon = (p: P) => (<S {...p}><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H5a2 2 0 0 0-2 2v7.5A2.5 2.5 0 0 0 5.5 15" /></S>);
+export const PasteIcon = (p: P) => (<S {...p}><path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" /><rect x="9" y="2" width="6" height="4" rx="1" /></S>);
+// Explorer disclosure chevron (rotated for the open state).
+export const ChevronIcon = (p: P) => (<S {...p}><path d="m9 6 6 6-6 6" /></S>);
