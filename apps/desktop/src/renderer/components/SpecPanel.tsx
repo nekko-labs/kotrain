@@ -23,6 +23,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
 
   const workspaceIds = session ? getSessionWorkspaceIds(session) : [];
   const workspaceKey = workspaceIds.join(',');
+  const primaryWorkspaceId = session?.workspaceId;
   const selectedWorkspaceId = workspaceIds.includes(workspaceId ?? '') ? workspaceId : workspaceIds[0];
   const hasWorkspace = workspaceIds.length > 0;
 
@@ -33,9 +34,13 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
     });
   };
 
+  // Follow the folder picked in the Folders section above: whenever the primary
+  // changes (or the set of folders does), snap to it. Keeping a stale pick here
+  // meant the panel showed one project's spec while the pane above said another
+  // was primary. The select below still overrides, until the choice above moves.
   useEffect(() => {
-    setWorkspaceId((current) => (current && workspaceIds.includes(current) ? current : workspaceIds[0]));
-  }, [workspaceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    setWorkspaceId(primaryWorkspaceId ?? workspaceIds[0]);
+  }, [primaryWorkspaceId, workspaceKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sessionId) return;
@@ -184,7 +189,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
           </div>
 
           {methodology.docs.length > 1 && (
-            <button className="btn btn-primary mt-2 w-full text-[12px]" onClick={buildAll} disabled={!!busy}>
+            <button className="btn btn-outline mt-2 w-full text-[12px]" onClick={buildAll} disabled={!!busy}>
               {busy === 'all' ? 'Building all…' : 'Build all from chat'}
             </button>
           )}

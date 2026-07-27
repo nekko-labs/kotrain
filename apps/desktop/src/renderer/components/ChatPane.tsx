@@ -550,6 +550,31 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     return recommendModel(models, text, favs);
   };
 
+  /**
+   * The provider + model this turn will run on, or null after saying what's
+   * missing. Sending used to fail silently here, which read as "the send button
+   * is broken": the most common way in was switching tabs, since the workbench
+   * unmounts a pane and the rebuilt one can land on a provider with no models.
+   */
+  const requireBrain = (text: string): { providerId: string; modelId: string } | null => {
+    const toast = (message: string) => useStore.getState().pushToast('error', message);
+    if (!providerId) {
+      toast(providers.length === 0
+        ? 'Add a model provider in Models first.'
+        : 'This chat is still loading its model, try again in a moment.');
+      return null;
+    }
+    const resolved = resolveModelId(text);
+    if (!resolved) {
+      const label = providers.find((p) => p.id === providerId)?.label ?? 'this provider';
+      toast(models.length === 0
+        ? `No models available from ${label}. Start it, or pick another model below the chat.`
+        : 'Pick a model below the chat first.');
+      return null;
+    }
+    return { providerId, modelId: resolved };
+  };
+
   const send = async (override?: string) => {
     const input = override ?? draft;
     const skill = activeSkill;
@@ -557,14 +582,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       ? [skill.template.trimEnd(), input.trim()].filter(Boolean).join('\n\n')
       : input;
     const images = pendingImages;
-    if ((!text.trim() && images.length === 0 && !skill) || !providerId) return;
+    if (!text.trim() && images.length === 0 && !skill) return;
 
     // The `goal` skill: `/goal <condition>` starts a long-running background
     // agent that keeps working until the condition is met (not a one-off turn).
     const goalMatch = text.match(/^\/goal\s+([\s\S]+)/i);
     if (goalMatch) {
       const goal = goalMatch[1].trim();
-      const useModel = resolveModelId(goal);
+      const brain = requireBrain(goal);
+      if (!brain) return;
       await window.nekko.createTask({
         title: `Goal: ${goal.slice(0, 40)}`,
         kind: 'background',
@@ -572,8 +598,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         condition: goal,
         prompt: `Work autonomously toward this goal: ${goal}`,
         workspaceId: session?.workspaceId,
-        providerId,
-        modelId: useModel && useModel !== AUTO_MODEL_ID ? useModel : undefined,
+        providerId: brain.providerId,
+        modelId: brain.modelId,
         intervalMs: 5 * 60_000,
       });
       useStore.getState().pushToast('success', 'Goal started as a background task, track it in Command Center.');
@@ -581,8 +607,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       return;
     }
 
-    const useModel = resolveModelId(text);
-    if (!useModel) return;
+    const brain = requireBrain(text);
+    if (!brain) return;
     if (override === undefined) { setDraft(''); setPendingImages([]); clearDraft(sessionId); }
     setActiveSkill(null);
     beginTurn();
@@ -601,8 +627,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     );
     await window.nekko.sendChat({
       sessionId,
-      providerId,
-      modelId: useModel,
+      providerId: brain.providerId,
+      modelId: brain.modelId,
       text,
       ...(images.length ? { images } : {}),
       ...(skill ? { skill: { name: skill.name, input } } : {}),
@@ -642,9 +668,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   }, [composerInbox, sessionId, providerId, streaming]);
 
   const editResend = async (messageId: string, newText: string) => {
-    if (!providerId || !newText.trim()) return;
-    const useModel = resolveModelId(newText);
-    if (!useModel) return;
+    if (!newText.trim()) return;
+    const brain = requireBrain(newText);
+    if (!brain) return;
     await window.nekko.truncateSession(sessionId, messageId);
     beginTurn();
     setSession((prev) => {
@@ -653,7 +679,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       const kept = idx >= 0 ? prev.messages.slice(0, idx) : prev.messages;
       return { ...prev, messages: [...kept, { id: 'tmp', role: 'user', content: newText, createdAt: Date.now() }] };
     });
-    await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text: newText });
+    await window.nekko.sendChat({ sessionId, providerId: brain.providerId, modelId: brain.modelId, text: newText });
   };
 
   // Re-run the last user message after a failed turn.
@@ -991,9 +1017,22 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 models={models}
                 modelId={modelId}
                 onProvider={setProviderId}
-                onModel={(_pid, v) => {
+                onModel={(pid, v) => {
+                  if (pid) setProviderId(pid);
                   setModelId(v);
-                  window.nekko.setSessionOptions(sessionId, { autoModel: v === AUTO_MODEL_ID }).catch(() => {});
+                  // Park the pick on the chat itself. Switching tabs unmounts
+                  // this pane, so a renderer-only choice was lost on the way
+                  // back and the chat fell back to its old provider (which may
+                  // have no models at all, leaving it unsendable).
+                  const auto = v === AUTO_MODEL_ID;
+                  window.nekko
+                    .setSessionOptions(sessionId, {
+                      autoModel: auto,
+                      ...(pid ? { providerId: pid } : {}),
+                      ...(auto ? {} : { modelId: v }),
+                    })
+                    .then((s) => { if (s) setSession(s); })
+                    .catch(() => {});
                 }}
               />
               {autoPickName && (
@@ -1535,8 +1574,11 @@ function ModelPicker({
         <span className="ctl-menu-label hidden min-w-0 truncate md:inline">· {providerLabel}</span>
         <span className="ctl-caret">▾</span>
       </button>
+      {/* The menu opens rightwards from the chip's own left edge: the picker is
+          the leftmost control of its row and the menu is wider than the chip, so
+          anchoring it right hung it outside the pane, over the sidebar. */}
       {open && (
-        <div className="card absolute bottom-8 right-0 z-40 flex max-h-96 w-80 flex-col p-1.5 shadow-lg">
+        <div className="card absolute bottom-full left-0 z-40 mb-2 flex max-h-96 w-80 max-w-[calc(100vw-2rem)] flex-col p-1.5 shadow-lg">
           {total > 8 && (
             <input
               className="input mb-1 rounded-lg px-2.5 py-1 text-[12px]"
