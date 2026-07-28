@@ -8,6 +8,26 @@
       name="description"
       content="Kotrain is an open-source, local-first AI coding & cowork app. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider. kotrain.com"
     />
+    <link rel="canonical" href="https://kotrain.com/" />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <meta name="theme-color" content="#01050b" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kotrain" />
+    <meta property="og:url" content="https://kotrain.com/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Kotrain — train your models, run your agents, own your machine" />
+    <meta
+      property="og:description"
+      content="Open-source, local-first AI chat, cowork, and coding in one calm window. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider."
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Kotrain — train your models, run your agents, own your machine" />
+    <meta
+      name="twitter:description"
+      content="Open-source, local-first AI chat, cowork, and coding in one calm window. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider."
+    />
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,6 +39,60 @@
       media="print"
       onload="this.media='all'"
     />
+    <!-- Structured data: so search and answer engines describe Kotrain accurately -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://nekkolabs.com/#organization",
+            "name": "Nekko Labs",
+            "url": "https://nekkolabs.com/"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://kotrain.com/#website",
+            "url": "https://kotrain.com/",
+            "name": "Kotrain",
+            "description": "Open-source, local-first AI chat, cowork, and coding in one calm window, with first-class local model support.",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://nekkolabs.com/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://kotrain.com/#app",
+            "name": "Kotrain",
+            "url": "https://kotrain.com/",
+            "applicationCategory": "DeveloperApplication",
+            "applicationSubCategory": "AI coding and cowork assistant",
+            "operatingSystem": "macOS, Windows, Linux",
+            "description": "Kotrain unifies AI chat, cowork, and coding in one window. Point it at Ollama, LM Studio, or vLLM in one click, or use any cloud provider. Ships a context-provenance inspector, guardrails, a sandbox, multi-folder code indexing, memory management, and connectors.",
+            "license": "https://opensource.org/licenses/MIT",
+            "isAccessibleForFree": true,
+            "downloadUrl": "https://github.com/nekko-labs/kotrain/releases/latest",
+            "codeRepository": "https://github.com/nekko-labs/kotrain",
+            "featureList": [
+              "First-class local models: one-click Ollama, LM Studio, and vLLM, plus every major cloud provider",
+              "Unified chat, cowork, and code in a single window",
+              "Context inspector showing the provenance of everything the model was shown",
+              "Guardrails by default: risky commands need approval",
+              "Sandboxed tool execution out of the box",
+              "Multi-folder code index with file viewer, diffs, and inline editing",
+              "Per-project memory management",
+              "Connectors and MCP support",
+              "Editions: desktop, self-hosted web, Docker, and end-to-end-encrypted phone remote control"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "publisher": { "@id": "https://nekkolabs.com/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <!-- drifting starfield, the whole page floats over it -->
