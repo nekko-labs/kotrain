@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
 import { useT } from './i18n.js';
 import { SHORTCUTS } from './shortcuts.js';
-import { Mascot } from './components/Mascot.js';
+import { Mascot, NekkoAvatar } from './components/Mascot.js';
 import { ResourceHud } from './components/ResourceMonitor.js';
 import { Toasts } from './components/Toasts.js';
 import { CommandPalette } from './components/CommandPalette.js';
@@ -142,7 +142,7 @@ export function App() {
         <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
           <div className="mb-3 flex h-9 items-center gap-2.5">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
-              <span className="text-lg">🐾</span>
+              <NekkoAvatar size={22} />
             </div>
             <span className="rail-label text-[14px] font-semibold tracking-tight">Kotrain</span>
           </div>

@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useState } from 'react';
+import { NekkoAvatar } from './Mascot.js';
 
 // Lazy so jsQR is code-split out of the main bundle (only fetched when scanning).
 const QrScanner = lazy(() => import('./QrScanner.js').then((m) => ({ default: m.QrScanner })));
@@ -95,7 +96,7 @@ export function RelayPairing() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6" style={{ background: 'var(--paper)' }}>
-      <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl text-3xl" style={{ background: 'var(--accent-soft)' }}>🐾</div>
+      <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><NekkoAvatar size={40} /></div>
       <h1 className="text-xl font-semibold">Pair with your computer</h1>
       <p className="mt-2 max-w-sm text-center text-[13px] text-ink-faint">
         Kotrain on your desktop → <span className="font-medium text-ink-soft">Settings → Remote access → Enable</span>, then paste the pairing link here. Your phone drives the model on your computer over an end-to-end encrypted relay.
