@@ -123,7 +123,7 @@ export function useResourceSample(): ResourceSample {
 const GB = (mb: number) => (mb / 1024).toFixed(mb / 1024 >= 10 ? 0 : 1);
 const pctOf = (used: number, total: number) => (total ? (used / total) * 100 : 0);
 /** Load color, on the shared severity scale (quiet → warn → danger). */
-const loadColor = (pct: number) => (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warn)' : 'var(--ok)');
+const loadColor = (pct: number) => (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)');
 
 /** A labelled meter row: name, value, bar. The shared vocabulary of both surfaces. */
 function Meter({ label, value, pct, sub }: { label: string; value: string; pct: number; sub?: string }) {
@@ -136,7 +136,9 @@ function Meter({ label, value, pct, sub }: { label: string; value: string; pct: 
       <div className="mt-1 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
         <span
           className="block h-full rounded-full transition-[width] duration-500"
-          style={{ width: `${Math.min(100, pct)}%`, background: loadColor(pct) }}
+          // A live-but-idle reading (1% CPU) still gets a visible sliver, so an
+          // empty track always means "no data", never "nothing happening".
+          style={{ width: `${Math.min(100, pct)}%`, minWidth: pct > 0 ? 3 : 0, background: loadColor(pct) }}
         />
       </div>
       {sub && <div className="mt-0.5 text-[10px] tabular-nums text-ink-faint">{sub}</div>}

@@ -88,6 +88,46 @@ export function MiniNekko({ size = 18 }: { size?: number }) {
 }
 
 /**
+ * Nekko's face alone, still and centred, for the identity tiles: the rail's
+ * brand mark, the empty states, and the login/pairing heroes. Same sprite
+ * vocabulary as the animated mascot, so the app has one cat rather than a
+ * mascot in the corner and an emoji everywhere else.
+ */
+export function NekkoAvatar({ size = 28, title }: { size?: number; title?: string }) {
+  const C = NEKKO;
+  return (
+    <svg
+      viewBox="0 0 20 17"
+      width={size}
+      height={(size * 17) / 20}
+      shapeRendering="crispEdges"
+      role={title ? 'img' : 'presentation'}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+    >
+      {/* ears */}
+      {px(2, 0, 4, 4, C.body)}
+      {px(14, 0, 4, 4, C.body)}
+      {px(3, 1, 2, 2, C.dark)}
+      {px(15, 1, 2, 2, C.dark)}
+      {/* head, shaded along the top edge */}
+      {px(1, 3, 18, 13, C.body)}
+      {px(1, 3, 18, 2, C.dark)}
+      {/* hachimaki across the forehead */}
+      {px(1, 5, 18, 2, C.band)}
+      {px(17, 7, 2, 2, C.bandDark)}
+      {/* eyes, blush, muzzle */}
+      {px(5, 9, 2, 3, C.ink)}
+      {px(13, 9, 2, 3, C.ink)}
+      {px(3, 12, 2, 2, C.blush)}
+      {px(15, 12, 2, 2, C.blush)}
+      {px(9, 12, 2, 2, C.cream)}
+      {px(9, 12, 2, 1, C.blush)}
+    </svg>
+  );
+}
+
+/**
  * Nekko, an 8-bit pixel cat in a kendo outfit (red hachimaki bandana, indigo
  * keikogi + hakama) that sits in the bottom of the left nav rail. It waves on
  * idle/greeting and trains while the model is thinking: punches, then a kick,

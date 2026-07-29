@@ -10,7 +10,7 @@ import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { PrCard, PrBadge } from './PrCard.js';
-import { MiniNekko } from './Mascot.js';
+import { MiniNekko, NekkoAvatar } from './Mascot.js';
 import { Modal } from './primitives/index.js';
 import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon, StarIcon } from '../icons.js';
 
@@ -224,6 +224,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // The model menu's open state lives here so the nudge below the transcript can
   // open the very picker it points at.
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  // The "choose a model" tooltip is a one-shot nudge: opening the picker means
+  // the point landed, so it retires for this chat instead of hanging around.
+  const [modelHintDone, setModelHintDone] = useState(false);
   // Live telemetry for the subtext under the chat: output tokens, elapsed
   // seconds, and a summary of the last completed reply.
   const [turnOut, setTurnOut] = useState(0);
@@ -286,6 +289,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     });
     refreshCtx();
     useStore.getState().refreshSessionPrs(sessionId);
+    setModelHintDone(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
@@ -874,6 +878,19 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // Nothing picked yet, but there is something to pick from: guide the choice
   // instead of failing on send.
   const needsModel = hasProvider && modelsLoaded && !modelId;
+  // A tooltip on the model chip, not a banner in the strip: the nudge points at
+  // the control that answers it and costs no layout while it waits.
+  const modelHint =
+    needsModel && !modelHintDone
+      ? models.length === 0
+        ? 'This provider has no models loaded. Start it, or switch provider in here.'
+        : 'This chat needs a model before it can reply.'
+      : null;
+  // Any route into the picker counts as the nudge being read.
+  const openModelMenu = (open: boolean) => {
+    setModelMenuOpen(open);
+    if (open) setModelHintDone(true);
+  };
 
   // The in-flight turn's reasoning + tool calls, folded into one activity block.
   const liveActivity: Activity[] = [
@@ -929,7 +946,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             <div className="mx-auto w-full max-w-3xl space-y-5">
               {!session?.messages.length && !liveText && !liveReasoning && (
                 <div className="fade-in mt-16 flex flex-col items-center gap-3 text-center">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl text-2xl" style={{ background: 'var(--accent-soft)' }}>🐾</div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><NekkoAvatar size={30} /></div>
                   <div>
                     <h2 className="text-[15px] font-semibold">
                       {!hasProvider ? 'Connect a model to get started' : needsModel ? 'Pick a model to get started' : 'What should Nekko work on?'}
@@ -945,7 +962,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   {!hasProvider ? (
                     <button className="btn btn-primary" onClick={() => useStore.getState().setView('models')}>Open Models</button>
                   ) : needsModel ? (
-                    <button className="btn btn-primary" onClick={() => setModelMenuOpen(true)}>Choose a model</button>
+                    <button className="btn btn-primary" onClick={() => openModelMenu(true)}>Choose a model</button>
                   ) : null}
                 </div>
               )}
@@ -1042,28 +1059,6 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             <div className="flex items-center gap-1.5 pb-1">
               <ChatControls session={session} isCloudModel={isCloudModel} onChange={setSession} />
             </div>
-            {/* No model chosen yet: say so where the choice is made, rather than
-                letting Send fail with a toast. */}
-            {needsModel && (
-              <div
-                className="mb-1.5 flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px]"
-                style={{
-                  borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
-                  background: 'var(--accent-soft)',
-                }}
-                role="status"
-              >
-                <span className="shrink-0 font-medium text-accent">Choose a model</span>
-                <span className="min-w-0 flex-1 text-ink-soft">
-                  {models.length === 0
-                    ? 'This provider has no models loaded. Start it, or switch provider below.'
-                    : 'This chat needs a model before it can reply.'}
-                </span>
-                <button className="btn btn-outline shrink-0 px-2.5 py-0.5 text-[11px]" onClick={() => setModelMenuOpen(true)}>
-                  Pick one
-                </button>
-              </div>
-            )}
             <div className="flex items-center gap-1.5 pb-1.5">
               <ModelPicker
                 providers={providers}
@@ -1071,8 +1066,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 models={models}
                 modelId={modelId}
                 open={modelMenuOpen}
-                onOpenChange={setModelMenuOpen}
+                onOpenChange={openModelMenu}
                 needsChoice={needsModel}
+                hint={modelHint}
                 onProvider={setProviderId}
                 onModel={(pid, v) => {
                   if (pid) setProviderId(pid);
@@ -1520,6 +1516,7 @@ function ModelPicker({
   open,
   onOpenChange,
   needsChoice,
+  hint,
   onProvider,
   onModel,
 }: {
@@ -1532,6 +1529,8 @@ function ModelPicker({
   onOpenChange: (open: boolean) => void;
   /** No model picked yet: the chip asks for one instead of reading as a setting. */
   needsChoice?: boolean;
+  /** One-shot nudge shown over the chip; the pane retires it once the menu opens. */
+  hint?: string | null;
   onProvider: (id: string) => void;
   onModel: (providerId: string, id: string) => void;
 }) {
@@ -1543,6 +1542,7 @@ function ModelPicker({
   // provider (the `models` prop only holds the active provider's).
   const [byProvider, setByProvider] = useState<Record<string, ModelInfo[]>>({});
   const ref = useRef<HTMLDivElement>(null);
+  const hintId = React.useId();
 
   useEffect(() => {
     if (!open) return;
@@ -1638,12 +1638,37 @@ function ModelPicker({
 
   return (
     <div ref={ref} className="relative min-w-0 max-w-[240px]">
+      {/* The nudge rides above the chip as a tooltip rather than a strip in the
+          composer: it says its piece without pushing the composer down, and the
+          menu it asks for opens into the same space, replacing it. */}
+      {hint && !open && (
+        <div
+          id={hintId}
+          role="tooltip"
+          className="fade-in pointer-events-none absolute bottom-full left-0 z-30 mb-2 w-max max-w-[260px] rounded-xl border px-2.5 py-1.5 text-[11px] leading-snug shadow-lg"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
+            background: 'var(--surface)',
+          }}
+        >
+          <span className="font-medium text-accent">Choose a model</span>
+          <span className="text-ink-soft"> · {hint}</span>
+          <span
+            className="absolute -bottom-[5px] left-4 h-2 w-2 rotate-45 border-b border-r"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
+              background: 'var(--surface)',
+            }}
+          />
+        </div>
+      )}
       <button
         className="ctl-menu max-w-full"
         style={needsChoice ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
         onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-describedby={hint && !open ? hintId : undefined}
         title={needsChoice ? 'This chat has no model yet - pick one' : `Model: ${currentName} · ${providerLabel}`}
       >
         <span className="min-w-0 truncate">{needsChoice ? 'Choose a model' : currentName}</span>
