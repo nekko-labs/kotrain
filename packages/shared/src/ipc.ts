@@ -123,8 +123,8 @@ export const IpcChannels = {
   skillInstall: 'skill:install',
   skillUninstall: 'skill:uninstall',
 
-  dojoCatalog: 'dojo:catalog',
-  dojoSkillMd: 'dojo:skillMd',
+  vaizerCatalog: 'vaizer:catalog',
+  vaizerSkillMd: 'vaizer:skillMd',
 
   tasksList: 'tasks:list',
   taskCreate: 'task:create',
@@ -338,9 +338,9 @@ export interface NekkoApi {
     skillId: string,
     target: import('./skills-market.js').InstallTarget,
   ): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
-  /** Nekko Dojo skills hub (optional integration): catalog + SKILL.md fetch. */
-  dojoCatalog(refresh?: boolean): Promise<import('./dojo.js').DojoCatalog>;
-  dojoSkillMd(slug: string): Promise<string | null>;
+  /** Vaizer skills hub (optional integration): catalog + SKILL.md fetch. */
+  vaizerCatalog(refresh?: boolean): Promise<import('./vaizer.js').VaizerCatalog>;
+  vaizerSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): Promise<AutomationTask[]>;

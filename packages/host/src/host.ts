@@ -76,7 +76,7 @@ import {
   generateDesign,
 } from './design.js';
 import { listInstalledSkills, skillTargets, installSkill, uninstallSkill } from './skills.js';
-import { getDojoCatalog, getDojoSkillMd } from './dojo.js';
+import { getVaizerCatalog, getVaizerSkillMd } from './vaizer.js';
 import {
   listTasks,
   createTask,
@@ -257,9 +257,9 @@ export interface Host {
     payload?: import('@kotrain/shared').MarketplaceSkill,
   ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
   uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[];
-  /** Nekko Dojo skills hub (optional): catalog + a skill's SKILL.md. */
-  dojoCatalog(refresh?: boolean): Promise<import('@kotrain/shared').DojoCatalog>;
-  dojoSkillMd(slug: string): Promise<string | null>;
+  /** Vaizer skills hub (optional): catalog + a skill's SKILL.md. */
+  vaizerCatalog(refresh?: boolean): Promise<import('@kotrain/shared').VaizerCatalog>;
+  vaizerSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): AutomationTask[];
@@ -511,8 +511,8 @@ export function createHost(opts: { dataDir: string }): Host {
     skillTargets,
     installSkill,
     uninstallSkill,
-    dojoCatalog: (refresh?: boolean) => getDojoCatalog(refresh),
-    dojoSkillMd: (slug: string) => getDojoSkillMd(slug),
+    vaizerCatalog: (refresh?: boolean) => getVaizerCatalog(refresh),
+    vaizerSkillMd: (slug: string) => getVaizerSkillMd(slug),
 
     listTasks,
     createTask,

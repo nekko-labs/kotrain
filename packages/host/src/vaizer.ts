@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { DojoCatalog, DojoCatalogSkill } from '@kotrain/shared';
-import { DOJO_CATALOG_URL, DOJO_SNAPSHOT, dojoSkillMdUrl } from '@kotrain/shared';
+import type { VaizerCatalog, VaizerCatalogSkill } from '@kotrain/shared';
+import { VAIZER_CATALOG_URL, VAIZER_SNAPSHOT, vaizerSkillMdUrl } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 /**
- * Nekko Dojo Skills hub (github.com/nekko-labs/nekko-dojo-skills), an optional
+ * Vaizer skills marketplace (github.com/nekko-labs/vaizer), an optional
  * integration. Offline-first: the shelf renders from the bundled snapshot
  * (or the last cached live fetch) with zero network; a live fetch happens only
  * when the user explicitly refreshes, and a skill's SKILL.md is fetched at
@@ -18,12 +18,12 @@ const FETCH_TIMEOUT_MS = 6000;
 function cacheFile(): string {
   const dir = dataDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  return join(dir, 'dojo.json');
+  return join(dir, 'vaizer.json');
 }
 
-function readCache(): DojoCatalog | null {
+function readCache(): VaizerCatalog | null {
   try {
-    const c = JSON.parse(readFileSync(cacheFile(), 'utf8')) as DojoCatalog;
+    const c = JSON.parse(readFileSync(cacheFile(), 'utf8')) as VaizerCatalog;
     if (!Array.isArray(c.skills)) return null;
     return { ...c, source: 'cached' };
   } catch {
@@ -31,8 +31,8 @@ function readCache(): DojoCatalog | null {
   }
 }
 
-function validSkill(s: unknown): s is DojoCatalogSkill {
-  const o = s as DojoCatalogSkill;
+function validSkill(s: unknown): s is VaizerCatalogSkill {
+  const o = s as VaizerCatalogSkill;
   return (
     !!o &&
     typeof o.id === 'string' &&
@@ -44,21 +44,21 @@ function validSkill(s: unknown): s is DojoCatalogSkill {
 }
 
 /**
- * The Dojo catalog. Without `refresh` this never touches the network:
+ * The Vaizer catalog. Without `refresh` this never touches the network:
  * last cached live fetch if present, else the bundled snapshot. With
- * `refresh` it fetches catalog.json from the Dojo repo (falling back to
+ * `refresh` it fetches catalog.json from the Vaizer repo (falling back to
  * cache/snapshot on failure).
  */
-export async function getDojoCatalog(refresh = false): Promise<DojoCatalog> {
-  if (!refresh) return readCache() ?? DOJO_SNAPSHOT;
+export async function getVaizerCatalog(refresh = false): Promise<VaizerCatalog> {
+  if (!refresh) return readCache() ?? VAIZER_SNAPSHOT;
   try {
-    const res = await fetch(DOJO_CATALOG_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const res = await fetch(VAIZER_CATALOG_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = (await res.json()) as { marketplace?: string; addCommand?: string; skills?: unknown[] };
     const skills = (raw.skills ?? []).filter(validSkill);
     if (skills.length === 0) throw new Error('Catalog had no valid skills.');
-    const catalog: DojoCatalog = {
-      marketplace: raw.marketplace ?? 'nekko-dojo-skills',
+    const catalog: VaizerCatalog = {
+      marketplace: raw.marketplace ?? 'vaizer',
       addCommand: raw.addCommand,
       skills,
       source: 'live',
@@ -67,15 +67,15 @@ export async function getDojoCatalog(refresh = false): Promise<DojoCatalog> {
     writeFileSync(cacheFile(), JSON.stringify(catalog, null, 2), 'utf8');
     return catalog;
   } catch {
-    return readCache() ?? DOJO_SNAPSHOT;
+    return readCache() ?? VAIZER_SNAPSHOT;
   }
 }
 
-/** Fetch a Dojo skill's verbatim SKILL.md (used at install time). */
-export async function getDojoSkillMd(slug: string): Promise<string | null> {
+/** Fetch a Vaizer skill's verbatim SKILL.md (used at install time). */
+export async function getVaizerSkillMd(slug: string): Promise<string | null> {
   if (!/^[a-z0-9-]+$/.test(slug)) return null;
   try {
-    const res = await fetch(dojoSkillMdUrl(slug), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const res = await fetch(vaizerSkillMdUrl(slug), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) return null;
     const text = await res.text();
     return text.trim().length > 0 ? text : null;

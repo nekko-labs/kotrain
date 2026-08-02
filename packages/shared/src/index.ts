@@ -17,7 +17,7 @@ export * from './tasks.js';
 export * from './training.js';
 export * from './skills.js';
 export * from './skills-market.js';
-export * from './dojo.js';
+export * from './vaizer.js';
 export * from './agent-types.js';
 export * from './connectors.js';
 export * from './ipc.js';

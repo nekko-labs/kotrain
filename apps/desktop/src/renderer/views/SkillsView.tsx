@@ -8,10 +8,10 @@ import {
   getMarketSkill,
   marketWorkflow,
   marketToSkillDef,
-  dojoToMarketSkill,
+  vaizerToMarketSkill,
   splitSkillMd,
-  DOJO_REPO_URL,
-  type DojoCatalog,
+  VAIZER_SITE_URL,
+  type VaizerCatalog,
   type SkillDef,
   type SkillNodeKind,
   type SkillWorkflow,
@@ -206,10 +206,10 @@ function LibraryTab() {
 const SOURCE_META: Record<MarketplaceSkill['source'], { label: string; color: string }> = {
   nekkolabs: { label: 'Nekko Labs', color: 'var(--accent)' },
   community: { label: 'community', color: 'var(--info)' },
-  dojo: { label: 'Nekko Dojo', color: '#a78bfa' },
+  vaizer: { label: 'Vaizer', color: '#a78bfa' },
 };
 
-/** Trust-tier chip for skills from the Dojo hub. */
+/** Trust-tier chip for skills from Vaizer. */
 function TierChip({ tier }: { tier?: MarketplaceSkill['tier'] }) {
   if (!tier) return null;
   const official = tier === 'nekko-official';
@@ -235,34 +235,34 @@ function MarketplaceTab() {
   const [selectedId, setSelectedId] = useState<string>(NEKKO_SKILLS[0]?.id ?? '');
   const [targets, setTargets] = useState<InstallTargetInfo[]>([]);
   const [busy, setBusy] = useState(false);
-  // Nekko Dojo hub (optional): renders from the offline snapshot/cache; the
+  // Vaizer hub (optional): renders from the offline snapshot/cache; the
   // network is only touched when the user clicks Refresh.
-  const [dojo, setDojo] = useState<DojoCatalog | null>(null);
-  const [dojoBusy, setDojoBusy] = useState(false);
+  const [vaizer, setVaizer] = useState<VaizerCatalog | null>(null);
+  const [vaizerBusy, setVaizerBusy] = useState(false);
 
   useEffect(() => {
     window.nekko.skillTargets().then(setTargets).catch(() => setTargets([]));
-    window.nekko.dojoCatalog().then(setDojo).catch(() => {});
+    window.nekko.vaizerCatalog().then(setVaizer).catch(() => {});
     refreshSkills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const refreshDojo = async () => {
-    setDojoBusy(true);
+  const refreshVaizer = async () => {
+    setVaizerBusy(true);
     try {
-      const cat = await window.nekko.dojoCatalog(true);
-      setDojo(cat);
+      const cat = await window.nekko.vaizerCatalog(true);
+      setVaizer(cat);
       pushToast(
         cat.source === 'live' ? 'success' : 'info',
-        cat.source === 'live' ? `Dojo catalog refreshed: ${cat.skills.length} skill(s).` : 'Dojo unreachable, showing the offline catalog.',
+        cat.source === 'live' ? `Vaizer catalog refreshed: ${cat.skills.length} skill(s).` : 'Vaizer unreachable, showing the offline catalog.',
       );
     } finally {
-      setDojoBusy(false);
+      setVaizerBusy(false);
     }
   };
 
   const popular = useMemo(() => popularSkills(), []);
-  const dojoSkills = useMemo(() => (dojo?.skills ?? []).map((d) => dojoToMarketSkill(d)), [dojo]);
+  const vaizerSkills = useMemo(() => (vaizer?.skills ?? []).map((d) => vaizerToMarketSkill(d)), [vaizer]);
   const installedBySkill = useMemo(() => {
     const m = new Map<string, InstalledSkillRecord[]>();
     for (const r of installedSkills) m.set(r.skillId, [...(m.get(r.skillId) ?? []), r]);
@@ -279,14 +279,14 @@ function MarketplaceTab() {
     );
   };
 
-  // Every skill we can show, keyed by id: built-in catalog + the Dojo shelf +
-  // snapshots carried on installed records (Dojo installs survive offline).
+  // Every skill we can show, keyed by id: built-in catalog + Vaizer shelf +
+  // snapshots carried on installed records (Vaizer installs survive offline).
   const byId = useMemo(() => {
     const m = new Map<string, MarketplaceSkill>();
     for (const r of installedSkills) if (r.skill) m.set(r.skillId, r.skill);
-    for (const s of dojoSkills) m.set(s.id, s);
+    for (const s of vaizerSkills) m.set(s.id, s);
     return m;
-  }, [installedSkills, dojoSkills]);
+  }, [installedSkills, vaizerSkills]);
   const resolve = (id: string): MarketplaceSkill | undefined => getMarketSkill(id) ?? byId.get(id);
 
   const shelves: Array<{ key: string; title: string; hint: string; items: MarketplaceSkill[] }> = [
@@ -297,7 +297,7 @@ function MarketplaceTab() {
       items: [...installedBySkill.keys()].map(resolve).filter((s): s is MarketplaceSkill => !!s).filter(matches),
     },
     { key: 'nekko', title: 'Nekko Labs', hint: 'First-party skills we maintain', items: NEKKO_SKILLS.filter(matches) },
-    { key: 'dojo', title: 'Nekko Dojo', hint: 'The public skills hub, official + community', items: dojoSkills.filter(matches) },
+    { key: 'vaizer', title: 'Vaizer', hint: 'The public skills hub, official + community', items: vaizerSkills.filter(matches) },
     { key: 'popular', title: 'Popular online', hint: 'Ranked by public stars/installs', items: popular.filter(matches) },
   ];
 
@@ -308,10 +308,10 @@ function MarketplaceTab() {
     if (!selected || busy) return;
     setBusy(true);
     try {
-      // Dojo skills install their real, current SKILL.md when reachable.
+      // Vaizer skills install their real, current SKILL.md when reachable.
       let payload: MarketplaceSkill | undefined;
-      if (selected.source === 'dojo') {
-        const md = await window.nekko.dojoSkillMd(selected.name).catch(() => null);
+      if (selected.source === 'vaizer') {
+        const md = await window.nekko.vaizerSkillMd(selected.name).catch(() => null);
         payload = md ? { ...selected, instructions: splitSkillMd(md).body, markdown: md } : selected;
       }
       const res = await window.nekko.installSkill(selected.id, target, payload);
@@ -361,20 +361,20 @@ function MarketplaceTab() {
             <div key={shelf.key} className="mb-4">
               <div className="flex items-center justify-between px-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{shelf.title}</p>
-                {shelf.key === 'dojo' && (
+                {shelf.key === 'vaizer' && (
                   <span className="flex items-center gap-2">
                     <button
                       className="text-[10px] text-accent hover:underline disabled:opacity-50"
-                      disabled={dojoBusy}
-                      onClick={() => void refreshDojo()}
-                      title="Fetch the latest catalog from the Dojo (network)"
+                      disabled={vaizerBusy}
+                      onClick={() => void refreshVaizer()}
+                      title="Fetch the latest catalog from Vaizer (network)"
                     >
-                      {dojoBusy ? 'Refreshing…' : '↻ Refresh'}
+                      {vaizerBusy ? 'Refreshing…' : '↻ Refresh'}
                     </button>
                     <button
                       className="text-[10px] text-accent hover:underline"
-                      onClick={() => window.nekko.openPath(DOJO_REPO_URL)}
-                      title="Browse the Nekko Dojo skills hub"
+                      onClick={() => window.nekko.openPath(VAIZER_SITE_URL)}
+                      title="Browse the Vaizer skills catalog at vaizer.app"
                     >
                       Browse ↗
                     </button>
@@ -383,8 +383,8 @@ function MarketplaceTab() {
               </div>
               <p className="px-2 pb-1 text-[10.5px] text-ink-faint">
                 {shelf.hint}
-                {shelf.key === 'dojo' && dojo && (
-                  <span> · {dojo.source === 'live' ? 'live' : dojo.source === 'cached' ? 'cached' : 'offline snapshot'}</span>
+                {shelf.key === 'vaizer' && vaizer && (
+                  <span> · {vaizer.source === 'live' ? 'live' : vaizer.source === 'cached' ? 'cached' : 'offline snapshot'}</span>
                 )}
               </p>
               {shelf.items.length === 0 && (
@@ -443,7 +443,7 @@ function MarketplaceTab() {
                   <TierChip tier={selected.tier} />
                 </div>
                 <p className="mt-1 text-[13px] text-ink-soft">{selected.description}</p>
-                {selected.source === 'dojo' && selected.tier === 'community' && (
+                {selected.source === 'vaizer' && selected.tier === 'community' && (
                   <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px]" style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)', color: 'var(--warning)' }}>
                     Community skill: it runs with your machine's permissions. Read its instructions before installing.
                   </p>
