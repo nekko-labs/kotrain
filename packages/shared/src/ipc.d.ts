@@ -96,8 +96,8 @@ export declare const IpcChannels: {
     readonly skillsTargets: "skills:targets";
     readonly skillInstall: "skill:install";
     readonly skillUninstall: "skill:uninstall";
-    readonly dojoCatalog: "dojo:catalog";
-    readonly dojoSkillMd: "dojo:skillMd";
+    readonly vaizerCatalog: "vaizer:catalog";
+    readonly vaizerSkillMd: "vaizer:skillMd";
     readonly tasksList: "tasks:list";
     readonly taskCreate: "task:create";
     readonly taskUpdate: "task:update";
@@ -291,9 +291,9 @@ export interface NekkoApi {
         installed: import('./skills-market.js').InstalledSkillRecord[];
     }>;
     uninstallSkill(skillId: string, target: import('./skills-market.js').InstallTarget): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
-    /** Nekko Dojo skills hub (optional integration): catalog + SKILL.md fetch. */
-    dojoCatalog(refresh?: boolean): Promise<import('./dojo.js').DojoCatalog>;
-    dojoSkillMd(slug: string): Promise<string | null>;
+    /** Vaizer skills hub (optional integration): catalog + SKILL.md fetch. */
+    vaizerCatalog(refresh?: boolean): Promise<import('./vaizer.js').VaizerCatalog>;
+    vaizerSkillMd(slug: string): Promise<string | null>;
     /** Automation tasks: scheduled, recurring, and long-running background agents. */
     listTasks(): Promise<AutomationTask[]>;
     createTask(task: NewTask): Promise<AutomationTask[]>;
