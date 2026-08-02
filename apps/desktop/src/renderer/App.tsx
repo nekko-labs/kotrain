@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
 import { useT } from './i18n.js';
 import { SHORTCUTS } from './shortcuts.js';
-import { Mascot, NekkoAvatar } from './components/Mascot.js';
+import { Mascot, NekkosAvatar } from './components/Mascot.js';
 import { ResourceHud } from './components/ResourceMonitor.js';
 import { Toasts } from './components/Toasts.js';
 import { CommandPalette } from './components/CommandPalette.js';
@@ -96,10 +96,10 @@ export function App() {
       try {
         const { LocalNotifications } = await import('@capacitor/local-notifications');
         await LocalNotifications.requestPermissions();
-        off = window.nekko.onAgentEvent((e) => {
+        off = window.nekkos.onAgentEvent((e) => {
           if (e.type === 'done' && document.hidden) {
             LocalNotifications.schedule({
-              notifications: [{ id: nid++, title: 'Nekko finished', body: 'Your task is ready in Kotrain.' }],
+              notifications: [{ id: nid++, title: 'Nekkos finished', body: 'Your task is ready in Nekkos.' }],
             }).catch(() => {});
           }
         });
@@ -123,7 +123,7 @@ export function App() {
         const perm = await PushNotifications.requestPermissions();
         if (perm.receive !== 'granted') return;
         await PushNotifications.addListener('registration', (t) => {
-          if (!cancelled) window.nekko.registerPushToken(t.value, platform).catch(() => {});
+          if (!cancelled) window.nekkos.registerPushToken(t.value, platform).catch(() => {});
         });
         await PushNotifications.register();
       } catch {
@@ -142,9 +142,9 @@ export function App() {
         <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
           <div className="mb-3 flex h-9 items-center gap-2.5">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
-              <NekkoAvatar size={22} />
+              <NekkosAvatar size={22} />
             </div>
-            <span className="rail-label text-[14px] font-semibold tracking-tight">Kotrain</span>
+            <span className="rail-label text-[14px] font-semibold tracking-tight">Nekkos</span>
           </div>
           {NAV.map(({ view: v, labelKey, Icon }) => (
             <button

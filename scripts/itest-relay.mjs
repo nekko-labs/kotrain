@@ -4,13 +4,13 @@
 // devices, remote device management (pairing a second device from the first),
 // and live revocation (kick + re-deny).
 //
-// Usage: node scripts/itest-relay.mjs [--relay=wss://kotrain-relay.fly.dev] [baseUrl] [model]
+// Usage: node scripts/itest-relay.mjs [--relay=wss://nekkos-relay.fly.dev] [baseUrl] [model]
 // With no --relay, spawns a local relay from apps/relay/dist.
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { deriveKey, seal, open } from '@kotrain/shared';
+import { deriveKey, seal, open } from '@nekkos/shared';
 
 const args = process.argv.slice(2);
 const relayArg = args.find((a) => a.startsWith('--relay='));
@@ -21,7 +21,7 @@ const PAIR_KEY = 'secret123';
 const RELAY_PORT = 4455;
 const RELAY_URL = relayArg ? relayArg.slice('--relay='.length) : `ws://127.0.0.1:${RELAY_PORT}`;
 
-const dataDir = mkdtempSync(join(tmpdir(), 'nekko-relay-'));
+const dataDir = mkdtempSync(join(tmpdir(), 'nekkos-relay-'));
 writeFileSync(
   join(dataDir, 'settings.json'),
   JSON.stringify({ providers: [{ id: 'lm', kind: 'lmstudio', label: 'LM Studio', baseUrl, enabled: true }] }),
@@ -40,7 +40,7 @@ const check = (name, ok, detail = '') => {
 if (!relayArg) {
   procs.push(
     spawn('node', ['apps/relay/dist/index.js'], {
-      env: { ...process.env, KOTRAIN_RELAY_PORT: String(RELAY_PORT), KOTRAIN_RELAY_HOST: '127.0.0.1' },
+      env: { ...process.env, NEKKOS_RELAY_PORT: String(RELAY_PORT), NEKKOS_RELAY_HOST: '127.0.0.1' },
       stdio: 'ignore',
     }),
   );
@@ -52,10 +52,10 @@ let pairCode = null;
 const agent = spawn('node', ['apps/server/dist/index.js'], {
   env: {
     ...process.env,
-    KOTRAIN_RELAY_URL: RELAY_URL,
-    KOTRAIN_ROOM: ROOM,
-    KOTRAIN_PAIR_KEY: PAIR_KEY,
-    KOTRAIN_DATA_DIR: dataDir,
+    NEKKOS_RELAY_URL: RELAY_URL,
+    NEKKOS_ROOM: ROOM,
+    NEKKOS_PAIR_KEY: PAIR_KEY,
+    NEKKOS_DATA_DIR: dataDir,
   },
   stdio: ['ignore', 'pipe', 'inherit'],
 });

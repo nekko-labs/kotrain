@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐾 Kotrain
+# 🐾 Nekkos
 
 **Local-first AI chat, cowork, and coding in one calm window.**
 
@@ -12,7 +12,7 @@ Open source · MIT · first-class support for the models you run yourself.
 
 ## Overview
 
-Kotrain is an open-source desktop assistant (Electron + React) that unifies
+Nekkos is an open-source desktop assistant (Electron + React) that unifies
 conversation and coding into a single surface. Its headline feature is
 **first-class local model support**: point it at Ollama, LM Studio, or vLLM in
 one click, alongside every major cloud provider. It ships with a
@@ -20,7 +20,7 @@ context-provenance inspector, default guardrails for risky commands, an
 out-of-the-box sandbox, multi-folder code indexing, memory management,
 connectors, and an 8-bit cat mascot that makes biscuits while the model thinks.
 
-Built by [Nekko Labs](https://nekkolabs.com) and MIT-licensed, Kotrain is a
+Built by [Nekko Labs](https://nekkolabs.com) and MIT-licensed, Nekkos is a
 real, shipping product developed in the open. Contributions are welcome, from
 first issues to features; see [CONTRIBUTING.md](CONTRIBUTING.md) to get
 started.
@@ -30,7 +30,7 @@ started.
 > agent loop (single- and multi-step). Run `node scripts/itest-local.mjs <baseUrl> <model>`
 > to check your own server.
 
-![Kotrain, unified chat with the Context Inspector](docs/screenshots/chat.png)
+![Nekkos, unified chat with the Context Inspector](docs/screenshots/chat.png)
 
 <table>
   <tr>
@@ -43,36 +43,36 @@ started.
 
 ## Download
 
-Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
+Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/nekkos/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
 
-### macOS: "Kotrain is damaged and can't be opened" 🛑
+### macOS: "Nekkos is damaged and can't be opened" 🛑
 
-Kotrain isn't notarized yet (no Apple Developer certificate), so macOS quarantines the downloaded app and may say it's *damaged* or move it to the Trash. The app is fine, this is Gatekeeper blocking an unsigned download. After dragging **Kotrain** to Applications, clear the quarantine flag once:
+Nekkos isn't notarized yet (no Apple Developer certificate), so macOS quarantines the downloaded app and may say it's *damaged* or move it to the Trash. The app is fine, this is Gatekeeper blocking an unsigned download. After dragging **Nekkos** to Applications, clear the quarantine flag once:
 
 ```bash
-xattr -cr "/Applications/Kotrain.app"
+xattr -cr "/Applications/Nekkos.app"
 ```
 
 Then open it normally. (Alternatively: right-click the app → **Open** → **Open**.) We'll drop this step once notarized builds are signed. Windows may also show a SmartScreen "unknown publisher" prompt, choose **More info → Run anyway**.
 
 ### Uninstalling
 
-- **Windows**: *Settings → Apps → Installed apps → Kotrain → Uninstall*, or the **Uninstall Kotrain** shortcut in the Start Menu folder. The uninstaller asks whether to also delete your chats and settings (choose **No** to keep them for a reinstall).
-- **macOS**: drag **Kotrain** from Applications to the Trash. To also remove data: `rm -rf "$HOME/Library/Application Support/Kotrain"`.
-- **Linux**: remove the AppImage, or `sudo apt remove kotrain` for the `.deb`.
+- **Windows**: *Settings → Apps → Installed apps → Nekkos → Uninstall*, or the **Uninstall Nekkos** shortcut in the Start Menu folder. The uninstaller asks whether to also delete your chats and settings (choose **No** to keep them for a reinstall).
+- **macOS**: drag **Nekkos** from Applications to the Trash. To also remove data: `rm -rf "$HOME/Library/Application Support/Nekkos"`.
+- **Linux**: remove the AppImage, or `sudo apt remove nekkos` for the `.deb`.
 
-## Why Kotrain
+## Why Nekkos
 
-**LM Studio runs models. Kotrain runs *with your work*.** Local model UIs are
+**LM Studio runs models. Nekkos runs *with your work*.** Local model UIs are
 essentially a chat box around a model, no awareness of your files or projects.
-Nekko reads, edits, searches, and runs inside your actual codebases: multi-folder
+Nekkos reads, edits, searches, and runs inside your actual codebases: multi-folder
 index, file viewer with inline editing, a tool-using agent, per-project memory,
 and guardrails. Same one-click local-model setup, but the model can do the work,
 not just talk about it.
 
 **The power of an agentic CLI, with eyes.** Terminal agents (Claude Code, aider, …)
 are powerful but blind, you can't *see* what changed without `git diff`, and
-editing means leaving the tool. Nekko gives an IDE-like surface: browse the indexed
+editing means leaving the tool. Nekkos gives an IDE-like surface: browse the indexed
 tree, view files and diffs, edit inline, while the agent works alongside you, every
 action visible through the Context Inspector and approval prompts.
 
@@ -86,9 +86,9 @@ Same engine, same UI, multiple runtimes (see the design in the project spec):
 | **Self-hosted web** | `npm run web`, offline, the same UI in your browser | ✅ available |
 | **Docker** | `docker compose up`, workspaces as volumes, local models via `host.docker.internal` | ✅ available |
 | **Phone remote control** | pair your phone (QR, one-time code) and run chats/training/goals on your home machine from anywhere, end-to-end encrypted; managed relay free in beta, or [self-host it](docs/REMOTE.md) with one Docker command | ✅ available |
-| **Nekko Cloud** (paid) | managed hosting: subscriptions, always-available **Zero-Data-Retention** mode, cloud chat-history + file management | 🔜 planned |
+| **Nekkos Cloud** (paid) | managed hosting: subscriptions, always-available **Zero-Data-Retention** mode, cloud chat-history + file management | 🔜 planned |
 
-The desktop, web, and (coming) Docker editions all run the **same engine + same React UI**, only the transport differs (Electron IPC vs HTTP/WebSocket), via the shared `@kotrain/host`.
+The desktop, web, and (coming) Docker editions all run the **same engine + same React UI**, only the transport differs (Electron IPC vs HTTP/WebSocket), via the shared `@nekkos/host`.
 
 ### Run the web edition
 
@@ -98,11 +98,11 @@ npm run web        # builds everything, then serves at http://localhost:1440
 ```
 
 Same app, in your browser, fully offline. It binds to `localhost` by default; set
-`KOTRAIN_TOKEN` to require an access token (append `?token=…` to the URL) before
-exposing it with `KOTRAIN_HOST=0.0.0.0`. Data lives in `~/.kotrain` (override with
-`KOTRAIN_DATA_DIR`).
+`NEKKOS_TOKEN` to require an access token (append `?token=…` to the URL) before
+exposing it with `NEKKOS_HOST=0.0.0.0`. Data lives in `~/.nekkos` (override with
+`NEKKOS_DATA_DIR`).
 
-![Kotrain web edition](docs/screenshots/web-edition.png)
+![Nekkos web edition](docs/screenshots/web-edition.png)
 
 ### Run with Docker
 
@@ -112,8 +112,8 @@ docker compose up        # build + run, then open http://localhost:1440
 
 Mount your codebases into `./workspace` (the sandbox confines file tools there),
 and reach a model server on your host at `http://host.docker.internal:<port>`.
-Settings/sessions persist in the `nekko-data` volume. Published to the host's
-localhost by default; set `KOTRAIN_TOKEN` before exposing on a network.
+Settings/sessions persist in the `nekkos-data` volume. Published to the host's
+localhost by default; set `NEKKOS_TOKEN` before exposing on a network.
 
 Cloud keeps inference and tools **on your machine**, the relay is an
 end-to-end-encrypted pipe to a paired local agent, so using your own model stays
@@ -133,7 +133,7 @@ private by design.
 - **Multi-folder index**: add multiple roots; file + symbol index with fast search.
 - **Memory**: global and per-project, stored as plain markdown.
 - **Connectors**: Linear, Slack, Discord, Gmail, Google Drive.
-- **Nekko the mascot**: peeks in from the edge, waves, and kneads cat biscuits.
+- **Nekkos the mascot**: peeks in from the edge, waves, and kneads cat biscuits.
 
 ## Architecture
 

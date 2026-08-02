@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { MemoryEntry, MemoryScope } from '@kotrain/shared';
+import type { MemoryEntry, MemoryScope } from '@nekkos/shared';
 import { PlusIcon, TrashIcon } from '../icons.js';
 
 export function MemoryView() {
@@ -7,7 +7,7 @@ export function MemoryView() {
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [editing, setEditing] = useState<MemoryEntry | null>(null);
 
-  const load = async () => setEntries(await window.nekko.listMemory(scope));
+  const load = async () => setEntries(await window.nekkos.listMemory(scope));
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [scope]);
 
   const blank = (): MemoryEntry => ({
@@ -22,7 +22,7 @@ export function MemoryView() {
 
   const save = async () => {
     if (!editing) return;
-    await window.nekko.saveMemory(editing);
+    await window.nekkos.saveMemory(editing);
     setEditing(null);
     load();
   };
@@ -49,7 +49,7 @@ export function MemoryView() {
             <div key={m.id} className="card cursor-pointer p-3" onClick={() => setEditing(m)}>
               <div className="flex items-center justify-between">
                 <span className="truncate text-[13px] font-medium">{m.title || '(untitled)'}</span>
-                <button className="text-ink-faint" onClick={async (e) => { e.stopPropagation(); await window.nekko.deleteMemory(m.id); load(); }}>
+                <button className="text-ink-faint" onClick={async (e) => { e.stopPropagation(); await window.nekkos.deleteMemory(m.id); load(); }}>
                   <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
@@ -64,7 +64,7 @@ export function MemoryView() {
           <div className="mx-auto w-full max-w-2xl space-y-3">
             <input className="input text-lg font-semibold" placeholder="Title" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
             <input className="input" placeholder="tags, comma separated" value={editing.tags.join(', ')} onChange={(e) => setEditing({ ...editing, tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })} />
-            <textarea className="input min-h-[300px] resize-none" placeholder="What should Nekko remember?" value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
+            <textarea className="input min-h-[300px] resize-none" placeholder="What should Nekkos remember?" value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
             <div className="flex justify-end gap-2">
               <button className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={save}>Save</button>
@@ -74,7 +74,7 @@ export function MemoryView() {
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
             <div className="grid h-14 w-14 place-items-center rounded-2xl text-3xl" style={{ background: 'var(--accent-soft)' }}>🧠</div>
             <div>
-              <h2 className="text-lg font-semibold">Nekko's long-term memory</h2>
+              <h2 className="text-lg font-semibold">Nekkos' long-term memory</h2>
               <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">
                 Notes saved here are injected into every chat's context. Select one on the left, or write a new one.
               </p>

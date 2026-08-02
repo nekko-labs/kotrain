@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import type { GpuStats, MonitorKind, SystemStats } from '@kotrain/shared';
-import { MONITOR_HINTS, MONITOR_KINDS, MONITOR_LABELS, monitorSources, resolveMonitors } from '@kotrain/shared';
+import type { GpuStats, MonitorKind, SystemStats } from '@nekkos/shared';
+import { MONITOR_HINTS, MONITOR_KINDS, MONITOR_LABELS, monitorSources, resolveMonitors } from '@nekkos/shared';
 import { useStore } from '../store.js';
 import { ChevronIcon } from '../icons.js';
 
@@ -41,12 +41,12 @@ function publish(next: ResourceSample) {
 
 function poll() {
   if (sources.system) {
-    window.nekko.getSystemStats?.().then((s) => {
+    window.nekkos.getSystemStats?.().then((s) => {
       if (sources.system) publish({ ...sample, system: s });
     }).catch(() => {});
   }
   if (sources.gpu) {
-    window.nekko.getGpuStats?.().then((g) => {
+    window.nekkos.getGpuStats?.().then((g) => {
       if (sources.gpu) publish({ ...sample, gpu: g });
     }).catch(() => {});
   }
@@ -97,7 +97,7 @@ export function useMonitors(): Record<MonitorKind, boolean> {
 
 /** Flip one monitor on/off (persisted; the sampler follows on the next render). */
 function setMonitor(current: Record<MonitorKind, boolean>, kind: MonitorKind, on: boolean) {
-  window.nekko.updateSettings({ monitors: { ...current, [kind]: on } })
+  window.nekkos.updateSettings({ monitors: { ...current, [kind]: on } })
     .then(() => useStore.getState().refreshSettings())
     .catch(() => {});
 }
@@ -156,7 +156,7 @@ function Meter({ label, value, pct, sub }: { label: string; value: string; pct: 
  * It publishes its own rectangle to the store, which is what lets the floating
  * chip warp into this section instead of covering it.
  */
-const DOCK_OPEN_KEY = 'kotrain.resourceDock.open';
+const DOCK_OPEN_KEY = 'nekkos.resourceDock.open';
 
 export function ResourceDock() {
   const monitors = useMonitors();

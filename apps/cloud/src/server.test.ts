@@ -31,7 +31,7 @@ describe('cloud server (HTTP)', () => {
     expect(res.json()).toEqual({ cloud: true, billing: false }); // no Stripe keys in this suite
   });
 
-  it('rejects unauthenticated NekkoApi calls', async () => {
+  it('rejects unauthenticated NekkosApi calls', async () => {
     const res = await app.inject({ method: 'POST', url: '/api/settings:get', payload: { args: [] } });
     expect(res.statusCode).toBe(401);
   });
@@ -89,7 +89,7 @@ describe('cloud billing (HTTP)', () => {
       secretKey: 'sk_test',
       webhookSecret: WHSEC,
       prices: { pro: 'price_pro', team: 'price_team' },
-      publicUrl: 'https://cloud.kotrain.com',
+      publicUrl: 'https://cloud.nekkos.app',
     });
     ({ app } = createCloudServer({ dataRoot: mkdtempSync(join(tmpdir(), 'op-billing-')), billing }));
     await app.ready();

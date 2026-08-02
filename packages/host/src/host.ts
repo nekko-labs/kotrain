@@ -46,8 +46,8 @@ import type {
   GpuStats,
   SystemStats,
   LmsProbe,
-} from '@kotrain/shared';
-import { isLocalProvider } from '@kotrain/shared';
+} from '@nekkos/shared';
+import { isLocalProvider } from '@nekkos/shared';
 import {
   createProvider,
   discoverLocalProviders,
@@ -55,7 +55,7 @@ import {
   getConnector,
   classifyCommand,
   BUILTIN_TOOLS,
-} from '@kotrain/core';
+} from '@nekkos/core';
 import { setDataDir, dataDir } from './paths.js';
 import { getSettings, saveSettings, resetSettings } from './store.js';
 import * as sessions from './sessions.js';
@@ -107,7 +107,7 @@ import { getGpuStats } from './gpu.js';
 import { getSystemStats } from './system.js';
 import { stopLocalServer } from './servers.js';
 import { lmsProbe, lmsLoad, lmsUnload } from './lms.js';
-import { syncMcp, mcpStatus, mcpToolList, detectNekkoMcp } from './mcp.js';
+import { syncMcp, mcpStatus, mcpToolList, detectNekkosMcp } from './mcp.js';
 import {
   setTerminalSender,
   listTerminals,
@@ -125,12 +125,12 @@ import { randomUUID } from 'crypto';
 
 /**
  * The transport-agnostic host. `createHost()` returns an object implementing the
- * full NekkoApi surface (sans the renderer-side `on*` subscriptions, which are
+ * full NekkosApi surface (sans the renderer-side `on*` subscriptions, which are
  * served by `events`) plus a couple of methods the UI layer drives differently
  * per runtime (e.g. `addWorkspaceByPath`, since Electron uses a native dialog
  * while the web server takes a path string).
  *
- * Every edition, Electron, the web server, Nekko Cloud, wraps the same Host.
+ * Every edition, Electron, the web server, Nekkos Cloud, wraps the same Host.
  */
 export interface Host {
   /** Emits 'agentEvent' (AgentEvent) and 'indexProgress' (IndexStatus). */
@@ -254,11 +254,11 @@ export interface Host {
   installSkill(
     skillId: string,
     target: InstallTarget,
-    payload?: import('@kotrain/shared').MarketplaceSkill,
+    payload?: import('@nekkos/shared').MarketplaceSkill,
   ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
   uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[];
   /** Vaizer skills hub (optional): catalog + a skill's SKILL.md. */
-  vaizerCatalog(refresh?: boolean): Promise<import('@kotrain/shared').VaizerCatalog>;
+  vaizerCatalog(refresh?: boolean): Promise<import('@nekkos/shared').VaizerCatalog>;
   vaizerSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
@@ -290,18 +290,18 @@ export interface Host {
   enableRemote(relayUrl: string): RemoteStatus;
   disableRemote(): RemoteStatus;
   remoteStatus(): RemoteStatus;
-  startRemotePairing(): import('@kotrain/shared').PairingGrant;
-  listRemoteDevices(): import('@kotrain/shared').RemoteDevice[];
-  revokeRemoteDevice(deviceId: string): import('@kotrain/shared').RemoteDevice[];
-  renameRemoteDevice(deviceId: string, name: string): import('@kotrain/shared').RemoteDevice[];
+  startRemotePairing(): import('@nekkos/shared').PairingGrant;
+  listRemoteDevices(): import('@nekkos/shared').RemoteDevice[];
+  revokeRemoteDevice(deviceId: string): import('@nekkos/shared').RemoteDevice[];
+  renameRemoteDevice(deviceId: string, name: string): import('@nekkos/shared').RemoteDevice[];
   rotateRemoteSecret(): RemoteStatus;
   /** The remote-access service itself (headless relay-agent mode attaches here). */
   remote: import('./remote.js').RemoteService;
   appInfo(): AppInfo;
   /** Connect (or reconnect) configured MCP servers and return their status. */
   mcpStatus(): Promise<McpServerStatus[]>;
-  /** Probe for a local NekkoMCP daemon and return its gateway info. */
-  detectNekkoMcp(): Promise<import('@kotrain/shared').NekkoMcpInfo | null>;
+  /** Probe for a local NekkosMCP daemon and return its gateway info. */
+  detectNekkosMcp(): Promise<import('@nekkos/shared').NekkosMcpInfo | null>;
 }
 
 export function createHost(opts: { dataDir: string }): Host {
@@ -556,13 +556,13 @@ export function createHost(opts: { dataDir: string }): Host {
     revokeRemoteDevice: (deviceId) => host.remote.revoke(deviceId),
     renameRemoteDevice: (deviceId, name) => host.remote.rename(deviceId, name),
     rotateRemoteSecret: () => host.remote.rotate(),
-    appInfo: () => ({ version: process.env.KOTRAIN_VERSION ?? '0.0.0', platform: process.platform, edition: 'web' }),
+    appInfo: () => ({ version: process.env.NEKKOS_VERSION ?? '0.0.0', platform: process.platform, edition: 'web' }),
     mcpStatus: async () => {
       const configs = getSettings().mcpServers ?? [];
       await syncMcp(configs);
       return mcpStatus(configs);
     },
-    detectNekkoMcp: () => detectNekkoMcp(),
+    detectNekkosMcp: () => detectNekkosMcp(),
   };
   // Remote access needs the finished host (it dispatches into it); reconnect if
   // remote access was left enabled when the host last shut down.

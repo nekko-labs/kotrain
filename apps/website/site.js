@@ -1,4 +1,4 @@
-// Kotrain marketing site: starfield backdrop, scroll reveals, OS highlight.
+// Nekkos marketing site: starfield backdrop, scroll reveals, OS highlight.
 (function () {
   // ---- drifting starfield (space-travel feel, honors reduced motion) ----
   const canvas = document.getElementById('stars');

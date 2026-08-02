@@ -1,8 +1,8 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { createHost } from '@kotrain/host';
-import { IpcEvents } from '@kotrain/shared';
+import { createHost } from '@nekkos/host';
+import { IpcEvents } from '@nekkos/shared';
 import type {
   AppSettings,
   Session,
@@ -12,17 +12,21 @@ import type {
   RemoteStatus,
   TrainingRun,
   NewTrainingRun,
-} from '@kotrain/shared';
+} from '@nekkos/shared';
 
-/** The data dir for the in-process (local) client. KOTRAIN_DATA_DIR wins, then
- * the legacy OPENPAW_DATA_DIR, then ~/.kotrain (keeping a pre-rebrand
- * ~/.open-paw if it already exists). */
+/** The data dir for the in-process (local) client. NEKKOS_DATA_DIR wins, then
+ * the legacy KOTRAIN_DATA_DIR / OPENPAW_DATA_DIR, then ~/.nekkos (keeping a
+ * pre-rebrand ~/.kotrain or ~/.open-paw if one already exists). */
 export function dataDir(): string {
-  const fromEnv = process.env.KOTRAIN_DATA_DIR || process.env.OPENPAW_DATA_DIR;
+  const fromEnv =
+    process.env.NEKKOS_DATA_DIR || process.env.KOTRAIN_DATA_DIR || process.env.OPENPAW_DATA_DIR;
   if (fromEnv) return fromEnv;
-  const next = join(homedir(), '.kotrain');
-  const legacy = join(homedir(), '.open-paw');
-  if (!existsSync(next) && existsSync(legacy)) return legacy;
+  const next = join(homedir(), '.nekkos');
+  if (existsSync(next)) return next;
+  for (const name of ['.kotrain', '.open-paw']) {
+    const legacy = join(homedir(), name);
+    if (existsSync(legacy)) return legacy;
+  }
   return next;
 }
 
@@ -103,7 +107,7 @@ function httpClient(url: string, token?: string): Client {
     };
     openP = new Promise<void>((resolve, reject) => {
       ws!.onopen = () => resolve();
-      ws!.onerror = () => reject(new Error(`Cannot reach Kotrain server at ${base}`));
+      ws!.onerror = () => reject(new Error(`Cannot reach Nekkos server at ${base}`));
     });
     return openP;
   };
@@ -132,10 +136,10 @@ function httpClient(url: string, token?: string): Client {
   };
 }
 
-/** Build a client from env/flags: `--url`/KOTRAIN_URL → HTTP, else local. */
+/** Build a client from env/flags: `--url`/NEKKOS_URL → HTTP, else local. */
 export function getClient(opts: { url?: string; token?: string } = {}): Client {
-  const url = opts.url || process.env.KOTRAIN_URL;
-  return url ? httpClient(url, opts.token || process.env.KOTRAIN_TOKEN) : localClient();
+  const url = opts.url || process.env.NEKKOS_URL;
+  return url ? httpClient(url, opts.token || process.env.NEKKOS_TOKEN) : localClient();
 }
 
 /** Resolve provider + model from flags, the session, then saved defaults. */

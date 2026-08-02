@@ -1,8 +1,8 @@
 {
-  "name": "@kotrain/mobile",
+  "name": "@nekkos/mobile",
   "version": "0.1.4",
   "private": true,
-  "description": "Kotrain mobile (Capacitor), drive your local model from your phone over the secure relay.",
+  "description": "Nekkos mobile (Capacitor), drive your local model from your phone over the secure relay.",
   "scripts": {
     "sync-web": "node scripts/sync-web.mjs",
     "cap": "cap",

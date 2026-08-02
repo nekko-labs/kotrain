@@ -1,4 +1,4 @@
-import type { ConnectorKind, ConnectorResource } from '@kotrain/shared';
+import type { ConnectorKind, ConnectorResource } from '@nekkos/shared';
 
 export interface Connector {
   readonly kind: ConnectorKind;
@@ -14,7 +14,7 @@ export const githubConnector: Connector = {
     const headers = {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'kotrain',
+      'User-Agent': 'nekkos',
     };
     if (query) {
       const res = await fetch(

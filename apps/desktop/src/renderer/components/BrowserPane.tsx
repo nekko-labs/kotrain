@@ -61,7 +61,7 @@ export function BrowserPane({ url: initial }: { url: string }) {
           onKeyDown={(e) => { if (e.key === 'Enter') go(); }}
         />
         <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open in external browser"
-          onClick={() => url !== 'about:blank' && window.nekko.openPath(url)}><ExternalIcon className="h-3.5 w-3.5" /></button>
+          onClick={() => url !== 'about:blank' && window.nekkos.openPath(url)}><ExternalIcon className="h-3.5 w-3.5" /></button>
       </div>
       <div className="min-h-0 flex-1">
         {url === 'about:blank' ? (

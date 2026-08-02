@@ -1,22 +1,22 @@
-# Fly.io config for the managed Kotrain relay (relay.kotrain.com candidate).
+# Fly.io config for the managed Nekkos relay (relay.nekkos.app candidate).
 # Deploy from the REPO ROOT (the Dockerfile needs the workspace manifests):
-#   fly apps create kotrain-relay                 (first time)
+#   fly apps create nekkos-relay                 (first time)
 #   fly deploy -c apps/relay/fly.toml --dockerfile apps/relay/Dockerfile .
 # Keep it at ONE machine (fly scale count 1): rooms live in a machine's memory,
 # so the agent and its phones must land on the same instance.
 # Secrets (only if enabling push / the paid gate):
 #   fly secrets set APNS_KEY_P8=... APNS_KEY_ID=... APNS_TEAM_ID=... \
-#     FCM_SERVICE_ACCOUNT=... KOTRAIN_RELAY_AUTHZ_URL=https://cloud.kotrain.com/api/relay/authorize
+#     FCM_SERVICE_ACCOUNT=... NEKKOS_RELAY_AUTHZ_URL=https://cloud.nekkos.app/api/relay/authorize
 
-app = "kotrain-relay"
+app = "nekkos-relay"
 primary_region = "nrt"
 
 [build]
   dockerfile = "Dockerfile"
 
 [env]
-  KOTRAIN_RELAY_PORT = "4400"
-  KOTRAIN_RELAY_HOST = "0.0.0.0"
+  NEKKOS_RELAY_PORT = "4400"
+  NEKKOS_RELAY_HOST = "0.0.0.0"
 
 [http_service]
   internal_port = 4400

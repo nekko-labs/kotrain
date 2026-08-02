@@ -1,4 +1,4 @@
-import { createHost } from '@kotrain/host';
+import { createHost } from '@nekkos/host';
 
 /**
  * Relay-agent mode for the server CLI: create a host and expose it over a relay
@@ -11,7 +11,7 @@ export async function runRelayAgent(opts: { relayUrl: string; room: string; key:
   const host = createHost({ dataDir: opts.dataDir });
   host.remote.attach({ relayUrl: opts.relayUrl, room: opts.room, secret: opts.key });
   const grant = host.remote.pair();
-  console.log(`\n🐾 Kotrain relay-agent → ${opts.relayUrl}`);
+  console.log(`\n🐾 Nekkos relay-agent → ${opts.relayUrl}`);
   console.log(`   room=${opts.room}  key=${opts.key}`);
   console.log(`   one-time pairing code (10 min): ${grant.code}`);
   console.log(`   pairing link: <ui-origin>/?relay=${encodeURIComponent(opts.relayUrl)}&room=${opts.room}&key=${opts.key}&pair=${grant.code}`);

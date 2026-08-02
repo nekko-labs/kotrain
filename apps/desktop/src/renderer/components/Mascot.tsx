@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 
 export type MascotMood = 'idle' | 'waving' | 'thinking';
 
-/** A training move in Nekko's kendo routine (cycled while the model thinks). */
+/** A training move in Nekkos' kendo routine (cycled while the model thinks). */
 type TrainingMove = 'punch' | 'kick' | 'bokken';
 
 /** Shared palette: ginger cat in a kendo outfit (red hachimaki, indigo gi). */
-const NEKKO = {
+const NEKKOS = {
   body: '#f6a45c',
   dark: '#d97b38',
   cream: '#ffe2c0',
@@ -46,55 +46,55 @@ const px = (x: number, y: number, w: number, h: number, fill: string) => (
 );
 
 /**
- * A tiny inline Nekko in its kendo gear that throws quick alternating jabs
+ * A tiny inline Nekkos in its kendo gear that throws quick alternating jabs
  * while the agent works, sized to sit on a single text line next to a status
  * label (a la Claude Code's spinner).
  */
-export function MiniNekko({ size = 18 }: { size?: number }) {
+export function MiniNekkos({ size = 18 }: { size?: number }) {
   return (
-    <span className="nekko-bob inline-block shrink-0 align-middle" style={{ lineHeight: 0 }}>
+    <span className="nekkos-bob inline-block shrink-0 align-middle" style={{ lineHeight: 0 }}>
       <svg viewBox="0 0 32 28" width={size} height={(size * 28) / 32} shapeRendering="crispEdges">
         {/* ears */}
-        {px(6, 0, 4, 4, NEKKO.body)}
-        {px(18, 0, 4, 4, NEKKO.body)}
-        {px(7, 1, 2, 2, NEKKO.dark)}
-        {px(19, 1, 2, 2, NEKKO.dark)}
+        {px(6, 0, 4, 4, NEKKOS.body)}
+        {px(18, 0, 4, 4, NEKKOS.body)}
+        {px(7, 1, 2, 2, NEKKOS.dark)}
+        {px(19, 1, 2, 2, NEKKOS.dark)}
         {/* head */}
-        {px(5, 3, 18, 12, NEKKO.body)}
-        {px(5, 3, 18, 2, NEKKO.dark)}
+        {px(5, 3, 18, 12, NEKKOS.body)}
+        {px(5, 3, 18, 2, NEKKOS.dark)}
         {/* hachimaki bandana + knot tail */}
-        {px(5, 5, 18, 2, NEKKO.band)}
-        {px(23, 5, 2, 2, NEKKO.bandDark)}
-        {px(24, 7, 2, 2, NEKKO.bandDark)}
+        {px(5, 5, 18, 2, NEKKOS.band)}
+        {px(23, 5, 2, 2, NEKKOS.bandDark)}
+        {px(24, 7, 2, 2, NEKKOS.bandDark)}
         {/* eyes */}
-        {px(9, 8, 2, 3, NEKKO.ink)}
-        {px(17, 8, 2, 3, NEKKO.ink)}
+        {px(9, 8, 2, 3, NEKKOS.ink)}
+        {px(17, 8, 2, 3, NEKKOS.ink)}
         {/* blush */}
-        {px(7, 11, 2, 2, NEKKO.blush)}
-        {px(19, 11, 2, 2, NEKKO.blush)}
+        {px(7, 11, 2, 2, NEKKOS.blush)}
+        {px(19, 11, 2, 2, NEKKOS.blush)}
         {/* muzzle */}
-        {px(13, 11, 2, 2, NEKKO.cream)}
-        {px(13, 11, 2, 1, NEKKO.blush)}
+        {px(13, 11, 2, 2, NEKKOS.cream)}
+        {px(13, 11, 2, 1, NEKKOS.blush)}
         {/* gi body + belt */}
-        {px(8, 15, 12, 9, NEKKO.gi)}
-        {px(12, 15, 4, 4, NEKKO.cream)}
-        {px(8, 21, 12, 2, NEKKO.belt)}
+        {px(8, 15, 12, 9, NEKKOS.gi)}
+        {px(12, 15, 4, 4, NEKKOS.cream)}
+        {px(8, 21, 12, 2, NEKKOS.belt)}
         {/* jabbing paws */}
-        <g className="nekko-jab-l" style={{ transformBox: 'fill-box' }}>{px(4, 16, 4, 5, NEKKO.body)}</g>
-        <g className="nekko-jab-r" style={{ transformBox: 'fill-box' }}>{px(20, 16, 4, 5, NEKKO.body)}</g>
+        <g className="nekkos-jab-l" style={{ transformBox: 'fill-box' }}>{px(4, 16, 4, 5, NEKKOS.body)}</g>
+        <g className="nekkos-jab-r" style={{ transformBox: 'fill-box' }}>{px(20, 16, 4, 5, NEKKOS.body)}</g>
       </svg>
     </span>
   );
 }
 
 /**
- * Nekko's face alone, still and centred, for the identity tiles: the rail's
+ * Nekkos' face alone, still and centred, for the identity tiles: the rail's
  * brand mark, the empty states, and the login/pairing heroes. Same sprite
  * vocabulary as the animated mascot, so the app has one cat rather than a
  * mascot in the corner and an emoji everywhere else.
  */
-export function NekkoAvatar({ size = 28, title }: { size?: number; title?: string }) {
-  const C = NEKKO;
+export function NekkosAvatar({ size = 28, title }: { size?: number; title?: string }) {
+  const C = NEKKOS;
   return (
     <svg
       viewBox="0 0 20 17"
@@ -128,7 +128,7 @@ export function NekkoAvatar({ size = 28, title }: { size?: number; title?: strin
 }
 
 /**
- * Nekko, an 8-bit pixel cat in a kendo outfit (red hachimaki bandana, indigo
+ * Nekkos, an 8-bit pixel cat in a kendo outfit (red hachimaki bandana, indigo
  * keikogi + hakama) that sits in the bottom of the left nav rail. It waves on
  * idle/greeting and trains while the model is thinking: punches, then a kick,
  * then bokken overhead swings, cycling until the turn ends.
@@ -136,7 +136,7 @@ export function NekkoAvatar({ size = 28, title }: { size?: number; title?: strin
 export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }) {
   const [peek, setPeek] = useState(false);
   // Interaction: hovering gives a gentle wiggle, clicking a one-shot hop, and
-  // either (like training) leans Nekko to the right so it "points" that way.
+  // either (like training) leans Nekkos to the right so it "points" that way.
   const [hovering, setHovering] = useState(false);
   const [reacting, setReacting] = useState(false);
   const training = mood === 'thinking';
@@ -148,7 +148,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
   }, [enabled]);
 
   if (!enabled) return null;
-  const C = NEKKO;
+  const C = NEKKOS;
   const kicking = training && move === 'kick';
   const swinging = training && move === 'bokken';
   const punching = training && move === 'punch';
@@ -156,20 +156,20 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
   // Point right whenever anything is animating; pick the reaction animation
   // (click beats hover; training keeps its own in-sprite moves).
   const active = training || hovering || reacting;
-  const reactionAnim = reacting ? 'nekko-hop' : hovering && !training ? 'nekko-hover-wiggle' : '';
+  const reactionAnim = reacting ? 'nekkos-hop' : hovering && !training ? 'nekkos-hover-wiggle' : '';
 
   return (
     <div
-      className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'nekko-peek' : ''}`}
+      className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'nekkos-peek' : ''}`}
     >
       <div
-        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${active ? 'nekko-lean-right' : 'nekko-lean'}`}
+        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${active ? 'nekkos-lean-right' : 'nekkos-lean'}`}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         onClick={() => setReacting(true)}
-        title={training ? 'Nekko is training…' : reacting ? 'Hyah!' : 'Nekko'}
+        title={training ? 'Nekkos is training…' : reacting ? 'Hyah!' : 'Nekkos'}
         role="button"
-        aria-label="Nekko mascot"
+        aria-label="Nekkos mascot"
       >
       <div
         className={reactionAnim}
@@ -220,7 +220,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
         {/* left arm: waves on greeting, jabs while punching, guards otherwise */}
         <g
           className={
-            mood === 'waving' ? 'nekko-wave' : punching ? 'nekko-punch-l' : swinging ? 'nekko-arms-up' : ''
+            mood === 'waving' ? 'nekkos-wave' : punching ? 'nekkos-punch-l' : swinging ? 'nekkos-arms-up' : ''
           }
           style={{ transformBox: 'fill-box' }}
         >
@@ -229,7 +229,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
         </g>
         {/* right arm: jabs while punching (bokken swing draws its own arms) */}
         {!swinging && (
-          <g className={punching ? 'nekko-punch-r' : ''} style={{ transformBox: 'fill-box' }}>
+          <g className={punching ? 'nekkos-punch-r' : ''} style={{ transformBox: 'fill-box' }}>
             {px(21, 20, 4, 6, C.gi)}
             {px(21, 24, 4, 2, C.body)}
           </g>
@@ -238,7 +238,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
         {/* bokken overhead swing: both paws grip the sword above the head and
             chop down in front (fast strike, slow lift, like suburi reps) */}
         {swinging && (
-          <g className="nekko-swing" style={{ transformOrigin: '16px 22px' }}>
+          <g className="nekkos-swing" style={{ transformOrigin: '16px 22px' }}>
             {/* raised arms */}
             {px(12, 14, 3, 6, C.gi)}
             {px(17, 14, 3, 6, C.gi)}
@@ -258,7 +258,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
         {/* feet / kick: right leg snaps out to the side during the kick move */}
         {px(9, 31, 4, 3, C.dark)}
         {kicking ? (
-          <g className="nekko-kick" style={{ transformOrigin: '17px 32px' }}>
+          <g className="nekkos-kick" style={{ transformOrigin: '17px 32px' }}>
             {px(15, 31, 4, 3, C.dark)}
             {px(19, 31, 5, 3, C.body)}
             {px(24, 31, 3, 3, C.cream)}

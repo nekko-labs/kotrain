@@ -1,4 +1,4 @@
-import { IpcChannels } from '@kotrain/shared';
+import { IpcChannels } from '@nekkos/shared';
 import type { Host } from './host.js';
 
 /**
@@ -151,7 +151,7 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
 
     [C.appInfo]: () => host.appInfo(),
     [C.mcpStatus]: () => host.mcpStatus(),
-    [C.mcpNekko]: () => host.detectNekkoMcp(),
+    [C.mcpNekkos]: () => host.detectNekkosMcp(),
   };
 
   return (channel, args) => {

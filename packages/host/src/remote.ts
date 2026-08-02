@@ -10,7 +10,7 @@ import {
   type RemoteDevice,
   type RemoteHelloReply,
   type RemoteStatus,
-} from '@kotrain/shared';
+} from '@nekkos/shared';
 import { dataDir } from './store.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
 import type { Host } from './host.js';

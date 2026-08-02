@@ -1,6 +1,6 @@
 import { execFile } from 'child_process';
-import type { PrAction, PrActionResult, PrChecks, PrDiff, PrDiffFile, PrInfo, PrState } from '@kotrain/shared';
-import { collectSessionPrUrls, parsePrUrl } from '@kotrain/shared';
+import type { PrAction, PrActionResult, PrChecks, PrDiff, PrDiffFile, PrInfo, PrState } from '@nekkos/shared';
+import { collectSessionPrUrls, parsePrUrl } from '@nekkos/shared';
 import { getSettings } from './store.js';
 import { getSession } from './sessions.js';
 
@@ -47,7 +47,7 @@ function apiHeaders(): Record<string, string> {
   return {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'kotrain',
+    'User-Agent': 'nekkos',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }

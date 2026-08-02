@@ -1,7 +1,7 @@
 // End-to-end integration test against a real local model server.
 // Usage: node scripts/itest-local.mjs [baseUrl] [model]
 // Defaults target the user's LM Studio instance.
-import { createProvider, runAgent, BUILTIN_TOOLS } from '@kotrain/core';
+import { createProvider, runAgent, BUILTIN_TOOLS } from '@nekkos/core';
 import { readFileSync, writeFileSync, mkdtempSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -30,7 +30,7 @@ let answer = '';
 for await (const c of provider.chat({
   model,
   system: 'You are concise.',
-  messages: [{ id: '1', role: 'user', content: 'Reply with exactly: HELLO NEKKO', createdAt: 0 }],
+  messages: [{ id: '1', role: 'user', content: 'Reply with exactly: HELLO NEKKOS', createdAt: 0 }],
 })) {
   if (c.type === 'reasoning') reasoningChars += c.delta.length;
   else if (c.type === 'text') answer += c.delta;
@@ -40,7 +40,7 @@ console.log(`reasoning chars streamed: ${reasoningChars}`);
 console.log(`answer: ${JSON.stringify(answer.trim())}`);
 
 console.log('\n== Agent loop with a real tool (read_file) ==');
-const dir = mkdtempSync(join(tmpdir(), 'nekko-itest-'));
+const dir = mkdtempSync(join(tmpdir(), 'nekkos-itest-'));
 const secretFile = join(dir, 'secret.txt');
 writeFileSync(secretFile, 'The magic word is BISCUITS.', 'utf8');
 

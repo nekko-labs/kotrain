@@ -1,15 +1,15 @@
-# Kotrain
+# Nekkos
 
-> Open-source, local-first AI chat, cowork, and coding in one calm window. Kotrain's headline feature is **first-class local model support**: point it at Ollama, LM Studio, or vLLM in one click, alongside every major cloud provider. Desktop, self-hosted web, and Docker editions run the same engine and the same UI. MIT licensed, by Nekko Labs.
+> Open-source, local-first AI chat, cowork, and coding in one calm window. Nekkos' headline feature is **first-class local model support**: point it at Ollama, LM Studio, or vLLM in one click, alongside every major cloud provider. Desktop, self-hosted web, and Docker editions run the same engine and the same UI. MIT licensed, by Nekko Labs.
 
-Local model UIs are essentially a chat box around a model with no awareness of your files or projects. Terminal agents are powerful but blind. Kotrain sits in between: an IDE-like surface where the agent reads, edits, searches, and runs inside your actual codebases, with every action visible through a context-provenance inspector and approval prompts.
+Local model UIs are essentially a chat box around a model with no awareness of your files or projects. Terminal agents are powerful but blind. Nekkos sits in between: an IDE-like surface where the agent reads, edits, searches, and runs inside your actual codebases, with every action visible through a context-provenance inspector and approval prompts.
 
 ## Key facts
 
 - **What it is**: a local-first AI coding and cowork app (Electron + React) that unifies conversation and coding into one surface.
 - **Local models first**: one-click setup for Ollama, LM Studio, and vLLM, plus every major cloud provider. Verified end-to-end against a live LM Studio server, including reasoning models and the full multi-step tool-calling agent loop.
-- **Editions** (same engine, same UI, different transport): **Desktop** (macOS, Windows, Linux) available; **self-hosted web** (`npx kotrain` or `npm run web`, fully offline) available; **Docker** (`docker compose up`, workspaces as volumes) available; **phone remote control** (pair by QR, end-to-end encrypted, managed relay free in beta or self-host it) available; **Kotrain Cloud** (paid, hosted, always-on Zero-Data-Retention mode, cloud history and files) planned.
-- **Privacy**: local-first. Inference and tools stay on your machine, data lives in `~/.kotrain`. Kotrain Cloud's relay is an end-to-end-encrypted pipe to your own paired agent, so driving a local model from your phone stays private by design.
+- **Editions** (same engine, same UI, different transport): **Desktop** (macOS, Windows, Linux) available; **self-hosted web** (`npx nekkos` or `npm run web`, fully offline) available; **Docker** (`docker compose up`, workspaces as volumes) available; **phone remote control** (pair by QR, end-to-end encrypted, managed relay free in beta or self-host it) available; **Nekkos Cloud** (paid, hosted, always-on Zero-Data-Retention mode, cloud history and files) planned.
+- **Privacy**: local-first. Inference and tools stay on your machine, data lives in `~/.nekkos`. Nekkos Cloud's relay is an end-to-end-encrypted pipe to your own paired agent, so driving a local model from your phone stays private by design.
 - **Licence**: MIT, open source, developed in the open with contributions welcome.
 
 ## Features
@@ -21,21 +21,21 @@ Local model UIs are essentially a chat box around a model with no awareness of y
 - **Multi-folder index**: browse the indexed tree, view files and diffs, edit inline.
 - **Memory management**: per-project memory you can inspect and edit.
 - **Connectors** and MCP support, including [Hypergate](https://hypergate.app) as an MCP gateway.
-- **Nekko**, an 8-bit cat mascot that makes biscuits while the model thinks.
+- **Nekkos**, an 8-bit cat mascot that makes biscuits while the model thinks.
 
 ## Install
 
-Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`. macOS builds are not notarized yet, so clear the quarantine flag once with `xattr -cr "/Applications/Kotrain.app"` after installing.
+Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/nekkos/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`. macOS builds are not notarized yet, so clear the quarantine flag once with `xattr -cr "/Applications/Nekkos.app"` after installing.
 
 ## Pages
 
-- [Home](https://kotrain.com/): what Kotrain is, the features, local-model support, the editions, and downloads.
+- [Home](https://nekkos.app/): what Nekkos is, the features, local-model support, the editions, and downloads.
 
 ## Docs and source
 
-- [GitHub repository](https://github.com/nekko-labs/kotrain): source, issues, releases.
-- [README](https://github.com/nekko-labs/kotrain/blob/main/README.md): overview, install, editions, and troubleshooting.
-- [Walkthrough](https://github.com/nekko-labs/kotrain/blob/main/docs/WALKTHROUGH.md): a picture-by-picture tour of the app.
-- [Remote access](https://github.com/nekko-labs/kotrain/blob/main/docs/REMOTE.md): phone pairing and self-hosting the relay.
-- [Contributing](https://github.com/nekko-labs/kotrain/blob/main/CONTRIBUTING.md): how to pick up a first issue.
-- [Releases](https://github.com/nekko-labs/kotrain/releases): installers for every platform.
+- [GitHub repository](https://github.com/nekko-labs/nekkos): source, issues, releases.
+- [README](https://github.com/nekko-labs/nekkos/blob/main/README.md): overview, install, editions, and troubleshooting.
+- [Walkthrough](https://github.com/nekko-labs/nekkos/blob/main/docs/WALKTHROUGH.md): a picture-by-picture tour of the app.
+- [Remote access](https://github.com/nekko-labs/nekkos/blob/main/docs/REMOTE.md): phone pairing and self-hosting the relay.
+- [Contributing](https://github.com/nekko-labs/nekkos/blob/main/CONTRIBUTING.md): how to pick up a first issue.
+- [Releases](https://github.com/nekko-labs/nekkos/releases): installers for every platform.

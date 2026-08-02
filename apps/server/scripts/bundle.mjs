@@ -1,8 +1,8 @@
-// Produce a self-contained, publishable `kotrain` package under cli-dist/:
-//   - index.mjs : the server + @kotrain/host/core/shared bundled by esbuild
+// Produce a self-contained, publishable `nekkos` package under cli-dist/:
+//   - index.mjs : the server + @nekkos/host/core/shared bundled by esbuild
 //   - web/      : the built renderer (the UI)
-//   - package.json : name "kotrain", bin, and the few runtime deps
-// Run after building the renderer (npm run build -w @kotrain/desktop).
+//   - package.json : name "nekkos", bin, and the few runtime deps
+// Run after building the renderer (npm run build -w @nekkos/desktop).
 import { build } from 'esbuild';
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -15,7 +15,7 @@ const out = join(serverDir, 'cli-dist');
 
 const renderer = join(repoRoot, 'apps/desktop/out/renderer');
 if (!existsSync(join(renderer, 'index.html'))) {
-  console.error('Build the renderer first: npm run build -w @kotrain/desktop');
+  console.error('Build the renderer first: npm run build -w @nekkos/desktop');
   process.exit(1);
 }
 
@@ -41,12 +41,12 @@ cpSync(renderer, join(out, 'web'), { recursive: true });
 
 const version = JSON.parse(readFileSync(join(serverDir, 'package.json'), 'utf8')).version;
 const pkg = {
-  name: 'kotrain',
+  name: 'nekkos',
   version,
-  description: 'Local-first AI coding & cowork, the self-hosted web edition. Run with `npx kotrain`.',
+  description: 'Local-first AI coding & cowork, the self-hosted web edition. Run with `npx nekkos`.',
   license: 'MIT',
   type: 'module',
-  bin: { 'kotrain': 'index.mjs' },
+  bin: { 'nekkos': 'index.mjs' },
   files: ['index.mjs', 'web'],
   engines: { node: '>=20' },
   dependencies: {
@@ -58,7 +58,7 @@ const pkg = {
 writeFileSync(join(out, 'package.json'), JSON.stringify(pkg, null, 2));
 writeFileSync(
   join(out, 'README.md'),
-  '# Kotrain (web edition + CLI/MCP)\n\nWeb server:\n\n```bash\nnpx kotrain\n```\n\nThen open http://localhost:1440.\n\nCLI / MCP (drive your local agent from the terminal or other tools):\n\n```bash\nnpx kotrain status\nnpx kotrain chat "summarize README.md"\nnpx kotrain mcp        # MCP server on stdio (e.g. claude mcp add kotrain -- npx kotrain mcp)\n```\n\nSee https://github.com/nekko-labs/kotrain\n',
+  '# Nekkos (web edition + CLI/MCP)\n\nWeb server:\n\n```bash\nnpx nekkos\n```\n\nThen open http://localhost:1440.\n\nCLI / MCP (drive your local agent from the terminal or other tools):\n\n```bash\nnpx nekkos status\nnpx nekkos chat "summarize README.md"\nnpx nekkos mcp        # MCP server on stdio (e.g. claude mcp add nekkos -- npx nekkos mcp)\n```\n\nSee https://github.com/nekko-labs/nekkos\n',
 );
 
 console.log(`\n✓ Bundled publishable package → ${out}`);

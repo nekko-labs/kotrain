@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import type { GpuStats } from '@kotrain/shared';
+import type { GpuStats } from '@nekkos/shared';
 
 /**
  * GPU/VRAM stats for the Chat metrics bar and Command Center. Backed by
