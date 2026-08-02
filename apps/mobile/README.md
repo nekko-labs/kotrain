@@ -1,4 +1,4 @@
-# Kotrain, Mobile (iOS & Android)
+# Nekkos, Mobile (iOS & Android)
 
 Native phone apps built with **Capacitor**. They run the same React UI as the
 desktop/web editions and connect to the model on your computer over the
@@ -10,7 +10,7 @@ drives the agent running on your machine.
 
 ## How pairing works
 
-1. On your **computer**: Kotrain → *Settings → Remote access → Enable*. It shows
+1. On your **computer**: Nekkos → *Settings → Remote access → Enable*. It shows
    a room code, key, a pairing link, and a QR.
 2. In the **phone app**: **Scan QR code** (camera) or paste the pairing link on the
    first-run screen. The creds are stored locally and the app connects to your
@@ -19,7 +19,7 @@ drives the agent running on your machine.
 ## Notifications
 
 When a task you started finishes while the app is backgrounded, you get a **local
-notification** ("Nekko finished"), no push server, no APNs/FCM setup needed
+notification** ("Nekkos finished"), no push server, no APNs/FCM setup needed
 (uses `@capacitor/local-notifications`). True remote/background push (when the app
 is fully closed) would need APNs + FCM + a sender backend, not wired yet.
 
@@ -38,7 +38,7 @@ Prereqs: **iOS** needs macOS + Xcode + CocoaPods; **Android** needs Android Stud
 
 ```bash
 # 1. Build the shared web UI (from the repo root)
-npm run build -w @kotrain/desktop
+npm run build -w @nekkos/desktop
 
 # 2. Install + sync the web assets into this Capacitor project
 cd apps/mobile
@@ -56,7 +56,7 @@ npx cap open android      # Android Studio
 
 After changing the web UI, re-run `npm run sync-web && npx cap sync`.
 
-`appId` is `dev.nekkolabs.kotrain`, matching the desktop bundle id.
+`appId` is `dev.nekkolabs.nekkos`, matching the desktop bundle id.
 
 ## Next steps (tracked)
 

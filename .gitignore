@@ -14,10 +14,10 @@ coverage/
 release/
 cli-dist/
 # runtime artifacts written by training/goal/design runs when this repo is
-# itself used as a Kotrain workspace (dogfooding)
-kotrain-training/
-kotrain-goal/
-kotrain-designs/
+# itself used as a Nekkos workspace (dogfooding)
+nekkos-training/
+nekkos-goal/
+nekkos-designs/
 
 # Local agent tooling (per-machine hooks and critique scratch)
 .codex/

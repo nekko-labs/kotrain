@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'path';
 import { existsSync, cpSync } from 'fs';
-import { createHost } from '@kotrain/host';
+import { createHost } from '@nekkos/host';
 import { registerIpc } from './ipc.js';
 import { checkForUpdates } from './update.js';
 import { loadWindowBounds, saveWindowBounds } from './windowState.js';
@@ -54,21 +54,29 @@ function createWindow(): void {
 
 /**
  * Pre-rebrand installs kept their data under the "Open Paw" userData dir
- * (productName then). Copy it into the Kotrain location once, on first run
+ * (productName then). Copy it into the Nekkos location once, on first run
  * after the rename, so nobody loses chats/settings.
  */
 function migrateLegacyData(nextDir: string): void {
   try {
     if (existsSync(nextDir)) return;
-    const legacy = join(app.getPath('userData'), '..', 'Open Paw', 'open-paw');
-    if (existsSync(legacy)) cpSync(legacy, nextDir, { recursive: true });
+    const legacies = [
+      join(app.getPath('userData'), '..', 'Kotrain', 'kotrain'),
+      join(app.getPath('userData'), '..', 'Open Paw', 'open-paw'),
+    ];
+    for (const legacy of legacies) {
+      if (existsSync(legacy)) {
+        cpSync(legacy, nextDir, { recursive: true });
+        return;
+      }
+    }
   } catch (err) {
-    console.error('[kotrain] legacy data migration failed:', err);
+    console.error('[nekkos] legacy data migration failed:', err);
   }
 }
 
 app.whenReady().then(() => {
-  const dataDir = join(app.getPath('userData'), 'kotrain');
+  const dataDir = join(app.getPath('userData'), 'nekkos');
   migrateLegacyData(dataDir);
   const host = createHost({ dataDir });
   registerIpc(host);

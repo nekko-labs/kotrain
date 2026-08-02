@@ -1,4 +1,4 @@
-import type { WorkspaceFolder } from '@kotrain/shared';
+import type { WorkspaceFolder } from '@nekkos/shared';
 
 export interface PromptContext {
   workspaces: WorkspaceFolder[];
@@ -17,7 +17,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     ? ctx.workspaces.map((w) => `- ${w.name}: ${w.path}`).join('\n')
     : '(no workspace folders added yet)';
 
-  return `You are Nekko, the assistant inside Kotrain, a local-first coding and cowork app. \
+  return `You are Nekkos, the assistant inside Nekkos, a local-first coding and cowork app. \
 You unify chat, cowork, and code: you hold normal conversations, help with writing and planning, \
 and you can act on the user's machine through tools (reading and editing files, searching, running commands).
 

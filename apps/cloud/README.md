@@ -1,6 +1,6 @@
-# @kotrain/cloud, Nekko Cloud (hosted edition)
+# @nekkos/cloud, Nekkos Cloud (hosted edition)
 
-The multi-account, hosted edition. It wraps the **same** host engine (`@kotrain/host`)
+The multi-account, hosted edition. It wraps the **same** host engine (`@nekkos/host`)
 and the **same** React UI as the desktop and self-hosted web editions, just per
 authenticated account, with feature limits enforced server-side by plan.
 
@@ -39,8 +39,8 @@ npm run cloud            # from repo root: builds engine + renderer, serves :431
 Environment:
 
 - `CLOUD_PORT` (default `4318`), `CLOUD_HOST` (default `127.0.0.1`)
-- `CLOUD_DATA_DIR` (default `~/.kotrain-cloud`), cloud metadata + per-account dirs
-- `KOTRAIN_RENDERER_DIR`, override the served renderer build
+- `CLOUD_DATA_DIR` (default `~/.nekkos-cloud`), cloud metadata + per-account dirs
+- `NEKKOS_RENDERER_DIR`, override the served renderer build
 - `CLOUD_PUBLIC_URL`, public base URL, for Checkout success/cancel/portal redirects
 - Billing (optional; billing stays disabled if `STRIPE_SECRET_KEY` is unset):
   `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAM`
@@ -57,7 +57,7 @@ Environment:
 | `POST /api/billing/checkout` | Bearer | `{ plan: 'pro'｜'team' }` → `{ url }` (Stripe Checkout) |
 | `POST /api/billing/portal` | Bearer | `{ url }` (Stripe Customer Portal) |
 | `POST /api/billing/webhook` | Stripe signature | apply plan changes from Stripe events |
-| `POST /api/:channel` | Bearer | the full NekkoApi, scoped to the account |
+| `POST /api/:channel` | Bearer | the full NekkosApi, scoped to the account |
 | `GET /api/events` (WS) | Bearer (`?token=`) | the account's agent/index events |
 
 ## Still TODO (later Phase 3)

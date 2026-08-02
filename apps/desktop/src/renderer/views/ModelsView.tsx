@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { ModelInfo, ProviderConfig, ProviderKind } from '@kotrain/shared';
-import { PROVIDER_DEFAULTS, isLocalProvider } from '@kotrain/shared';
+import type { ModelInfo, ProviderConfig, ProviderKind } from '@nekkos/shared';
+import { PROVIDER_DEFAULTS, isLocalProvider } from '@nekkos/shared';
 import { useStore } from '../store.js';
 import { Badge } from '../components/primitives/index.js';
 import { PlusIcon, TrashIcon, CheckIcon, StarIcon } from '../icons.js';
@@ -20,7 +20,7 @@ export function ModelsView() {
   const discover = async () => {
     setDiscovering(true);
     const before = providers.length;
-    const after = await window.nekko.discoverProviders();
+    const after = await window.nekkos.discoverProviders();
     await refreshProviders();
     setDiscovering(false);
     const added = after.length - before;
@@ -141,13 +141,13 @@ function AddProvider({ onDone }: { onDone: () => void }) {
   const test = async () => {
     setTesting(true);
     setResult(null);
-    const r = await window.nekko.testProviderConfig(draft());
+    const r = await window.nekkos.testProviderConfig(draft());
     setResult(r);
     setTesting(false);
   };
 
   const save = async () => {
-    await window.nekko.saveProvider(draft());
+    await window.nekkos.saveProvider(draft());
     onDone();
   };
 
@@ -223,17 +223,17 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
   const toggleFavorite = async (key: string) => {
     const set = new Set(settings?.favoriteModels ?? []);
     set.has(key) ? set.delete(key) : set.add(key);
-    await window.nekko.updateSettings({ favoriteModels: [...set] });
+    await window.nekkos.updateSettings({ favoriteModels: [...set] });
     refreshSettings();
   };
 
   const load = async () => {
-    setModels(await window.nekko.listModels(provider.id).catch(() => []));
+    setModels(await window.nekkos.listModels(provider.id).catch(() => []));
   };
 
   const test = async () => {
     setConn({ state: 'testing' });
-    const r = await window.nekko.testProvider(provider.id);
+    const r = await window.nekkos.testProvider(provider.id);
     setConn({ state: r.ok ? 'ok' : 'fail', message: r.message });
   };
 
@@ -242,7 +242,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
     load();
     test();
     if (provider.kind === 'lmstudio') {
-      window.nekko.lmsAvailable(provider.id).then(setLms).catch(() => setLms({ available: false }));
+      window.nekkos.lmsAvailable(provider.id).then(setLms).catch(() => setLms({ available: false }));
     }
     /* eslint-disable-next-line */
   }, [provider.id]);
@@ -267,8 +267,8 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
     setBusy(m.id);
     try {
       const r = loaded
-        ? await window.nekko.loadModel(provider.id, m.id)
-        : await window.nekko.unloadModel(provider.id, m.id);
+        ? await window.nekkos.loadModel(provider.id, m.id)
+        : await window.nekkos.unloadModel(provider.id, m.id);
       if (r && !r.ok) pushToast('error', r.message ?? `Couldn't ${loaded ? 'load' : 'unload'} ${m.id}.`);
       await load();
     } finally {
@@ -279,7 +279,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
   const stopServer = async () => {
     if (!window.confirm(`Stop the ${provider.label} server? This unloads its models and ends the process.`)) return;
     setStopping(true);
-    const r = await window.nekko.stopServer(provider.id);
+    const r = await window.nekkos.stopServer(provider.id);
     pushToast(r.ok ? 'success' : 'error', r.message);
     setStopping(false);
     setTimeout(test, 600); // reflect the now-offline state
@@ -307,7 +307,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
         </div>
         <button
           className="btn btn-ghost px-2"
-          onClick={async () => { await window.nekko.removeProvider(provider.id); onChanged(); }}
+          onClick={async () => { await window.nekkos.removeProvider(provider.id); onChanged(); }}
           title="Remove"
         >
           <TrashIcon className="h-4 w-4" />
@@ -338,7 +338,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
           <input className="input py-1.5 text-[12px]" placeholder="pull a model, e.g. llama3.2" value={pullName} onChange={(e) => setPullName(e.target.value)} />
           <button
             className="btn btn-outline py-1.5 text-[12px]"
-            onClick={async () => { setConn({ state: 'testing', message: 'pulling…' }); const r = await window.nekko.pullModel(provider.id, pullName); setConn({ state: r.ok ? 'ok' : 'fail', message: r.message }); load(); }}
+            onClick={async () => { setConn({ state: 'testing', message: 'pulling…' }); const r = await window.nekkos.pullModel(provider.id, pullName); setConn({ state: r.ok ? 'ok' : 'fail', message: r.message }); load(); }}
           >
             Pull
           </button>

@@ -1,7 +1,7 @@
 /**
  * Vaizer skills integration: an optional connection to the public Agent Skills
  * marketplace at github.com/nekko-labs/vaizer (browsable at vaizer.app/skills).
- * Vaizer is a separate app; Kotrain only reads its machine-readable catalog and
+ * Vaizer is a separate app; Nekkos only reads its machine-readable catalog and
  * installs skills the user explicitly picks.
  *
  * Offline-first: the marketplace shelf renders from the bundled snapshot
@@ -10,14 +10,14 @@
  * the real, current instructions are installed).
  *
  * (Until 2026-08-02 these skills lived in a separate repo,
- * `nekko-labs/nekko-dojo-skills`, and the shelf was labelled "Nekko Dojo".)
+ * `nekko-labs/nekko-dojo-skills`, and the shelf was labelled "Nekkos Dojo".)
  */
 
 import type { MarketplaceSkill } from './skills-market.js';
 import type { SkillCategory } from './skills.js';
 
 /** Trust tiers from the Vaizer repo. Official = built + reviewed by Nekko Labs. */
-export type VaizerTier = 'nekko-official' | 'community';
+export type VaizerTier = 'nekkos-official' | 'community';
 
 /** One entry of the Vaizer repo's catalog.json. */
 export interface VaizerCatalogSkill {
@@ -69,7 +69,7 @@ export const VAIZER_SNAPSHOT: VaizerCatalog = {
       id: 'domain-finder',
       name: 'Domain Finder',
       slug: 'domain-finder',
-      tier: 'nekko-official',
+      tier: 'nekkos-official',
       category: 'research',
       description:
         'Brainstorm startup/project names, check domain availability across TLDs via RDAP, and vet brand/trademark conflicts.',
@@ -84,7 +84,7 @@ export const VAIZER_SNAPSHOT: VaizerCatalog = {
       id: 'nyaa',
       name: 'nyaa',
       slug: 'nyaa',
-      tier: 'nekko-official',
+      tier: 'nekkos-official',
       category: 'engineering',
       description:
         'Convene a council of four reviewer cats (security, deps/supply-chain, correctness/concurrency, style) over a PR or working diff, pulling in external bot reviews too.',
@@ -99,7 +99,7 @@ export const VAIZER_SNAPSHOT: VaizerCatalog = {
       id: 'resume-checker',
       name: 'Resume Checker',
       slug: 'resume-checker',
-      tier: 'nekko-official',
+      tier: 'nekkos-official',
       category: 'career',
       description:
         'Check a resume against automated candidate-screening (ATS) signals and AI-centric job expectations, score it against specific job postings, then interactively apply fixes and show exactly what changed.',
@@ -113,7 +113,7 @@ export const VAIZER_SNAPSHOT: VaizerCatalog = {
   ],
 };
 
-/** Map Vaizer's free-form category onto Kotrain's skill categories. */
+/** Map Vaizer's free-form category onto Nekkos' skill categories. */
 export function vaizerCategory(cat: string): SkillCategory {
   const c = cat.toLowerCase();
   if (/research|planning|naming|brainstorm|career|resume|job/.test(c)) return 'Research & planning';

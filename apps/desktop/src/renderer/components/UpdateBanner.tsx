@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, UpdateInfo } from '@kotrain/shared';
+import type { AppInfo, UpdateInfo } from '@nekkos/shared';
 import { useStore } from '../store.js';
 
 const LS_LAST_VERSION = 'op_last_version';
@@ -21,41 +21,41 @@ export function UpdateBanner() {
 
   useEffect(() => {
     let off: (() => void) | undefined;
-    window.nekko.getAppInfo().then((ai) => {
+    window.nekkos.getAppInfo().then((ai) => {
       setInfo(ai);
       // "Updated to version X", current version differs from the last one we saw.
       const last = localStorage.getItem(LS_LAST_VERSION);
       if (last && last !== ai.version) setJustUpdated(ai.version);
       localStorage.setItem(LS_LAST_VERSION, ai.version);
     });
-    off = window.nekko.onUpdateEvent((u) => setUpdate(u));
+    off = window.nekkos.onUpdateEvent((u) => setUpdate(u));
     return () => off?.();
   }, []);
 
   // Once the user has opted into auto-update, do a check on load.
   useEffect(() => {
-    if (settings?.autoUpdate) window.nekko.checkForUpdates().then(setUpdate);
+    if (settings?.autoUpdate) window.nekkos.checkForUpdates().then(setUpdate);
   }, [settings?.autoUpdate]);
 
   if (!info) return null;
 
   const isDesktop = info.edition === 'desktop';
-  const notesUrl = update?.notesUrl ?? 'https://github.com/nekko-labs/kotrain/releases/latest';
-  const openNotes = () => window.nekko.openPath(notesUrl);
+  const notesUrl = update?.notesUrl ?? 'https://github.com/nekko-labs/nekkos/releases/latest';
+  const openNotes = () => window.nekkos.openPath(notesUrl);
 
   // First-run prompt (desktop only, the web edition just refreshes).
   const showFirstRun =
     isDesktop && settings != null && !settings.autoUpdatePrompted && !dismissedFirstRun;
 
   const enableAuto = async () => {
-    await window.nekko.updateSettings({ autoUpdate: true, autoUpdatePrompted: true });
+    await window.nekkos.updateSettings({ autoUpdate: true, autoUpdatePrompted: true });
     await refreshSettings();
     setBusy(true);
-    setUpdate(await window.nekko.checkForUpdates());
+    setUpdate(await window.nekkos.checkForUpdates());
     setBusy(false);
   };
   const declineAuto = async () => {
-    await window.nekko.updateSettings({ autoUpdatePrompted: true });
+    await window.nekkos.updateSettings({ autoUpdatePrompted: true });
     await refreshSettings();
     setDismissedFirstRun(true);
   };
@@ -63,14 +63,14 @@ export function UpdateBanner() {
   const doUpdate = async () => {
     setBusy(true);
     if (!isDesktop) {
-      await window.nekko.quitAndInstall(); // reloads the page
+      await window.nekkos.quitAndInstall(); // reloads the page
       return;
     }
     if (update?.state === 'downloaded') {
-      await window.nekko.quitAndInstall();
+      await window.nekkos.quitAndInstall();
       return;
     }
-    setUpdate(await window.nekko.downloadUpdate());
+    setUpdate(await window.nekkos.downloadUpdate());
     setBusy(false);
   };
 

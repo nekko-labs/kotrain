@@ -11,7 +11,7 @@ import {
   type ExperimentNode,
   type PlanStep,
   type TrainingRun,
-} from '@kotrain/shared';
+} from '@nekkos/shared';
 
 function exp(partial: Partial<ExperimentNode> & { id: string }): ExperimentNode {
   return { title: partial.id, status: 'succeeded', createdAt: 0, updatedAt: 0, ...partial };

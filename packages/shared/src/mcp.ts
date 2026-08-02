@@ -8,7 +8,7 @@ export interface McpServerConfig {
   command: string;
   /** Arguments, e.g. ["-y", "@modelcontextprotocol/server-filesystem", "/path"]. */
   args: string[];
-  /** Streamable-HTTP MCP endpoint (e.g. a NekkoMCP gateway). When set, we connect over HTTP instead of spawning. */
+  /** Streamable-HTTP MCP endpoint (e.g. a NekkosMCP gateway). When set, we connect over HTTP instead of spawning. */
   url?: string;
   /** Bearer token sent as `Authorization: Bearer <token>` on HTTP requests. */
   token?: string;
@@ -21,8 +21,8 @@ export interface McpToolInfo {
   description?: string;
 }
 
-/** A running NekkoMCP daemon (github.com/nekko-labs/nekko-mcp) discovered on this machine. */
-export interface NekkoMcpInfo {
+/** A running NekkosMCP daemon (github.com/nekko-labs/nekkos-mcp) discovered on this machine. */
+export interface NekkosMcpInfo {
   /** Streamable-HTTP gateway endpoint (one URL for every managed server). */
   url: string;
   /** Gateway bearer token. */

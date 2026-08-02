@@ -1,12 +1,12 @@
 {
-  "name": "@kotrain/server",
+  "name": "@nekkos/server",
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Kotrain self-hosted web server, same engine + UI as the desktop app.",
+  "description": "Nekkos self-hosted web server, same engine + UI as the desktop app.",
   "main": "./dist/index.js",
   "bin": {
-    "kotrain": "./dist/index.js"
+    "nekkos": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -17,9 +17,9 @@
   "dependencies": {
     "@fastify/static": "^8.0.3",
     "@fastify/websocket": "^11.3.0",
-    "@kotrain/cli": "*",
-    "@kotrain/host": "*",
-    "@kotrain/shared": "*",
+    "@nekkos/cli": "*",
+    "@nekkos/host": "*",
+    "@nekkos/shared": "*",
     "fastify": "^5.10.0"
   },
   "devDependencies": {

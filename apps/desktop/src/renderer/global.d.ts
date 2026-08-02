@@ -1,8 +1,8 @@
-import type { NekkoApi } from '@kotrain/shared';
+import type { NekkosApi } from '@nekkos/shared';
 
 declare global {
   interface Window {
-    nekko: NekkoApi;
+    nekkos: NekkosApi;
   }
 }
 

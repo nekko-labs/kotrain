@@ -1,4 +1,4 @@
-import type { MemoryEntry, MemoryScope } from '@kotrain/shared';
+import type { MemoryEntry, MemoryScope } from '@nekkos/shared';
 
 /**
  * Serialize a memory entry to a markdown document with YAML-ish frontmatter.

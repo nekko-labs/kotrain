@@ -3,7 +3,7 @@ import {
   SKILLS,
   SKILL_CATEGORIES,
   layoutWorkflow,
-  NEKKO_SKILLS,
+  NEKKOS_SKILLS,
   popularSkills,
   getMarketSkill,
   marketWorkflow,
@@ -20,7 +20,7 @@ import {
   type InstalledSkillRecord,
   type InstallTargetInfo,
   type InstallTarget,
-} from '@kotrain/shared';
+} from '@nekkos/shared';
 import { useStore } from '../store.js';
 import { StarIcon, SendIcon } from '../icons.js';
 
@@ -88,7 +88,7 @@ export function SkillsView() {
   );
 }
 
-/** Built-in skills + marketplace skills installed into Kotrain. */
+/** Built-in skills + marketplace skills installed into Nekkos. */
 function LibraryTab() {
   const { sendToChat, installedSkillDefs } = useStore();
   const [query, setQuery] = useState('');
@@ -212,7 +212,7 @@ const SOURCE_META: Record<MarketplaceSkill['source'], { label: string; color: st
 /** Trust-tier chip for skills from Vaizer. */
 function TierChip({ tier }: { tier?: MarketplaceSkill['tier'] }) {
   if (!tier) return null;
-  const official = tier === 'nekko-official';
+  const official = tier === 'nekkos-official';
   return (
     <span
       className="shrink-0 rounded-full px-1.5 py-0 text-[9px]"
@@ -232,7 +232,7 @@ function fmtMetric(n: number): string {
 function MarketplaceTab() {
   const { sendToChat, installedSkills, refreshSkills, pushToast } = useStore();
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<string>(NEKKO_SKILLS[0]?.id ?? '');
+  const [selectedId, setSelectedId] = useState<string>(NEKKOS_SKILLS[0]?.id ?? '');
   const [targets, setTargets] = useState<InstallTargetInfo[]>([]);
   const [busy, setBusy] = useState(false);
   // Vaizer hub (optional): renders from the offline snapshot/cache; the
@@ -241,8 +241,8 @@ function MarketplaceTab() {
   const [vaizerBusy, setVaizerBusy] = useState(false);
 
   useEffect(() => {
-    window.nekko.skillTargets().then(setTargets).catch(() => setTargets([]));
-    window.nekko.vaizerCatalog().then(setVaizer).catch(() => {});
+    window.nekkos.skillTargets().then(setTargets).catch(() => setTargets([]));
+    window.nekkos.vaizerCatalog().then(setVaizer).catch(() => {});
     refreshSkills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -250,7 +250,7 @@ function MarketplaceTab() {
   const refreshVaizer = async () => {
     setVaizerBusy(true);
     try {
-      const cat = await window.nekko.vaizerCatalog(true);
+      const cat = await window.nekkos.vaizerCatalog(true);
       setVaizer(cat);
       pushToast(
         cat.source === 'live' ? 'success' : 'info',
@@ -296,7 +296,7 @@ function MarketplaceTab() {
       hint: 'Skills you added, and where they live',
       items: [...installedBySkill.keys()].map(resolve).filter((s): s is MarketplaceSkill => !!s).filter(matches),
     },
-    { key: 'nekko', title: 'Nekko Labs', hint: 'First-party skills we maintain', items: NEKKO_SKILLS.filter(matches) },
+    { key: 'nekkos', title: 'Nekko Labs', hint: 'First-party skills we maintain', items: NEKKOS_SKILLS.filter(matches) },
     { key: 'vaizer', title: 'Vaizer', hint: 'The public skills hub, official + community', items: vaizerSkills.filter(matches) },
     { key: 'popular', title: 'Popular online', hint: 'Ranked by public stars/installs', items: popular.filter(matches) },
   ];
@@ -311,10 +311,10 @@ function MarketplaceTab() {
       // Vaizer skills install their real, current SKILL.md when reachable.
       let payload: MarketplaceSkill | undefined;
       if (selected.source === 'vaizer') {
-        const md = await window.nekko.vaizerSkillMd(selected.name).catch(() => null);
+        const md = await window.nekkos.vaizerSkillMd(selected.name).catch(() => null);
         payload = md ? { ...selected, instructions: splitSkillMd(md).body, markdown: md } : selected;
       }
-      const res = await window.nekko.installSkill(selected.id, target, payload);
+      const res = await window.nekkos.installSkill(selected.id, target, payload);
       if (res.ok) {
         pushToast('success', `Installed /${selected.name} to ${targets.find((t) => t.id === target)?.label ?? target}.`);
       } else {
@@ -332,7 +332,7 @@ function MarketplaceTab() {
     if (!selected || busy) return;
     setBusy(true);
     try {
-      await window.nekko.uninstallSkill(selected.id, target);
+      await window.nekkos.uninstallSkill(selected.id, target);
       pushToast('info', `Removed /${selected.name} from ${targets.find((t) => t.id === target)?.label ?? target}.`);
       await refreshSkills();
     } finally {
@@ -347,7 +347,7 @@ function MarketplaceTab() {
         <div className="p-4">
           <h1 className="text-lg font-semibold text-gradient">Marketplace</h1>
           <p className="mt-0.5 text-[12px] text-ink-faint">
-            Install skills into Kotrain, or export them to Claude Code / Codex.
+            Install skills into Nekkos, or export them to Claude Code / Codex.
           </p>
           <input
             className="input mt-3"
@@ -373,7 +373,7 @@ function MarketplaceTab() {
                     </button>
                     <button
                       className="text-[10px] text-accent hover:underline"
-                      onClick={() => window.nekko.openPath(VAIZER_SITE_URL)}
+                      onClick={() => window.nekkos.openPath(VAIZER_SITE_URL)}
                       title="Browse the Vaizer skills catalog at vaizer.app"
                     >
                       Browse ↗
@@ -453,7 +453,7 @@ function MarketplaceTab() {
                   {selected.stars != null && <span>★ {fmtMetric(selected.stars)} stars</span>}
                   {selected.installs != null && <span>⤓ {fmtMetric(selected.installs)} installs</span>}
                   {selected.url && (
-                    <button className="text-accent hover:underline" onClick={() => window.nekko.openPath(selected.url!)}>
+                    <button className="text-accent hover:underline" onClick={() => window.nekkos.openPath(selected.url!)}>
                       {selected.url.replace(/^https?:\/\//, '')} ↗
                     </button>
                   )}
@@ -469,7 +469,7 @@ function MarketplaceTab() {
                   </div>
                 )}
               </div>
-              {selectedInstalls.some((r) => r.target === 'kotrain') && (
+              {selectedInstalls.some((r) => r.target === 'nekkos') && (
                 <button
                   className="btn btn-primary shrink-0 gap-1.5"
                   onClick={() => sendToChat(marketToSkillDef(selected).template, false)}

@@ -1,35 +1,35 @@
-# Kotrain CLI + MCP server (`kotrain`)
+# Nekkos CLI + MCP server (`nekkos`)
 
-Drive your local Kotrain agent from the terminal, or expose it to other tools
+Drive your local Nekkos agent from the terminal, or expose it to other tools
 (Claude Code, Codex, any MCP client) so they can trigger agents, make chat
 requests, spin up sessions, and read status. Runs the same engine (`createHost`)
 in-process against your data dir.
 
 ```bash
-npm run build -w @kotrain/cli
-node apps/cli/dist/index.js status        # or: npm link, then `kotrain status`
+npm run build -w @nekkos/cli
+node apps/cli/dist/index.js status        # or: npm link, then `nekkos status`
 ```
 
 ### Where it connects
 
-- **Local (default)**: runs the engine in-process against a data dir: `~/.kotrain`
-  (shared with the web/Docker edition). Set `KOTRAIN_DATA_DIR` to the desktop app's
-  dir to share that instead (`%APPDATA%/Kotrain/kotrain` on Windows,
-  `~/Library/Application Support/Kotrain/kotrain` on macOS).
-- **Remote**: pass `--url http://host:1440` (or `KOTRAIN_URL`) to talk to a
-  **running** Kotrain server over HTTP+WS, your live instance, a Docker
-  container, or another machine. Add `--token` (or `KOTRAIN_TOKEN`) if it's secured.
+- **Local (default)**: runs the engine in-process against a data dir: `~/.nekkos`
+  (shared with the web/Docker edition). Set `NEKKOS_DATA_DIR` to the desktop app's
+  dir to share that instead (`%APPDATA%/Nekkos/nekkos` on Windows,
+  `~/Library/Application Support/Nekkos/nekkos` on macOS).
+- **Remote**: pass `--url http://host:1440` (or `NEKKOS_URL`) to talk to a
+  **running** Nekkos server over HTTP+WS, your live instance, a Docker
+  container, or another machine. Add `--token` (or `NEKKOS_TOKEN`) if it's secured.
 
 Add `--json` to `status`/`sessions` for machine-readable output.
 
 ## CLI
 
 ```bash
-kotrain status                          # providers, model, workspaces, sessions, relay
-kotrain sessions                        # list chats
-kotrain chat "summarize README.md" \    # run an agent turn (streams the reply)
+nekkos status                          # providers, model, workspaces, sessions, relay
+nekkos sessions                        # list chats
+nekkos chat "summarize README.md" \    # run an agent turn (streams the reply)
   --workspace <id> --new
-kotrain chat "and now add tests" --session <id>
+nekkos chat "and now add tests" --session <id>
 ```
 
 `chat` auto-approves tool calls (it's your machine, invoked explicitly).
@@ -37,20 +37,20 @@ kotrain chat "and now add tests" --session <id>
 ## MCP server
 
 ```bash
-kotrain mcp        # JSON-RPC 2.0 over stdio
+nekkos mcp        # JSON-RPC 2.0 over stdio
 ```
 
 Register it in **Claude Code**:
 
 ```bash
-claude mcp add kotrain -- node /abs/path/kotrain/apps/cli/dist/index.js mcp
-# (or once published/linked: claude mcp add kotrain -- kotrain mcp)
+claude mcp add nekkos -- node /abs/path/nekkos/apps/cli/dist/index.js mcp
+# (or once published/linked: claude mcp add nekkos -- nekkos mcp)
 ```
 
 Or in any MCP client config:
 
 ```json
-{ "mcpServers": { "kotrain": { "command": "kotrain", "args": ["mcp"] } } }
+{ "mcpServers": { "nekkos": { "command": "nekkos", "args": ["mcp"] } } }
 ```
 
 ### Tools exposed

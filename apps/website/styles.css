@@ -1,6 +1,6 @@
-/* Kotrain marketing site — immersive deep-space look (liquidink-inspired):
+/* Nekkos marketing site — immersive deep-space look (liquidink-inspired):
    near-black navy, drifting starfield, giant display type, glass panels,
-   the Kotrain violet→cyan gradient as the nebula accent. Dark by design. */
+   the Nekkos violet→cyan gradient as the nebula accent. Dark by design. */
 
 :root {
   --bg: #01050b;
@@ -139,18 +139,22 @@ a { color: var(--accent-2); }
 }
 @keyframes hint-bob { 0%, 100% { transform: translate(-50%, 0); opacity: 0.7; } 50% { transform: translate(-50%, 6px); opacity: 1; } }
 
-/* mascot floats at the hero's lower right, mid-suburi */
+/* mascot drifts at the hero's lower right, in zero-g */
 .mascot { position: absolute; bottom: 42px; right: clamp(16px, 8vw, 140px); }
-.mascot .swing {
-  animation: swing 1.7s cubic-bezier(0.5, 0, 0.3, 1) infinite;
-  transform-origin: 16px 22px; transform-box: view-box;
+.mascot .m-float {
+  animation: m-float 4s ease-in-out infinite;
+  transform-origin: center; transform-box: fill-box;
 }
-@keyframes swing {
-  0% { transform: rotate(-78deg); }
-  38% { transform: rotate(-78deg); }
-  50% { transform: rotate(24deg); }
-  66% { transform: rotate(20deg); }
-  100% { transform: rotate(-78deg); }
+@keyframes m-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-7px) rotate(4deg); }
+}
+.mascot .m-orbit {
+  animation: m-orbit 3s linear infinite;
+  transform-origin: 0 0; transform-box: view-box;
+}
+@keyframes m-orbit {
+  to { transform: rotate(360deg); }
 }
 
 /* ---- glass panels ---- */

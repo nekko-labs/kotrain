@@ -1,7 +1,7 @@
 import { getClient, resolveModel, runChat, type Client } from './lib.js';
 
 /**
- * MCP stdio server exposing Kotrain to other tools (Claude Code, Codex, …).
+ * MCP stdio server exposing Nekkos to other tools (Claude Code, Codex, …).
  * Hand-rolled JSON-RPC 2.0 over newline-delimited stdio, the MCP stdio
  * transport. Other agents can trigger this machine's agent, make chat requests,
  * spin up sessions (swarm by calling chat across several sessions), and read
@@ -14,7 +14,7 @@ const TOOLS = [
   {
     name: 'open_paw_chat',
     description:
-      "Run an agent turn on this machine's Kotrain (reads/edits/searches/runs in the configured workspace, using the local or cloud model). Returns the assistant's reply. Omit sessionId to start a fresh session.",
+      "Run an agent turn on this machine's Nekkos (reads/edits/searches/runs in the configured workspace, using the local or cloud model). Returns the assistant's reply. Omit sessionId to start a fresh session.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -45,7 +45,7 @@ const TOOLS = [
   {
     name: 'open_paw_train_start',
     description:
-      "Ask this machine's Kotrain to train a model for a purpose. Creates and starts a training run: a local data-scientist agent works hands-on in the workspace (benchmark candidate models, prepare data, fine-tune, evaluate), reporting each experiment with its score to an experiment tree. Returns the run id; poll open_paw_train_status.",
+      "Ask this machine's Nekkos to train a model for a purpose. Creates and starts a training run: a local data-scientist agent works hands-on in the workspace (benchmark candidate models, prepare data, fine-tune, evaluate), reporting each experiment with its score to an experiment tree. Returns the run id; poll open_paw_train_status.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -86,7 +86,7 @@ const TOOLS = [
   },
   {
     name: 'open_paw_status',
-    description: 'Summary of this Kotrain: providers, default model, workspaces, session count, remote relay status.',
+    description: 'Summary of this Nekkos: providers, default model, workspaces, session count, remote relay status.',
     inputSchema: { type: 'object', properties: {} },
   },
 ];
@@ -237,7 +237,7 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
   async function handle(msg: any) {
     const { id, method, params } = msg;
     if (method === 'initialize') {
-      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'kotrain', version: VERSION } });
+      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'nekkos', version: VERSION } });
     } else if (method === 'notifications/initialized' || method?.startsWith('notifications/')) {
       /* notifications: no response */
     } else if (method === 'ping') {
@@ -256,5 +256,5 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
     }
   }
 
-  console.error('[kotrain] MCP server ready on stdio');
+  console.error('[nekkos] MCP server ready on stdio');
 }

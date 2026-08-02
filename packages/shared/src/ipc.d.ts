@@ -114,7 +114,7 @@ export declare const IpcChannels: {
     readonly remoteStatus: "remote:status";
     readonly appInfo: "app:info";
     readonly mcpStatus: "mcp:status";
-    readonly mcpNekko: "mcp:nekko";
+    readonly mcpNekkos: "mcp:nekkos";
     readonly updateCheck: "update:check";
     readonly updateDownload: "update:download";
     readonly updateInstall: "update:install";
@@ -129,8 +129,8 @@ export declare const IpcEvents: {
     readonly changesUpdated: "changes:updated";
     readonly tasksUpdated: "tasks:updated";
 };
-/** The typed API the preload bridge exposes as window.nekko. */
-export interface NekkoApi {
+/** The typed API the preload bridge exposes as window.nekkos. */
+export interface NekkosApi {
     getSettings(): Promise<AppSettings>;
     updateSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
     listProviders(): Promise<ProviderConfig[]>;
@@ -314,8 +314,8 @@ export interface NekkoApi {
     getAppInfo(): Promise<AppInfo>;
     /** Connect configured MCP servers and return their status + tools. */
     getMcpStatus(): Promise<import('./mcp.js').McpServerStatus[]>;
-    /** Probe for a local NekkoMCP daemon (nekko-mcpd) and return its gateway info. */
-    detectNekkoMcp(): Promise<import('./mcp.js').NekkoMcpInfo | null>;
+    /** Probe for a local NekkosMCP daemon (nekkos-mcpd) and return its gateway info. */
+    detectNekkosMcp(): Promise<import('./mcp.js').NekkosMcpInfo | null>;
     /** Register this device's push token with the relay (mobile/relay only; no-op elsewhere). */
     registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
     /** Check for a newer version (desktop: GitHub feed; web: server version). */

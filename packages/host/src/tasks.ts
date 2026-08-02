@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { AgentEvent, AutomationTask, NewTask } from '@kotrain/shared';
-import { TASK_DONE_TOKEN } from '@kotrain/shared';
+import type { AgentEvent, AutomationTask, NewTask } from '@nekkos/shared';
+import { TASK_DONE_TOKEN } from '@nekkos/shared';
 import { dataDir } from './store.js';
 import { getSettings } from './store.js';
 import { getSession, saveSession, createSession, deleteSession } from './sessions.js';
