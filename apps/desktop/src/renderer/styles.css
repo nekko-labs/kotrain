@@ -403,72 +403,64 @@ h1 { letter-spacing: -0.02em; }
   }
 }
 
-/* Mascot animations */
-@keyframes nekkos-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+/* Mascot animations: Nekkos works in zero-g, so everything is slow and floaty */
+@keyframes nekkos-float {
+  0%, 100% { transform: translateY(0) rotate(-1.4deg); }
+  50% { transform: translateY(-4px) rotate(1.8deg); }
 }
 @keyframes nekkos-wave {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(18deg); }
-  75% { transform: rotate(-8deg); }
-}
-@keyframes nekkos-knead {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(4px); }
+  25% { transform: rotate(20deg); }
+  75% { transform: rotate(-9deg); }
 }
 @keyframes nekkos-peek {
   0% { transform: translateY(20px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
-/* kendo training: alternating jabs (mini + full sprite) */
-@keyframes nekkos-punch {
-  0%, 100% { transform: translate(0, 0); }
-  30% { transform: translate(0, 0); }
-  50% { transform: translate(-4px, -3px); }
-  70% { transform: translate(0, 0); }
+/* zero-g drift: a lazier, wider float with a little roll */
+@keyframes nekkos-drift {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-6px) rotate(7deg); }
 }
-@keyframes nekkos-punch-r {
-  0%, 100% { transform: translate(0, 0); }
-  30% { transform: translate(0, 0); }
-  50% { transform: translate(4px, -3px); }
-  70% { transform: translate(0, 0); }
+/* one full lap: the orbiting spark (and the mini spinner) run on this */
+@keyframes nekkos-spin {
+  to { transform: rotate(360deg); }
 }
-@keyframes nekkos-jab {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(3px); }
+.nekkos-orbit { animation: nekkos-spin 2.6s linear infinite; }
+/* comet fly-by, timed so the bat swipe below connects mid-pass */
+@keyframes nekkos-comet-pass {
+  0% { transform: translate(64px, -6px); opacity: 0; }
+  10% { opacity: 1; }
+  45% { transform: translate(50px, 4px); opacity: 1; }
+  60% { transform: translate(30px, 26px); opacity: 1; }
+  85% { transform: translate(-4px, 44px); opacity: 0.4; }
+  100% { transform: translate(-12px, 50px); opacity: 0; }
 }
-/* side-kick snap: leg fires out from the hip, holds, returns */
-@keyframes nekkos-kick {
-  0%, 15% { transform: rotate(38deg); }
-  35% { transform: rotate(-12deg); }
-  55% { transform: rotate(-8deg); }
-  75%, 100% { transform: rotate(38deg); }
+.nekkos-comet { animation: nekkos-comet-pass 2.4s ease-in-out infinite; }
+@keyframes nekkos-bat-swipe {
+  0%, 38% { transform: rotate(0deg); }
+  50% { transform: rotate(-58deg); }
+  60% { transform: rotate(-46deg); }
+  80%, 100% { transform: rotate(0deg); }
 }
-/* bokken suburi: slow lift overhead, fast strike down, brief hold */
-@keyframes nekkos-swing {
-  0% { transform: rotate(-78deg); }
-  38% { transform: rotate(-78deg); }
-  50% { transform: rotate(24deg); }
-  66% { transform: rotate(20deg); }
-  100% { transform: rotate(-78deg); }
+.nekkos-bat { animation: nekkos-bat-swipe 2.4s ease-in-out infinite; }
+/* twinkling backdrop stars */
+@keyframes nekkos-twinkle-k {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50% { opacity: 0.9; transform: scale(1.1); }
 }
-/* arms held up in guard while gripping */
-@keyframes nekkos-guard {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+.nekkos-twinkle { animation: nekkos-twinkle-k 1.6s ease-in-out infinite; }
+.nekkos-twinkle-slow { animation: nekkos-twinkle-k 3.4s ease-in-out infinite 0.9s; }
+/* boost puff on click: falls away and fades */
+@keyframes nekkos-puff-k {
+  0% { opacity: 0.9; transform: translateY(0) scale(0.7); }
+  100% { opacity: 0; transform: translateY(7px) scale(1.25); }
 }
-.nekkos-bob { animation: nekkos-bob 0.7s ease-in-out infinite; }
-.nekkos-wave { animation: nekkos-wave 0.9s ease-in-out infinite; transform-origin: bottom center; }
-.nekkos-knead-l { animation: nekkos-knead 0.45s ease-in-out infinite; }
-.nekkos-knead-r { animation: nekkos-knead 0.45s ease-in-out infinite 0.22s; }
-.nekkos-punch-l { animation: nekkos-punch 0.8s ease-in-out infinite; }
-.nekkos-punch-r { animation: nekkos-punch-r 0.8s ease-in-out infinite 0.4s; }
-.nekkos-jab-l { animation: nekkos-jab 0.5s ease-in-out infinite; }
-.nekkos-jab-r { animation: nekkos-jab 0.5s ease-in-out infinite 0.25s; }
-.nekkos-kick { animation: nekkos-kick 1.3s ease-in-out infinite; }
-.nekkos-swing { animation: nekkos-swing 1.7s cubic-bezier(0.5, 0, 0.3, 1) infinite; }
-.nekkos-arms-up { animation: nekkos-guard 0.8s ease-in-out infinite; }
+.nekkos-puff { animation: nekkos-puff-k 0.7s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+.nekkos-float { animation: nekkos-float 3.4s ease-in-out infinite; }
+.nekkos-drift { animation: nekkos-drift 4s ease-in-out infinite; }
+.nekkos-mini-float { animation: nekkos-float 2.2s ease-in-out infinite; display: inline-block; }
+.nekkos-wave { animation: nekkos-wave 0.9s ease-in-out infinite; }
 .nekkos-peek { animation: nekkos-peek 0.5s ease-out; }
 /* interactive: lean right while animating; a hover wiggle and a click hop */
 @keyframes nekkos-hover-wiggle {
