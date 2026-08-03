@@ -201,7 +201,7 @@ Extends `../../knowledgebase/principles/coding.md` (which these override).
 
 **Remaining for v1.0:**
 - [ ] **GUI verification pass** of the IDE-surfaces wave (T66) with a model connected, webview browsing, the diff line-revert math, the analyzer overlay. (The file editor + tree + the new comment/design surfaces are now hands-on verified over the web edition; the rest is best exercised with a live model.)
-- [ ] Pending user-side credentials/infra (below): code-signing + notarization for clean installs, npm publish of `nekkos`, full Gmail/Drive OAuth, real APNs/FCM delivery, wiki push. Rebrand follow-ups: point nekkos.app + nekkos.dev DNS at the Vercel site, and `fly apps create nekkos-relay` + redeploy before the next relay release (the running Fly app is still named `kotrain-relay`).
+- [ ] Pending user-side credentials/infra (below): code-signing + notarization for clean installs, npm publish of `nekkos`, full Gmail/Drive OAuth, real APNs/FCM delivery, wiki push. Rebrand follow-ups: point nekkos.app + nekkos.dev DNS at the Vercel site (both domains are already assigned to the project; registrar needs `A 76.76.21.21` or Vercel nameservers). Relay: `nekkos-relay` is created and DEPLOYED on Fly (wss://nekkos-relay.fly.dev, healthz ok, 2026-08-03); keep the old `kotrain-relay` app running until the next release ships clients pointing at the new URL (v0.3.0-era installs hardcode wss://kotrain-relay.fly.dev), then suspend it.
 - [ ] Cut the **v1.0 release** once the above land (bump versions + tag).
 
 ## Now / In Progress
