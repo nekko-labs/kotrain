@@ -57,7 +57,9 @@ header, footer { position: relative; z-index: 1; }
   font-weight: 800; letter-spacing: 0.14em; font-size: 15px;
   color: var(--ink); text-decoration: none; margin-right: auto;
 }
-.brand-mark { margin-right: 6px; }
+/* the orbit mark, same art as the app icon; a rounded tile that sits on the
+   nav's own dark glass rather than punching a square hole in it */
+.brand-mark { vertical-align: -4px; margin-right: 7px; border-radius: 5px; }
 .nav-links { display: flex; gap: 22px; }
 .nav-links a {
   color: var(--muted); text-decoration: none; font-size: 13.5px;
@@ -375,6 +377,7 @@ footer {
   padding: 30px 28px; border-top: 1px solid var(--line); flex-wrap: wrap;
   font-size: 13px;
 }
+.footer-brand { font-weight: 800; letter-spacing: 0.14em; }
 footer a { color: var(--muted); text-decoration: none; font-family: var(--mono); font-size: 12px; }
 footer a:hover { color: var(--ink); }
 
