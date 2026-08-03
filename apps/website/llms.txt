@@ -14,14 +14,34 @@ Local model UIs are essentially a chat box around a model with no awareness of y
 
 ## Features
 
-- **Unified chat / cowork / code** in one window, no mode switching.
-- **Context inspector**: provenance for everything the model was shown, so you can see why it answered the way it did.
-- **Guardrails by default**: risky commands need approval.
-- **Sandbox out of the box**: configurable sandbox modes for tool execution.
-- **Multi-folder index**: browse the indexed tree, view files and diffs, edit inline.
-- **Memory management**: per-project memory you can inspect and edit.
-- **Connectors** and MCP support, including [Hypergate](https://hypergate.app) as an MCP gateway.
-- **Nekkos**, an 8-bit cat mascot that makes biscuits while the model thinks.
+Nekkos' second pitch, after local models, is **the harness**: the scaffolding around the model that decides how well a model you run yourself performs on real work. It splits into what the model sees, what it can reach, and what happens when it gets something wrong.
+
+**Unified chat / cowork / code** in one window, no mode switching.
+
+What it sees:
+
+- **Context Inspector**: every file, guideline, memory entry, and index snippet entering the next prompt, with per-source token counts, a window-headroom bar, and a toggle or pin on each. The unsent draft is counted as you type it.
+- **Grounded retrieval**: a multi-folder index (file tree, code outline, search) so a large repo arrives as the relevant slice instead of a wall of text.
+- **Guidelines and memory**: `AGENTS.md` / `CLAUDE.md` plus a markdown memory store, global and per project, each entry individually switchable.
+- **A living spec**: build `SPEC.md` (plus a plan and task list) from the conversation and feed it back as context.
+- **Prompt analyzer**: offline, zero-latency analysis of your draft with an A to F score and click-to-fill suggestions.
+
+What it can reach:
+
+- **Sub-agents and swarms**: scoped subtasks run in fresh child sessions with their own context, under a solo / balanced / swarm strategy with depth limits.
+- **Skills**: real procedures (research, plan, review, security-review, test, commit, PR) with visualized workflows, plus a marketplace.
+- **MCP in both directions**: connect stdio or streamable-HTTP MCP servers, including [Hypergate](https://hypergate.app) as a gateway, and run Nekkos itself as an MCP server.
+- **Connectors**: Linear, Slack, Discord, Gmail, and Drive, folded into context as snippets.
+- **Goal loops that terminate**: plan first, re-inject the plan each iteration, bounded context window, turn and time budgets, and stall detection.
+
+When it's wrong:
+
+- **Guardrails by default**: a risky-command classifier behind an editable allow / ask / deny policy; Ask, Guardrails, or YOLO per chat.
+- **Sandbox out of the box**: file access jailed to your folders, with optional Docker isolation for shell commands.
+- **Diff review**: agent edits land in a Changes panel as a line diff, keep or revert at line, file, or all.
+- **Recovery**: an empty reply is retried with a nudge and then surfaced, and "Reset here" rewinds the chat to any earlier message.
+
+- **Nekkos**, a hand-drawn astronaut cat that works in zero-g while the model thinks.
 
 ## Install
 
