@@ -12,6 +12,7 @@
   --accent: #6d5efc;
   --accent-2: #22d3ee;
   --grad: linear-gradient(115deg, #6d5efc 10%, #22d3ee 90%);
+  --on-grad: #04060e; /* ink that sits on the gradient */
   --sans: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 }
@@ -117,39 +118,27 @@ a { color: var(--accent-2); }
 .cta-row { display: flex; align-items: stretch; gap: 14px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
 .hero .micro { margin-top: 18px; }
 
+/* One pill shape for every button on the site, same as hypergate.app: fully
+   rounded, single line, dark ink on the brand gradient. */
 .btn {
-  display: inline-block; padding: 12px 26px; border-radius: 12px;
-  font-weight: 600; font-size: 14.5px; text-decoration: none;
-  letter-spacing: 0.01em; transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 13px 26px; border-radius: 999px;
+  font-weight: 600; font-size: 16px; text-decoration: none;
+  letter-spacing: 0.01em; white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
-.btn:active { transform: translateY(1px); }
 .btn-primary {
-  background: var(--grad); color: #fff;
-  box-shadow: 0 8px 32px rgba(109, 94, 252, 0.4);
+  background: var(--grad); color: var(--on-grad);
+  box-shadow: 0 0 0 rgba(34, 211, 238, 0);
 }
-.btn-primary:hover { box-shadow: 0 10px 42px rgba(109, 94, 252, 0.6); }
-.btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 9px; }
-.btn-glass {
-  background: var(--glass); color: var(--ink);
-  border: 1px solid var(--line); backdrop-filter: blur(8px);
-}
-.btn-glass:hover { background: rgba(255, 255, 255, 0.1); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 40px rgba(34, 211, 238, 0.35); }
+.btn-sm { padding: 8px 18px; font-size: 13px; }
 
 /* quiet outline pill, for the link that sits beside a primary CTA */
-.btn-ghost {
-  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  padding: 12px 28px; border-radius: 99px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(8px);
-  color: var(--ink); text-decoration: none;
-  font-weight: 600; font-size: 14.5px; letter-spacing: 0.01em; white-space: nowrap;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
-}
-.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.3); }
-.btn-ghost:active { transform: translateY(1px); }
-.btn-ghost:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
-.btn-ghost .arr { font-size: 12px; opacity: 0.7; }
+.btn-ghost { border: 1px solid var(--line); color: var(--ink); }
+.btn-ghost:hover { border-color: var(--accent); background: rgba(109, 94, 252, 0.1); }
+.btn-ghost .arr { font-size: 13px; opacity: 0.8; }
+.btn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 4px; }
 
 .scroll-hint {
   position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -273,32 +262,40 @@ a { color: var(--accent-2); }
 .download { text-align: center; }
 .download .chapter-lede { margin-left: auto; margin-right: auto; }
 .dl-cta { margin: 34px 0 26px; }
-/* z-index (not isolation) so the open menu clears whatever follows it in flow */
-.dl-pick { position: relative; display: inline-flex; z-index: 30; }
+/* The picker is one .btn-shaped pill: the gradient lives on the wrapper so it
+   runs unbroken under the caret (per-child gradients restarted at the seam).
+   z-index (not isolation) so the open menu clears whatever follows it in flow. */
+.dl-pick {
+  position: relative; display: inline-flex; z-index: 30;
+  background: var(--grad); border-radius: 999px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dl-pick:hover { transform: translateY(-1px); box-shadow: 0 8px 40px rgba(34, 211, 238, 0.35); }
+.dl-pick.open:hover { transform: none; } /* don't bob the pill while its menu is open */
 .dl-main,
 .dl-caret {
-  background: var(--grad); color: #fff; border: 0; cursor: pointer;
-  box-shadow: 0 8px 32px rgba(109, 94, 252, 0.4);
-  transition: box-shadow 0.15s, filter 0.15s, transform 0.15s;
+  background: none; border: 0; color: var(--on-grad); cursor: pointer;
+  font-family: var(--sans); font-weight: 600; font-size: 16px;
 }
 .dl-main {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
-  padding: 12px 22px; border-radius: 14px 0 0 14px; text-decoration: none;
-  min-width: 232px; text-align: left;
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 22px 13px 26px; border-radius: 999px 0 0 999px;
+  text-decoration: none; white-space: nowrap;
 }
-.dl-main-t { font-weight: 700; font-size: 15.5px; letter-spacing: -0.01em; }
-.dl-main-s { font-size: 11.5px; opacity: 0.82; font-family: var(--mono); letter-spacing: 0.02em; }
+.dl-main-t { letter-spacing: 0.01em; }
+/* version chip, hairline-separated, hidden until the release API answers */
+.dl-main-v {
+  padding-left: 10px; border-left: 1px solid rgba(4, 6, 14, 0.3);
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+}
+.dl-main-v:empty { display: none; }
 .dl-caret {
-  display: grid; place-items: center; width: 46px;
-  border-radius: 0 14px 14px 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.28);
+  display: grid; place-items: center; width: 40px; padding-right: 4px;
+  border-radius: 0 999px 999px 0;
 }
 .dl-caret svg { transition: transform 0.2s ease; }
-.dl-pick:hover .dl-main,
-.dl-pick:hover .dl-caret { box-shadow: 0 10px 42px rgba(109, 94, 252, 0.6); }
-.dl-main:hover, .dl-caret:hover { filter: brightness(1.07); }
-.dl-main:active, .dl-caret:active { transform: translateY(1px); }
-.dl-main:focus-visible, .dl-caret:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+.dl-main:hover, .dl-caret:hover { background: rgba(4, 6, 14, 0.1); }
+.dl-main:focus-visible, .dl-caret:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 4px; }
 .dl-pick.open .dl-caret svg { transform: rotate(180deg); }
 
 .dl-menu {
@@ -400,11 +397,12 @@ footer a:hover { color: var(--ink); }
   .grid, .grid.two, .grid.four { grid-template-columns: 1fr; }
   .chapter { padding: 90px 20px; }
   .mascot { display: none; }
-  .dl-main { min-width: 0; flex: 1; }
+  /* full-width pill, label centred against the caret sitting inside its right end */
+  .dl-main { flex: 1; justify-content: center; padding-left: 46px; }
   .dl-pick { display: flex; width: 100%; }
   .dl-menu { right: auto; left: 0; }
   .cta-row { display: block; }
-  .cta-row .btn-ghost { display: flex; margin-top: 12px; }
+  .cta-row .btn-ghost { margin-top: 12px; width: 100%; }
   /* the command is long: give it the full width and put Copy underneath */
   .dl-term-row { flex-direction: column; }
   .dl-copy { border-left: 0; border-top: 1px solid var(--line); padding: 11px 14px; justify-content: center; }
