@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nekkos — train your models, run your agents, own your machine</title>
+    <title>Nekkos: train your models, run your agents, own your machine</title>
     <meta
       name="description"
       content="Nekkos is an open-source, local-first AI coding & cowork app. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider. nekkos.app"
@@ -17,7 +17,7 @@
     <meta property="og:site_name" content="Nekkos" />
     <meta property="og:url" content="https://nekkos.app/" />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:title" content="Nekkos — train your models, run your agents, own your machine" />
+    <meta property="og:title" content="Nekkos: train your models, run your agents, own your machine" />
     <meta
       property="og:description"
       content="Open-source, local-first AI chat, cowork, and coding in one calm window. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider."
@@ -28,7 +28,7 @@
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:alt" content="Nekkos: train your models, run your agents, own your machine" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Nekkos — train your models, run your agents, own your machine" />
+    <meta name="twitter:title" content="Nekkos: train your models, run your agents, own your machine" />
     <meta
       name="twitter:description"
       content="Open-source, local-first AI chat, cowork, and coding in one calm window. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider."
@@ -81,12 +81,18 @@
             "featureList": [
               "First-class local models: one-click Ollama, LM Studio, and vLLM, plus every major cloud provider",
               "Unified chat, cowork, and code in a single window",
-              "Context inspector showing the provenance of everything the model was shown",
-              "Guardrails by default: risky commands need approval",
-              "Sandboxed tool execution out of the box",
-              "Multi-folder code index with file viewer, diffs, and inline editing",
-              "Per-project memory management",
-              "Connectors and MCP support",
+              "Context inspector showing the provenance and token cost of everything the model was shown",
+              "Multi-folder code index for grounded retrieval, with file viewer, diffs, and inline editing",
+              "Guidelines (AGENTS.md/CLAUDE.md) and per-project markdown memory, individually switchable",
+              "Living spec, plan, and task files built from the conversation",
+              "Offline prompt analyzer with an A to F score and click-to-fill suggestions",
+              "Sub-agents and swarms: scoped subtasks run in fresh child sessions",
+              "Skills with visualized workflows, plus a skills marketplace",
+              "MCP in both directions (client and server) and connectors for Linear, Slack, Discord, Gmail, and Drive",
+              "Long-running goal loops with a bounded context window, turn and time budgets, and stall detection",
+              "Guardrails by default: risky commands need approval, under an editable allow/ask/deny policy",
+              "Sandboxed tool execution out of the box, with optional Docker isolation",
+              "Changes panel with line diffs and keep or revert at line, file, or all",
               "Editions: desktop, self-hosted web, Docker, and end-to-end-encrypted phone remote control"
             ],
             "offers": {
@@ -108,8 +114,8 @@
     <header class="nav">
       <a class="brand" href="#top"><span class="brand-mark">🐾</span> NEKKOS</a>
       <nav class="nav-links">
-        <a href="#features">Features</a>
         <a href="#local">Local models</a>
+        <a href="#features">The harness</a>
         <a href="#editions">Editions</a>
         <a href="#download">Download</a>
         <a href="https://github.com/nekko-labs/nekkos" target="_blank" rel="noopener">GitHub</a>
@@ -132,7 +138,7 @@
           <em>see and touch</em> your codebases do the work.
         </p>
         <div class="cta-row reveal">
-          <a class="btn btn-primary" href="#download">Download for free</a>
+          <a class="btn btn-primary" id="heroDl" href="#download">Download for free</a>
           <a class="btn btn-glass" href="https://github.com/nekko-labs/nekkos" target="_blank" rel="noopener">Star on GitHub</a>
         </div>
         <p class="micro reveal">No telemetry · no account · your code never leaves your machine unless you say so</p>
@@ -214,29 +220,15 @@
       </section>
 
       <!-- ===== chapters ===== -->
-      <section id="features" class="chapter">
-        <p class="eyebrow reveal">01 · THE SURFACE</p>
-        <h2 class="reveal">Everything in one calm window</h2>
-        <div class="grid reveal">
-          <div class="card glass"><div class="fi">💬</div><h3>Unified chat / cowork / code</h3><p>No mode switching. Ask a question or hand off a task, same window, same thread.</p></div>
-          <div class="card glass"><div class="fi">🔍</div><h3>Context inspector</h3><p>See exactly what enters the prompt, files, guidelines, memory, with live token counts. Toggle and pin anything.</p></div>
-          <div class="card glass"><div class="fi">🛡</div><h3>Guardrails by default</h3><p>Risky commands (rm -rf, force push, curl|sh) prompt before running. Fully configurable: allow, ask, or deny.</p></div>
-          <div class="card glass"><div class="fi">📦</div><h3>Sandbox out of the box</h3><p>File access jailed to your folders. Optional Docker isolation for shell commands.</p></div>
-          <div class="card glass"><div class="fi">🗂</div><h3>Multi-folder index</h3><p>Add multiple roots. Nekkos indexes files and symbols and searches across them instantly.</p></div>
-          <div class="card glass"><div class="fi">🧠</div><h3>Memory management</h3><p>Global and per-project memory, stored as plain markdown you can read and edit.</p></div>
-          <div class="card glass"><div class="fi">🔌</div><h3>Connectors</h3><p>Linear, Slack, Discord, Gmail, and Google Drive, pull real context into the conversation.</p></div>
-          <div class="card glass"><div class="fi">🪐</div><h3>A copilot in orbit</h3><p>Nekkos the astronaut cat drifts in zero-g, runs a quiet orbit, and bats at passing comets while the model thinks.</p></div>
-        </div>
-      </section>
-
       <section id="local" class="chapter">
-        <p class="eyebrow reveal">02 · THE HEADLINE FEATURE</p>
+        <p class="eyebrow reveal">01 · THE HEADLINE FEATURE</p>
         <h2 class="reveal">Local models, finally first-class</h2>
         <p class="chapter-lede reveal">Most tools bolt local models on as an afterthought. Nekkos is built around them.</p>
         <div class="split reveal">
           <ul class="check">
             <li>Auto-discover a running Ollama, LM Studio, or vLLM on localhost</li>
             <li>Pull, load, and unload Ollama models from the app</li>
+            <li>See what's resident in memory, and stop a server without leaving the app</li>
             <li>Manage servers remotely and watch token usage over time</li>
             <li>Bring cloud keys too, Anthropic, OpenAI, OpenRouter, any OpenAI-compatible endpoint</li>
           </ul>
@@ -246,6 +238,109 @@
             <div class="sc glass"><b>vLLM</b><span class="dim">○&nbsp;not running</span><code>localhost:8000</code></div>
           </div>
         </div>
+      </section>
+
+      <!-- ===== the harness: a spec-sheet manifest, deliberately not cards ===== -->
+      <section id="features" class="chapter">
+        <p class="eyebrow reveal">02 · THE HARNESS</p>
+        <h2 class="reveal">The harness is the other half of the model</h2>
+        <p class="chapter-lede reveal">
+          Frontier labs ship raw capability. Almost everything else you feel as "this model is good
+          in my codebase" is harness: what it gets shown, what it can reach, and what happens when
+          it's wrong. Nekkos hands you all three, in one window that runs chat, cowork, and code.
+        </p>
+
+        <div class="manifest reveal">
+          <section class="mf-group">
+            <div class="mf-head">
+              <span class="mf-num">01</span>
+              <h3>What it sees</h3>
+              <p>A short context window stops being the bottleneck once you decide exactly what goes in it.</p>
+            </div>
+            <ol class="mf-rows">
+              <li>
+                <b>Context Inspector</b>
+                <span>Every file, guideline, memory entry, and index snippet entering the next prompt, with per-source token counts, a window-headroom bar, and a toggle or pin on each. Your unsent draft is counted as you type it.</span>
+              </li>
+              <li>
+                <b>Grounded retrieval</b>
+                <span>A multi-folder index (file tree, code outline, search) so a large repo arrives as the relevant slice instead of a wall of text, across every folder you wire into the chat.</span>
+              </li>
+              <li>
+                <b>Guidelines and memory</b>
+                <span><code>AGENTS.md</code> / <code>CLAUDE.md</code> plus a markdown memory store, global and per project, with every entry individually switchable.</span>
+              </li>
+              <li>
+                <b>A living spec</b>
+                <span>Build <code>SPEC.md</code> (and a plan and task list) out of the conversation, then feed it back as context, so intent survives a window that can't hold the whole chat.</span>
+              </li>
+              <li>
+                <b>Prompt analyzer</b>
+                <span>An offline, zero-latency read of your draft: parts detected, weak spots underlined, an A to F score, click-to-fill chips for whatever's missing, and a recommended model tier.</span>
+              </li>
+            </ol>
+          </section>
+
+          <section class="mf-group">
+            <div class="mf-head">
+              <span class="mf-num">02</span>
+              <h3>What it can reach</h3>
+              <p>Capability the weights don't have to carry themselves.</p>
+            </div>
+            <ol class="mf-rows">
+              <li>
+                <b>Sub-agents and swarms</b>
+                <span>The agent delegates a scoped subtask to a fresh child session with its own clean context. Solo, balanced, or full swarm, with depth limits, and the whole tree visible live. The cheapest way past a small window is not filling it.</span>
+              </li>
+              <li>
+                <b>Skills</b>
+                <span>Procedures, not prompt snippets: research, plan, review, security-review, test, commit, PR, each rendered as a real workflow graph, plus a marketplace and one-click install.</span>
+              </li>
+              <li>
+                <b>MCP, both directions</b>
+                <span>Connect stdio or streamable-HTTP MCP servers and their tools merge into the agent loop, toggleable per chat. Nekkos is also an MCP <em>server</em>, so other agents can drive it.</span>
+              </li>
+              <li>
+                <b>Connectors</b>
+                <span>Linear, Slack, Discord, Gmail, and Drive, folded into context as snippets instead of pasted by hand.</span>
+              </li>
+              <li>
+                <b>Goal loops that terminate</b>
+                <span>Hand over a finish-this goal: it plans first, re-injects the plan every iteration, runs on a bounded window, and stops on a turn or time budget. A stall detector asks you for a hint instead of spiraling.</span>
+              </li>
+            </ol>
+          </section>
+
+          <section class="mf-group">
+            <div class="mf-head">
+              <span class="mf-num">03</span>
+              <h3>When it's wrong</h3>
+              <p>Smaller models slip more often. The fix is making a slip cheap, not pretending it won't happen.</p>
+            </div>
+            <ol class="mf-rows">
+              <li>
+                <b>Guardrails</b>
+                <span>A risky-command classifier (destructive filesystem writes, force push, <code>curl | sh</code>, privilege escalation) behind an allow / ask / deny policy you can edit. Ask, Guardrails, or YOLO, per chat.</span>
+              </li>
+              <li>
+                <b>Sandbox</b>
+                <span>File access jailed to the folders you wired in, with optional Docker isolation for shell commands.</span>
+              </li>
+              <li>
+                <b>Diff review</b>
+                <span>Every agent edit lands in a Changes panel as a line diff. Keep or revert at line, file, or all, without leaving the window.</span>
+              </li>
+              <li>
+                <b>Recovery, built in</b>
+                <span>An empty reply mid-loop is retried with a nudge and then surfaced rather than silently swallowed, and "Reset here" rewinds the chat to any earlier message and runs again from there.</span>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+        <p class="micro center reveal mf-foot">
+          And while all of that runs, Nekkos drifts in zero-g, laps its own orbit, and bats at a passing comet.
+        </p>
       </section>
 
       <section id="why" class="chapter">
@@ -281,18 +376,31 @@
       <section id="download" class="chapter download">
         <p class="eyebrow reveal">05 · TOUCHDOWN</p>
         <h2 class="reveal">Download Nekkos</h2>
-        <p class="chapter-lede reveal">Free and open source. Pick your platform, builds are published on GitHub Releases.</p>
-        <div class="dl-row reveal">
-          <a class="dl glass" href="https://github.com/nekko-labs/nekkos/releases/latest" data-os="win">
-            <div class="dl-os">Windows</div><div class="dl-sub">.msi or .exe installer</div>
-          </a>
-          <a class="dl glass" href="https://github.com/nekko-labs/nekkos/releases/latest" data-os="mac">
-            <div class="dl-os">macOS</div><div class="dl-sub">.dmg · Apple Silicon &amp; Intel</div>
-          </a>
-          <a class="dl glass" href="https://github.com/nekko-labs/nekkos/releases/latest" data-os="linux">
-            <div class="dl-os">Linux</div><div class="dl-sub">AppImage · .deb</div>
-          </a>
+        <p class="chapter-lede reveal">Free and open source. We picked the build for your machine, change it if we guessed wrong.</p>
+
+        <!-- smart download: primary button = detected OS/arch, caret = every other build -->
+        <div class="dl-cta reveal">
+          <div class="dl-pick" id="dlPick">
+            <a class="dl-main" id="dlMain" href="https://github.com/nekko-labs/nekkos/releases/latest">
+              <span class="dl-main-t" id="dlMainTitle">Download Nekkos</span>
+              <span class="dl-main-s" id="dlMainSub">Latest release on GitHub</span>
+            </a>
+            <button
+              class="dl-caret"
+              id="dlCaret"
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="dlMenu"
+              aria-label="Choose a different platform or format"
+            >
+              <svg viewBox="0 0 12 8" width="12" aria-hidden="true"><path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="dl-menu glass" id="dlMenu" role="menu" aria-labelledby="dlCaret" hidden></div>
+          </div>
+          <p class="micro dl-note" id="dlNote">All builds live on GitHub Releases.</p>
         </div>
+
         <p class="micro center reveal">Or build from source: <code>git clone</code> · <code>npm install</code> · <code>npm run dev</code></p>
         <p class="micro center reveal">macOS says it's "damaged"? It's just unsigned, run <code>xattr -cr "/Applications/Nekkos.app"</code> once, then open. <a href="https://github.com/nekko-labs/nekkos#macos-nekkos-is-damaged-and-cant-be-opened-">Details</a></p>
       </section>

@@ -18,7 +18,8 @@ conversation and coding into a single surface. Its headline feature is
 one click, alongside every major cloud provider. It ships with a
 context-provenance inspector, default guardrails for risky commands, an
 out-of-the-box sandbox, multi-folder code indexing, memory management,
-connectors, and an 8-bit cat mascot that makes biscuits while the model thinks.
+connectors, and a hand-drawn astronaut cat that works in zero-g while the model
+thinks.
 
 Built by [Nekko Labs](https://nekkolabs.com) and MIT-licensed, Nekkos is a
 real, shipping product developed in the open. Contributions are welcome, from
