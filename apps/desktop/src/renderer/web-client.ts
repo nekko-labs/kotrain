@@ -1,25 +1,25 @@
-import { IpcChannels, IpcEvents, deriveKey, seal, open, RELEASE_NOTES_URL } from '@nekkos/shared';
-import type { AppSettings, AgentEvent, IndexStatus, NekkosApi, AppInfo, UpdateInfo, TerminalEvent } from '@nekkos/shared';
+import { IpcChannels, IpcEvents, deriveKey, seal, open, RELEASE_NOTES_URL } from '@kotrain/shared';
+import type { AppSettings, AgentEvent, IndexStatus, KotrainApi, AppInfo, UpdateInfo, TerminalEvent } from '@kotrain/shared';
 
 /**
- * Browser transport for the web/Docker editions: implements the same NekkosApi
+ * Browser transport for the web/Docker editions: implements the same KotrainApi
  * the Electron preload exposes, but over HTTP (`POST /api/:channel`) and a
  * WebSocket (`/api/events`). Installed only when no Electron preload bridge is
  * present, so the React UI is byte-for-byte identical across runtimes.
  */
-function makeWebClient(): NekkosApi {
+function makeWebClient(): KotrainApi {
   // Token (only needed when the server is exposed beyond localhost). Accept it
   // from the URL once, then remember it for the session.
   const urlToken = new URLSearchParams(location.search).get('token');
-  if (urlToken) sessionStorage.setItem('nekkos_token', urlToken);
-  const token = () => sessionStorage.getItem('nekkos_token') ?? '';
+  if (urlToken) sessionStorage.setItem('kotrain_token', urlToken);
+  const token = () => sessionStorage.getItem('kotrain_token') ?? '';
 
   const agentCbs = new Set<(e: AgentEvent) => void>();
   const indexCbs = new Set<(s: IndexStatus) => void>();
   const terminalCbs = new Set<(e: TerminalEvent) => void>();
   const changesCbs = new Set<(e: { sessionId: string }) => void>();
-  const tasksCbs = new Set<(t: import('@nekkos/shared').AutomationTask[]) => void>();
-  const trainingCbs = new Set<(r: import('@nekkos/shared').TrainingRun[]) => void>();
+  const tasksCbs = new Set<(t: import('@kotrain/shared').AutomationTask[]) => void>();
+  const trainingCbs = new Set<(r: import('@kotrain/shared').TrainingRun[]) => void>();
   // Server build version captured when this tab loaded (for refresh detection).
   let loadVersion: string | null = null;
   const dispatchEvent = (channel: string, payload: any) => {
@@ -387,7 +387,7 @@ function makeWebClient(): NekkosApi {
     // loaded; we just suggest a refresh (no installer to run in the browser).
     getAppInfo: () => call(IpcChannels.appInfo) as Promise<AppInfo>,
     getMcpStatus: () => call(IpcChannels.mcpStatus),
-    detectNekkosMcp: () => call(IpcChannels.mcpNekkos),
+    detectKotrainMcp: () => call(IpcChannels.mcpKotrain),
     registerPushToken: (token, platform) => registerPush(token, platform),
     checkForUpdates: async () => {
       const info = (await call(IpcChannels.appInfo)) as AppInfo;
@@ -456,9 +456,9 @@ function makeWebClient(): NekkosApi {
   };
 }
 
-/** Install the web client only if no Electron preload bridge already set window.nekkos. */
-export function ensureNekkos(): void {
-  if (!(window as any).nekkos) {
-    (window as any).nekkos = makeWebClient();
+/** Install the web client only if no Electron preload bridge already set window.kotrain. */
+export function ensureKotrain(): void {
+  if (!(window as any).kotrain) {
+    (window as any).kotrain = makeWebClient();
   }
 }

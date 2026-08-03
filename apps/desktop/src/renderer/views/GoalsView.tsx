@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { NewTrainingRun, PlanStep, TrainingRun } from '@nekkos/shared';
-import { RUN_MAX_TURNS_DEFAULT, formatRuntime, planProgress, runStats } from '@nekkos/shared';
+import type { NewTrainingRun, PlanStep, TrainingRun } from '@kotrain/shared';
+import { RUN_MAX_TURNS_DEFAULT, formatRuntime, planProgress, runStats } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { ArtifactsCard, HintComposer, RunLog, RunModelPicker, RunStatusChip } from '../components/RunBoard.js';
 
@@ -20,8 +20,8 @@ export function GoalsView() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    void window.nekkos.listTrainingRuns().then(setRuns);
-    return window.nekkos.onTrainingUpdated(setRuns);
+    void window.kotrain.listTrainingRuns().then(setRuns);
+    return window.kotrain.onTrainingUpdated(setRuns);
   }, []);
 
   const mine = runs.filter((r) => r.kind === 'goal');
@@ -91,7 +91,7 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
   const s = runStats(run);
   const p = planProgress(run.plan);
   const remove = () => {
-    if (confirm(`Delete goal "${run.name}"? The plan and history are lost.`)) void window.nekkos.deleteTrainingRun(run.id);
+    if (confirm(`Delete goal "${run.name}"? The plan and history are lost.`)) void window.kotrain.deleteTrainingRun(run.id);
   };
   return (
     <div className="mx-auto max-w-5xl space-y-3">
@@ -115,15 +115,15 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
           {run.status !== 'completed' && (
             <span className="flex items-center gap-1.5">
               {run.status !== 'running' && (
-                <button className="btn btn-primary !py-1.5" onClick={() => void window.nekkos.startTrainingRun(run.id)}>
+                <button className="btn btn-primary !py-1.5" onClick={() => void window.kotrain.startTrainingRun(run.id)}>
                   {run.turns ? 'Resume' : 'Start'}
                 </button>
               )}
               {run.status === 'running' && (
-                <button className="btn btn-outline !py-1.5" onClick={() => void window.nekkos.pauseTrainingRun(run.id)}>Pause</button>
+                <button className="btn btn-outline !py-1.5" onClick={() => void window.kotrain.pauseTrainingRun(run.id)}>Pause</button>
               )}
               {(run.status === 'running' || run.status === 'paused') && (
-                <button className="btn btn-outline !py-1.5 !border-red-400/40 !text-red-400" onClick={() => void window.nekkos.stopTrainingRun(run.id)}>Stop</button>
+                <button className="btn btn-outline !py-1.5 !border-red-400/40 !text-red-400" onClick={() => void window.kotrain.stopTrainingRun(run.id)}>Stop</button>
               )}
             </span>
           )}
@@ -331,8 +331,8 @@ function NewGoalForm({
       ...override,
     };
     try {
-      const run = await window.nekkos.createTrainingRun(input);
-      if (startNow) await window.nekkos.startTrainingRun(run.id);
+      const run = await window.kotrain.createTrainingRun(input);
+      if (startNow) await window.kotrain.startTrainingRun(run.id);
       onCreated(run);
     } finally {
       setBusy(false);

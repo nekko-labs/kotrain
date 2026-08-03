@@ -17,14 +17,19 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "nekkos.dev" }],
-      "destination": "https://nekkos.app/$1",
+      "has": [{ "type": "host", "value": "www\\.kotrain\\.com" }],
+      "destination": "https://kotrain.com/$1",
       "permanent": true
     },
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.nekkos.app" }],
-      "destination": "https://nekkos.app/$1",
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?(kotrain\\.app|nekkos\\.app|nekkos\\.dev)"
+        }
+      ],
+      "destination": "https://kotrain.com/$1",
       "permanent": true
     }
   ]

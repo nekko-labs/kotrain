@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { VaizerCatalog, VaizerCatalogSkill } from '@nekkos/shared';
-import { VAIZER_CATALOG_URL, VAIZER_SNAPSHOT, vaizerSkillMdUrl } from '@nekkos/shared';
+import type { VaizerCatalog, VaizerCatalogSkill } from '@kotrain/shared';
+import { VAIZER_CATALOG_URL, VAIZER_SNAPSHOT, vaizerSkillMdUrl } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 /**
@@ -39,7 +39,7 @@ function validSkill(s: unknown): s is VaizerCatalogSkill {
     typeof o.slug === 'string' &&
     /^[a-z0-9-]+$/.test(o.slug) &&
     typeof o.description === 'string' &&
-    (o.tier === 'nekkos-official' || o.tier === 'community')
+    (o.tier === 'kotrain-official' || o.tier === 'community')
   );
 }
 

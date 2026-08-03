@@ -1,9 +1,9 @@
 {
-  "name": "@nekkos/cloud",
+  "name": "@kotrain/cloud",
   "version": "0.1.5",
   "private": true,
   "type": "module",
-  "description": "Nekkos Cloud, multi-account hosted edition. Wraps the same host engine + UI per account behind accounts/auth/entitlements.",
+  "description": "Kotrain Cloud, multi-account hosted edition. Wraps the same host engine + UI per account behind accounts/auth/entitlements.",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -14,8 +14,8 @@
   "dependencies": {
     "@fastify/static": "^8.0.3",
     "@fastify/websocket": "^11.3.0",
-    "@nekkos/host": "*",
-    "@nekkos/shared": "*",
+    "@kotrain/host": "*",
+    "@kotrain/shared": "*",
     "fastify": "^5.10.0"
   }
 }

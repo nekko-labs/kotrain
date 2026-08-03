@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
-import type { UsageRecord, UsageSummary } from '@nekkos/shared';
-import { estimateCostUSD } from '@nekkos/shared';
+import type { UsageRecord, UsageSummary } from '@kotrain/shared';
+import { estimateCostUSD } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 const LOG = () => join(dataDir(), 'usage.jsonl');

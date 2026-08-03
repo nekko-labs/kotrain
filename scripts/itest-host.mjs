@@ -1,7 +1,7 @@
-// Exercises the full @nekkos/host path (settings store → sessions → chat
+// Exercises the full @kotrain/host path (settings store → sessions → chat
 // orchestrator → provider → event emitter), proving the host extraction
 // preserved behavior. Usage: node scripts/itest-host.mjs [baseUrl] [model]
-import { createHost } from '@nekkos/host';
+import { createHost } from '@kotrain/host';
 import { mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 const baseUrl = process.argv[2] || 'http://10.5.0.2:1338';
 const model = process.argv[3] || 'google/gemma-4-31b-qat';
 
-const host = createHost({ dataDir: mkdtempSync(join(tmpdir(), 'nekkos-host-')) });
+const host = createHost({ dataDir: mkdtempSync(join(tmpdir(), 'kotrain-host-')) });
 
 const provider = {
   id: 'lm', kind: 'lmstudio', label: 'LM Studio', baseUrl, enabled: true,

@@ -4,13 +4,13 @@ import websocket from '@fastify/websocket';
 import { createPushSender, type PushSender } from './push.js';
 
 /**
- * Nekkos relay v2, the piece that lets a paired phone reach a local agent
+ * Kotrain relay v2, the piece that lets a paired phone reach a local agent
  * (your desktop/server) without inbound ports. Both ends dial in over an
  * outbound WebSocket and are matched by a room code; the relay routes frames
  * between them. It never inspects payloads beyond the routing envelope, so it
  * carries end-to-end-encrypted traffic unchanged (zero-knowledge for content).
  *
- * v2 protocol (see @nekkos/shared remote.ts for the same contract):
+ * v2 protocol (see @kotrain/shared remote.ts for the same contract):
  *   - every client connection gets a `cid`; client frames reach the agent as
  *     { type:'c', cid, data } and the agent unicasts { type:'d', cid, data }.
  *     No client ever receives another client's traffic.
@@ -22,7 +22,7 @@ import { createPushSender, type PushSender } from './push.js';
  *
  * Hardening: pairing-key hashes compared in constant time, frame-size cap, a
  * per-connection token-bucket rate limit, client + room caps, and an optional
- * agent-enrollment gate (NEKKOS_RELAY_AUTHZ_URL) for managed/paid hosting.
+ * agent-enrollment gate (KOTRAIN_RELAY_AUTHZ_URL) for managed/paid hosting.
  */
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest();
@@ -202,7 +202,7 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
               // Content-free push when no device has a live connection.
               if (r.clients.size === 0 && r.pushTokens.size > 0) {
                 const payload = {
-                  title: String(ctrl.title || 'Nekkos'),
+                  title: String(ctrl.title || 'Kotrain'),
                   body: String(ctrl.body || 'Your task finished.'),
                 };
                 for (const { token, platform } of r.pushTokens.values()) void pushSender.send(token, platform, payload);

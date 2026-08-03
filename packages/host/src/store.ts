@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { AppSettings } from '@nekkos/shared';
-import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@nekkos/shared';
-import { DEFAULT_GUARDRAILS } from '@nekkos/core';
+import type { AppSettings } from '@kotrain/shared';
+import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@kotrain/shared';
+import { DEFAULT_GUARDRAILS } from '@kotrain/core';
 import { dataDir } from './paths.js';
 
 export { dataDir } from './paths.js';
@@ -27,7 +27,7 @@ function defaults(): AppSettings {
   };
 }
 
-// Keyed by data dir so a single process serving many accounts (Nekkos Cloud)
+// Keyed by data dir so a single process serving many accounts (Kotrain Cloud)
 // never bleeds one account's settings into another. Single-data-dir editions
 // (desktop/server/CLI) just use the one entry.
 const cache = new Map<string, AppSettings>();

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runAgent, windowHistory } from './loop.js';
 import type { ChatRequest, Provider, ProviderChunk } from '../providers/types.js';
-import type { ChatMessage, ToolCall, ToolResult } from '@nekkos/shared';
+import type { ChatMessage, ToolCall, ToolResult } from '@kotrain/shared';
 
 /** A user/assistant message pair helper for building histories. */
 function msg(role: ChatMessage['role'], content: string): ChatMessage {

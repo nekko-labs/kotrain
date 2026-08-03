@@ -1,5 +1,5 @@
-import { estimateTokens } from '@nekkos/shared';
-import type { ContextBundle, ContextItem, MemoryEntry } from '@nekkos/shared';
+import { estimateTokens } from '@kotrain/shared';
+import type { ContextBundle, ContextItem, MemoryEntry } from '@kotrain/shared';
 
 /** Inputs the assembler uses to build the context bundle for a turn. */
 export interface AssembleInput {
@@ -73,7 +73,7 @@ export function assembleContext(input: AssembleInput): ContextBundle {
       id: 'system:base',
       source: 'system',
       label: 'System prompt',
-      origin: 'Nekkos',
+      origin: 'Kotrain',
       tokens: estimateTokens(input.systemText),
       pinned: false,
       included: true,

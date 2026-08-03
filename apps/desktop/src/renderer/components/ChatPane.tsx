@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AgentEvent, AutoQuality, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@nekkos/shared';
-import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@nekkos/shared';
+import type { AgentEvent, AutoQuality, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
+import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { clearDraft, loadDraft, saveDraft } from '../composerDrafts.js';
 import { Markdown } from './Markdown.js';
@@ -10,7 +10,7 @@ import { ChatControls } from './ChatControls.js';
 import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { PrCard, PrBadge } from './PrCard.js';
-import { MiniNekkos, NekkosAvatar } from './Mascot.js';
+import { MiniAphelion, AphelionAvatar } from './Mascot.js';
 import { Modal } from './primitives/index.js';
 import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon, StarIcon } from '../icons.js';
 
@@ -75,7 +75,7 @@ async function downloadImage(src: string): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `nekkos-image.${ext === 'jpeg' ? 'jpg' : ext || 'png'}`;
+  a.download = `kotrain-image.${ext === 'jpeg' ? 'jpg' : ext || 'png'}`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
@@ -267,21 +267,21 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // Track how many files the agent changed this chat (for the Changes button).
   useEffect(() => {
     let live = true;
-    const load = () => window.nekkos.listChanges(sessionId).then((c) => { if (live) setChangeCount(c.length); }).catch(() => {});
+    const load = () => window.kotrain.listChanges(sessionId).then((c) => { if (live) setChangeCount(c.length); }).catch(() => {});
     load();
-    const off = window.nekkos.onChangesUpdated((e) => { if (e.sessionId === sessionId) load(); });
+    const off = window.kotrain.onChangesUpdated((e) => { if (e.sessionId === sessionId) load(); });
     return () => { live = false; off(); };
   }, [sessionId]);
 
   useEffect(() => onRunningChange?.(streaming), [streaming, onRunningChange]);
 
   const refreshCtx = () => {
-    window.nekkos.previewContext(sessionId, []).then(setCtx).catch(() => setCtx(null));
+    window.kotrain.previewContext(sessionId, []).then(setCtx).catch(() => setCtx(null));
   };
 
   // Load the session; seed provider/model from it (or the global defaults).
   useEffect(() => {
-    window.nekkos.getSession(sessionId).then((s) => {
+    window.kotrain.getSession(sessionId).then((s) => {
       setSession(s);
       const st = useStore.getState();
       setProviderId(s?.providerId ?? st.activeProviderId ?? providers[0]?.id ?? null);
@@ -299,7 +299,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   useEffect(() => {
     if (!providerId) { setModels([]); setModelsLoaded(false); return; }
     setModelsLoaded(false);
-    window.nekkos.listModels(providerId).then((m) => {
+    window.kotrain.listModels(providerId).then((m) => {
       setModels(m);
       setModelId((cur) => (cur === AUTO_MODEL_ID || (cur && m.some((x) => x.id === cur)) ? cur : null));
       setModelsLoaded(true);
@@ -308,7 +308,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   // Per-chat estimated cost.
   useEffect(() => {
-    window.nekkos.getUsageSummary().then((u) => {
+    window.kotrain.getUsageSummary().then((u) => {
       const s = u.bySession[sessionId];
       setCost(s ? estimateCostUSD(session?.modelId, s.input, s.output) : 0);
     }).catch(() => setCost(0));
@@ -316,7 +316,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   // Stream agent events for this session only.
   useEffect(() => {
-    const off = window.nekkos.onAgentEvent((e: AgentEvent) => {
+    const off = window.kotrain.onAgentEvent((e: AgentEvent) => {
       if (e.sessionId !== sessionId) return;
       // A reply may start host-side (a queued follow-up, or a task-driven run):
       // reflect it as streaming even though this pane didn't call send().
@@ -418,7 +418,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     // Hold the streamed reply on screen until its persisted copy is in state,
     // then clear the live buffers in the same commit, so the end of a reply
     // never flashes the answer out and back in.
-    window.nekkos.getSession(sessionId).then((s) => {
+    window.kotrain.getSession(sessionId).then((s) => {
       setSession(s);
       setLiveText('');
       setLiveReasoning('');
@@ -616,7 +616,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       const goal = goalMatch[1].trim();
       const brain = requireBrain(goal);
       if (!brain) return;
-      await window.nekkos.createTask({
+      await window.kotrain.createTask({
         title: `Goal: ${goal.slice(0, 40)}`,
         kind: 'background',
         keepAlive: 'until',
@@ -650,7 +650,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         }],
       } : prev,
     );
-    await window.nekkos.sendChat({
+    await window.kotrain.sendChat({
       sessionId,
       providerId: brain.providerId,
       modelId: brain.modelId,
@@ -665,7 +665,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const queueDraft = async () => {
     const text = draft.trim();
     if (!text) return;
-    const updated = await window.nekkos.queuePrompt(sessionId, text);
+    const updated = await window.kotrain.queuePrompt(sessionId, text);
     setDraft('');
     clearDraft(sessionId);
     if (updated) setSession(updated);
@@ -673,7 +673,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   };
 
   const removeQueued = async (index: number) => {
-    const updated = await window.nekkos.dequeuePrompt(sessionId, index);
+    const updated = await window.kotrain.dequeuePrompt(sessionId, index);
     if (updated) setSession(updated);
     refreshSessions();
   };
@@ -696,7 +696,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     if (!newText.trim()) return;
     const brain = requireBrain(newText);
     if (!brain) return;
-    await window.nekkos.truncateSession(sessionId, messageId);
+    await window.kotrain.truncateSession(sessionId, messageId);
     beginTurn();
     setSession((prev) => {
       if (!prev) return prev;
@@ -704,7 +704,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       const kept = idx >= 0 ? prev.messages.slice(0, idx) : prev.messages;
       return { ...prev, messages: [...kept, { id: 'tmp', role: 'user', content: newText, createdAt: Date.now() }] };
     });
-    await window.nekkos.sendChat({ sessionId, providerId: brain.providerId, modelId: brain.modelId, text: newText });
+    await window.kotrain.sendChat({ sessionId, providerId: brain.providerId, modelId: brain.modelId, text: newText });
   };
 
   // Re-run the last user message after a failed turn.
@@ -719,7 +719,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     if (!session) return;
     const lines = session.messages
       .filter((m) => m.role === 'user' || m.role === 'assistant')
-      .map((m) => `## ${m.role === 'user' ? 'You' : 'Nekkos'}\n\n${m.content}`);
+      .map((m) => `## ${m.role === 'user' ? 'You' : 'Kotrain'}\n\n${m.content}`);
     const md = `# ${session.title}\n\n${lines.join('\n\n')}\n`;
     const blob = new Blob([md], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -732,7 +732,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   const approve = async (okDecision: boolean) => {
     if (!approval) return;
-    await window.nekkos.approveTool(sessionId, approval.call.id, okDecision);
+    await window.kotrain.approveTool(sessionId, approval.call.id, okDecision);
     setApproval(null);
   };
 
@@ -760,7 +760,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   useEffect(() => { setAtFiles([]); }, [session?.workspaceId]);
   useEffect(() => {
     if (atQuery !== null && session?.workspaceId && atFiles.length === 0) {
-      window.nekkos.listFiles(session.workspaceId).then(setAtFiles).catch(() => {});
+      window.kotrain.listFiles(session.workspaceId).then(setAtFiles).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atQuery, session?.workspaceId]);
@@ -796,9 +796,9 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const pickFile = async (f: IndexedFile) => {
     if (!session) return;
     const next = Array.from(new Set([...(session.attachedPaths ?? []), f.path]));
-    await window.nekkos.setSessionAttachments(session.id, next);
+    await window.kotrain.setSessionAttachments(session.id, next);
     setDraft((d) => d.replace(/(?:^|\s)@([^\s@]*)$/, (full) => (/^\s/.test(full) ? ' ' : '') + '@' + f.relPath + ' '));
-    setSession(await window.nekkos.getSession(session.id));
+    setSession(await window.kotrain.getSession(session.id));
     refreshCtx();
     composerRef.current?.focus();
   };
@@ -853,11 +853,11 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   };
 
   const addFiles = async () => {
-    const picked = await window.nekkos.openFilesDialog();
+    const picked = await window.kotrain.openFilesDialog();
     if (!session || !picked.length) return;
     const next = Array.from(new Set([...(session.attachedPaths ?? []), ...picked]));
-    await window.nekkos.setSessionAttachments(session.id, next);
-    setSession(await window.nekkos.getSession(session.id));
+    await window.kotrain.setSessionAttachments(session.id, next);
+    setSession(await window.kotrain.getSession(session.id));
     refreshCtx();
   };
 
@@ -867,7 +867,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const thinkingSupported = !!modelId && modelId !== AUTO_MODEL_ID && modelSupportsThinking({ id: modelId, name: selectedModelInfo?.name });
   const thinkingOn = session?.thinking !== false;
   const setThinkingPref = (value: boolean) => {
-    window.nekkos.setSessionOptions(sessionId, { thinking: value }).then((s) => { if (s) setSession(s); }).catch(() => {});
+    window.kotrain.setSessionOptions(sessionId, { thinking: value }).then((s) => { if (s) setSession(s); }).catch(() => {});
   };
 
   // Auto mode: the model the next message will actually run on. Shown whether or
@@ -946,10 +946,10 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             <div className="mx-auto w-full max-w-3xl space-y-5">
               {!session?.messages.length && !liveText && !liveReasoning && (
                 <div className="fade-in mt-16 flex flex-col items-center gap-3 text-center">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><NekkosAvatar size={30} /></div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><AphelionAvatar size={30} /></div>
                   <div>
                     <h2 className="text-[15px] font-semibold">
-                      {!hasProvider ? 'Connect a model to get started' : needsModel ? 'Pick a model to get started' : 'What should Nekkos work on?'}
+                      {!hasProvider ? 'Connect a model to get started' : needsModel ? 'Pick a model to get started' : 'What should Kotrain work on?'}
                     </h2>
                     <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">
                       {!hasProvider
@@ -1078,7 +1078,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   // back and the chat fell back to its old provider (which may
                   // have no models at all, leaving it unsendable).
                   const auto = v === AUTO_MODEL_ID;
-                  window.nekkos
+                  window.kotrain
                     .setSessionOptions(sessionId, {
                       autoModel: auto,
                       ...(pid ? { providerId: pid } : {}),
@@ -1092,7 +1092,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 <AutoQualityMenu
                   quality={autoQuality}
                   onPick={(q) => {
-                    window.nekkos
+                    window.kotrain
                       .setSessionOptions(sessionId, { autoQuality: q })
                       .then((s) => { if (s) setSession(s); })
                       .catch(() => {});
@@ -1305,7 +1305,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   ref={composerRef}
                   className="max-h-60 min-h-[52px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm text-ink outline-none placeholder:text-ink-faint"
                   rows={2}
-                  placeholder={hasProvider ? 'Message Nekkos…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
+                  placeholder={hasProvider ? 'Message Kotrain…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
                   value={draft}
                   role="combobox"
                   aria-expanded={slashMenuOpen || atMenuOpen}
@@ -1358,7 +1358,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                         <button
                           role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                          onClick={() => { closeAttachMenu(); void window.nekkos.addWorkspace(); }}
+                          onClick={() => { closeAttachMenu(); void window.kotrain.addWorkspace(); }}
                         >
                           Folder
                         </button>
@@ -1452,7 +1452,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     </button>
                   )}
                   {streaming ? (
-                    <button className="btn btn-outline h-8 px-3 py-0 text-[12px]" onClick={() => window.nekkos.abortChat(sessionId)}>Stop</button>
+                    <button className="btn btn-outline h-8 px-3 py-0 text-[12px]" onClick={() => window.kotrain.abortChat(sessionId)}>Stop</button>
                   ) : (
                     <button
                       className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-white transition-all duration-150 enabled:hover:brightness-110 disabled:opacity-40"
@@ -1560,7 +1560,7 @@ function ModelPicker({
     let live = true;
     Promise.all(
       providers.map((p) =>
-        window.nekkos.listModels(p.id)
+        window.kotrain.listModels(p.id)
           .then((m) => [p.id, m] as const)
           .catch(() => [p.id, [] as ModelInfo[]] as const),
       ),
@@ -1572,7 +1572,7 @@ function ModelPicker({
   const toggleFavorite = async (key: string) => {
     const next = new Set(settings?.favoriteModels ?? []);
     next.has(key) ? next.delete(key) : next.add(key);
-    await window.nekkos.updateSettings({ favoriteModels: [...next] });
+    await window.kotrain.updateSettings({ favoriteModels: [...next] });
     refreshSettings();
   };
 
@@ -1701,7 +1701,7 @@ function ModelPicker({
                 aria-selected={modelId === AUTO_MODEL_ID}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2 ${modelId === AUTO_MODEL_ID ? 'text-accent' : ''}`}
                 onClick={() => { onModel(providerId ?? '', AUTO_MODEL_ID); setOpen(false); }}
-                title="Nekkos picks the best model for each message"
+                title="Kotrain picks the best model for each message"
               >
                 ✨ Auto <span className="text-[11px] text-ink-faint">(pick best)</span>
               </button>
@@ -1895,7 +1895,7 @@ function ReplyStatus({
   if (streaming) {
     return (
       <div className="fade-in flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1 text-[12px] text-ink-faint">
-        <span className="flex items-center gap-2 text-ink-soft"><MiniNekkos size={16} /> {waiting ? 'Nekkos is working' : 'Streaming'}<span className="dots" /></span>
+        <span className="flex items-center gap-2 text-ink-soft"><MiniAphelion size={16} /> {waiting ? 'Aphelion is working' : 'Streaming'}<span className="dots" /></span>
         {elapsed > 0 && <span>· {elapsed}s</span>}
         {tps > 0 && <span>· {tps} tok/s</span>}
         {out > 0 && <span>· {fmtTok(out)} tokens</span>}

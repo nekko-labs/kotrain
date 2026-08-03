@@ -1,13 +1,13 @@
 {
-  "name": "@nekkos/desktop",
+  "name": "@kotrain/desktop",
   "version": "0.3.0",
   "private": true,
-  "description": "Nekkos desktop app.",
+  "description": "Kotrain desktop app.",
   "author": {
     "name": "Nekko Labs",
-    "email": "support@nekkos.app"
+    "email": "support@kotrain.com"
   },
-  "homepage": "https://github.com/nekko-labs/nekkos",
+  "homepage": "https://github.com/nekko-labs/kotrain",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -20,9 +20,9 @@
   },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.12",
-    "@nekkos/core": "*",
-    "@nekkos/host": "*",
-    "@nekkos/shared": "*",
+    "@kotrain/core": "*",
+    "@kotrain/host": "*",
+    "@kotrain/shared": "*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^5.5.0",

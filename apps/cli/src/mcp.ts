@@ -1,7 +1,7 @@
 import { getClient, resolveModel, runChat, type Client } from './lib.js';
 
 /**
- * MCP stdio server exposing Nekkos to other tools (Claude Code, Codex, …).
+ * MCP stdio server exposing Kotrain to other tools (Claude Code, Codex, …).
  * Hand-rolled JSON-RPC 2.0 over newline-delimited stdio, the MCP stdio
  * transport. Other agents can trigger this machine's agent, make chat requests,
  * spin up sessions (swarm by calling chat across several sessions), and read
@@ -12,9 +12,9 @@ const VERSION = '0.1.5';
 
 const TOOLS = [
   {
-    name: 'nekkos_chat',
+    name: 'kotrain_chat',
     description:
-      "Run an agent turn on this machine's Nekkos (reads/edits/searches/runs in the configured workspace, using the local or cloud model). Returns the assistant's reply. Omit sessionId to start a fresh session.",
+      "Run an agent turn on this machine's Kotrain (reads/edits/searches/runs in the configured workspace, using the local or cloud model). Returns the assistant's reply. Omit sessionId to start a fresh session.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -28,31 +28,31 @@ const TOOLS = [
     },
   },
   {
-    name: 'nekkos_list_sessions',
+    name: 'kotrain_list_sessions',
     description: 'List chat sessions (id, title, message count, last updated).',
     inputSchema: { type: 'object', properties: {} },
   },
   {
-    name: 'nekkos_new_session',
+    name: 'kotrain_new_session',
     description: 'Create a new chat session and return its id.',
     inputSchema: { type: 'object', properties: { workspaceId: { type: 'string' } } },
   },
   {
-    name: 'nekkos_get_session',
+    name: 'kotrain_get_session',
     description: 'Get a session transcript (user/assistant messages).',
     inputSchema: { type: 'object', properties: { sessionId: { type: 'string' } }, required: ['sessionId'] },
   },
   {
-    name: 'nekkos_train_start',
+    name: 'kotrain_train_start',
     description:
-      "Ask this machine's Nekkos to train a model for a purpose. Creates and starts a training run: a local data-scientist agent works hands-on in the workspace (benchmark candidate models, prepare data, fine-tune, evaluate), reporting each experiment with its score to an experiment tree. Returns the run id; poll nekkos_train_status.",
+      "Ask this machine's Kotrain to train a model for a purpose. Creates and starts a training run: a local data-scientist agent works hands-on in the workspace (benchmark candidate models, prepare data, fine-tune, evaluate), reporting each experiment with its score to an experiment tree. Returns the run id; poll kotrain_train_status.",
     inputSchema: {
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Short run name, e.g. "mynichi-slm-v1".' },
         goal: { type: 'string', description: 'What to train and what metric to maximize/minimize, in plain language.' },
         kind: { type: 'string', enum: ['training', 'goal'], description: 'Run type (default "training").' },
-        workspaceId: { type: 'string', description: 'Workspace the agent works in (see nekkos_status).' },
+        workspaceId: { type: 'string', description: 'Workspace the agent works in (see kotrain_status).' },
         provider: { type: 'string', description: 'Provider id override for the agent model (optional).' },
         model: { type: 'string', description: 'Model id override for the agent model (optional).' },
         metric: { type: 'string', description: 'Metric name experiments report, e.g. "score" or "accuracy".' },
@@ -65,13 +65,13 @@ const TOOLS = [
     },
   },
   {
-    name: 'nekkos_train_status',
+    name: 'kotrain_train_status',
     description:
       'Status of training runs: experiments with scores, the current leader, run state. Pass runId for one run in detail, omit for a summary of all runs.',
     inputSchema: { type: 'object', properties: { runId: { type: 'string' } } },
   },
   {
-    name: 'nekkos_train_hint',
+    name: 'kotrain_train_hint',
     description: 'Queue user guidance for a running training run; the agent folds it into its next experiments.',
     inputSchema: {
       type: 'object',
@@ -80,20 +80,20 @@ const TOOLS = [
     },
   },
   {
-    name: 'nekkos_train_stop',
+    name: 'kotrain_train_stop',
     description: 'Stop a training run (the in-flight iteration finishes, then the run ends).',
     inputSchema: { type: 'object', properties: { runId: { type: 'string' } }, required: ['runId'] },
   },
   {
-    name: 'nekkos_status',
-    description: 'Summary of this Nekkos: providers, default model, workspaces, session count, remote relay status.',
+    name: 'kotrain_status',
+    description: 'Summary of this Kotrain: providers, default model, workspaces, session count, remote relay status.',
     inputSchema: { type: 'object', properties: {} },
   },
 ];
 
 async function callTool(client: Client, name: string, args: Record<string, any>): Promise<string> {
   switch (name) {
-    case 'nekkos_chat': {
+    case 'kotrain_chat': {
       let sessionId = args.sessionId as string | undefined;
       if (!sessionId) sessionId = (await client.createSession(args.workspaceId)).id;
       const session = await client.getSession(sessionId);
@@ -108,15 +108,15 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
       const reply = await runChat(client, { sessionId, providerId, modelId, text: String(args.prompt ?? '') });
       return `session: ${sessionId}\n\n${reply}`;
     }
-    case 'nekkos_list_sessions':
+    case 'kotrain_list_sessions':
       return JSON.stringify(
         (await client.listSessions()).map((s) => ({ id: s.id, title: s.title, messages: s.messages.length, updatedAt: s.updatedAt })),
         null,
         2,
       );
-    case 'nekkos_new_session':
+    case 'kotrain_new_session':
       return `Created session ${(await client.createSession(args.workspaceId)).id}`;
-    case 'nekkos_get_session': {
+    case 'kotrain_get_session': {
       const s = await client.getSession(String(args.sessionId));
       if (!s) throw new Error('Session not found');
       return s.messages
@@ -124,7 +124,7 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
         .map((m) => `## ${m.role}\n${m.content}`)
         .join('\n\n');
     }
-    case 'nekkos_train_start': {
+    case 'kotrain_train_start': {
       const run = await client.createTrainingRun({
         kind: (args.kind as 'training' | 'goal') ?? 'training',
         name: String(args.name),
@@ -145,7 +145,7 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
       await client.startTrainingRun(run.id);
       return JSON.stringify({ runId: run.id, sessionId: run.sessionId, status: 'running' }, null, 2);
     }
-    case 'nekkos_train_status': {
+    case 'kotrain_train_status': {
       const runs = await client.listTrainingRuns();
       if (args.runId) {
         const run = runs.find((r) => r.id === args.runId);
@@ -179,15 +179,15 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
         2,
       );
     }
-    case 'nekkos_train_hint': {
+    case 'kotrain_train_hint': {
       await client.addTrainingHint(String(args.runId), String(args.text));
       return `Hint queued for ${args.runId}.`;
     }
-    case 'nekkos_train_stop': {
+    case 'kotrain_train_stop': {
       await client.stopTrainingRun(String(args.runId));
       return `Run ${args.runId} stopping.`;
     }
-    case 'nekkos_status': {
+    case 'kotrain_status': {
       const [s, sessions, remote] = await Promise.all([client.getSettings(), client.listSessions(), client.remoteStatus()]);
       return JSON.stringify(
         {
@@ -237,7 +237,7 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
   async function handle(msg: any) {
     const { id, method, params } = msg;
     if (method === 'initialize') {
-      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'nekkos', version: VERSION } });
+      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'kotrain', version: VERSION } });
     } else if (method === 'notifications/initialized' || method?.startsWith('notifications/')) {
       /* notifications: no response */
     } else if (method === 'ping') {
@@ -256,5 +256,5 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
     }
   }
 
-  console.error('[nekkos] MCP server ready on stdio');
+  console.error('[kotrain] MCP server ready on stdio');
 }

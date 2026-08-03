@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { ConnectorConfig, ConnectorKind, ConnectorResource } from '@nekkos/shared';
-import { CONNECTOR_CATALOG } from '@nekkos/shared';
+import type { ConnectorConfig, ConnectorKind, ConnectorResource } from '@kotrain/shared';
+import { CONNECTOR_CATALOG } from '@kotrain/shared';
 import { ConnectorIcon } from '../connectorIcons.js';
 import { Badge } from '../components/primitives/index.js';
 
@@ -21,7 +21,7 @@ export function ConnectorsView() {
   const [busy, setBusy] = useState<ConnectorKind | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const load = async () => setConfigs(await window.nekkos.listConnectors());
+  const load = async () => setConfigs(await window.kotrain.listConnectors());
   useEffect(() => { load(); }, []);
 
   const isConnected = (k: ConnectorKind) => configs.find((c) => c.kind === k)?.connected;
@@ -33,14 +33,14 @@ export function ConnectorsView() {
     setBusy(k);
     setErrors((e) => ({ ...e, [k]: '' }));
     try {
-      await window.nekkos.connectConnector(k, tokens[k].trim());
-      const res = await window.nekkos.fetchConnector(k);
-      setConfigs(await window.nekkos.listConnectors());
+      await window.kotrain.connectConnector(k, tokens[k].trim());
+      const res = await window.kotrain.fetchConnector(k);
+      setConfigs(await window.kotrain.listConnectors());
       setTokens((t) => ({ ...t, [k]: '' }));
       setPreview((p) => ({ ...p, [k]: res }));
     } catch (e) {
-      await window.nekkos.disconnectConnector(k);
-      setConfigs(await window.nekkos.listConnectors());
+      await window.kotrain.disconnectConnector(k);
+      setConfigs(await window.kotrain.listConnectors());
       setErrors((er) => ({ ...er, [k]: (e as Error).message || 'Could not connect, check the token.' }));
     } finally {
       setBusy(null);
@@ -48,13 +48,13 @@ export function ConnectorsView() {
   };
 
   const disconnect = async (k: ConnectorKind) => {
-    setConfigs(await window.nekkos.disconnectConnector(k));
+    setConfigs(await window.kotrain.disconnectConnector(k));
     setPreview((p) => ({ ...p, [k]: undefined as unknown as ConnectorResource[] }));
   };
 
   const fetchData = async (k: ConnectorKind) => {
     try {
-      const res = await window.nekkos.fetchConnector(k);
+      const res = await window.kotrain.fetchConnector(k);
       setPreview((p) => ({ ...p, [k]: res }));
     } catch (e) {
       setPreview((p) => ({ ...p, [k]: (e as Error).message }));
@@ -110,7 +110,7 @@ export function ConnectorsView() {
                     </div>
                     <p className="mt-1.5 text-[11px] text-ink-faint">
                       {help.hint}{' '}
-                      <button className="text-accent hover:underline" onClick={() => window.nekkos.openPath(help.url)}>Get a token →</button>
+                      <button className="text-accent hover:underline" onClick={() => window.kotrain.openPath(help.url)}>Get a token →</button>
                     </p>
                     {errors[meta.kind] && <p className="mt-1 text-[11px]" style={{ color: 'var(--danger)' }}>{errors[meta.kind]}</p>}
                   </div>

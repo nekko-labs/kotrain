@@ -1,5 +1,5 @@
 /**
- * @nekkos/shared, types and IPC contracts shared between the Electron main
+ * @kotrain/shared, types and IPC contracts shared between the Electron main
  * process, preload bridge, renderer, and the pure-TS core engine.
  */
 

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractPrUrls, parsePrUrl, collectSessionPrUrls } from '@nekkos/shared';
+import { extractPrUrls, parsePrUrl, collectSessionPrUrls } from '@kotrain/shared';
 
 describe('extractPrUrls', () => {
   it('pulls unique PR URLs out of text and trims trailing punctuation', () => {
-    const text = 'Opened https://github.com/nekko-labs/nekkos/pull/12 and see (https://github.com/nekko-labs/nekkos/pull/12).';
-    expect(extractPrUrls(text)).toEqual(['https://github.com/nekko-labs/nekkos/pull/12']);
+    const text = 'Opened https://github.com/nekko-labs/kotrain/pull/12 and see (https://github.com/nekko-labs/kotrain/pull/12).';
+    expect(extractPrUrls(text)).toEqual(['https://github.com/nekko-labs/kotrain/pull/12']);
   });
 
   it('handles multiple distinct PRs', () => {
@@ -20,8 +20,8 @@ describe('extractPrUrls', () => {
 
 describe('parsePrUrl', () => {
   it('parses owner/repo/number', () => {
-    expect(parsePrUrl('https://github.com/nekko-labs/nekkos/pull/42')).toEqual({
-      owner: 'nekko-labs', repo: 'nekkos', number: 42,
+    expect(parsePrUrl('https://github.com/nekko-labs/kotrain/pull/42')).toEqual({
+      owner: 'nekko-labs', repo: 'kotrain', number: 42,
     });
   });
 

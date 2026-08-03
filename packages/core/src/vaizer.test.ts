@@ -11,7 +11,7 @@ import {
   marketWorkflow,
   layoutWorkflow,
   MARKET_SKILLS,
-} from '@nekkos/shared';
+} from '@kotrain/shared';
 
 describe('vaizer catalog snapshot', () => {
   it('bundled snapshot is well-formed and offline-marked', () => {
@@ -19,7 +19,7 @@ describe('vaizer catalog snapshot', () => {
     expect(VAIZER_SNAPSHOT.skills.length).toBeGreaterThan(0);
     for (const s of VAIZER_SNAPSHOT.skills) {
       expect(s.slug).toMatch(/^[a-z0-9-]+$/);
-      expect(['nekkos-official', 'community']).toContain(s.tier);
+      expect(['kotrain-official', 'community']).toContain(s.tier);
       expect(s.description.length).toBeGreaterThan(0);
     }
   });
@@ -38,11 +38,11 @@ describe('vaizer catalog snapshot', () => {
 });
 
 describe('vaizerCategory', () => {
-  it('maps vaizer categories onto Nekkos skill categories', () => {
+  it('maps vaizer categories onto Kotrain skill categories', () => {
     expect(vaizerCategory('research')).toBe('Research & planning');
     expect(vaizerCategory('engineering')).toBe('Code quality');
     expect(vaizerCategory('delivery')).toBe('Delivery');
-    // `career` (resume-checker) has no Nekkos equivalent; it reads as analysis work.
+    // `career` (resume-checker) has no Kotrain equivalent; it reads as analysis work.
     expect(vaizerCategory('career')).toBe('Research & planning');
     expect(vaizerCategory('something-else')).toBe('Automation');
   });

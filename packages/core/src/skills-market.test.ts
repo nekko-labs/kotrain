@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MARKET_SKILLS,
-  NEKKOS_SKILLS,
+  KOTRAIN_SKILLS,
   POPULAR_SKILLS,
   popularSkills,
   getMarketSkill,
@@ -10,7 +10,7 @@ import {
   skillToMarkdown,
   layoutWorkflow,
   SKILLS,
-} from '@nekkos/shared';
+} from '@kotrain/shared';
 
 describe('skills marketplace catalog', () => {
   it('has unique ids and names across the whole catalog', () => {
@@ -31,7 +31,7 @@ describe('skills marketplace catalog', () => {
       expect(s.instructions.length).toBeGreaterThan(20);
       expect(s.author.length).toBeGreaterThan(0);
     }
-    for (const s of NEKKOS_SKILLS) expect(s.source).toBe('nekkolabs');
+    for (const s of KOTRAIN_SKILLS) expect(s.source).toBe('nekkolabs');
     for (const s of POPULAR_SKILLS) expect(s.source).toBe('community');
   });
 
@@ -50,7 +50,7 @@ describe('skills marketplace catalog', () => {
 
 describe('marketWorkflow', () => {
   it('keeps a bespoke workflow when present', () => {
-    const council = getMarketSkill('nekkos-review-council')!;
+    const council = getMarketSkill('kotrain-review-council')!;
     expect(marketWorkflow(council)).toBe(council.workflow);
   });
 
@@ -73,7 +73,7 @@ describe('marketWorkflow', () => {
 
 describe('install artifacts', () => {
   it('marketToSkillDef produces a runnable in-app skill', () => {
-    const def = marketToSkillDef(getMarketSkill('nekkos-changelog')!);
+    const def = marketToSkillDef(getMarketSkill('kotrain-changelog')!);
     expect(def.name).toBe('changelog');
     expect(def.template.length).toBeGreaterThan(0);
     expect(def.workflow.nodes.length).toBeGreaterThan(2);

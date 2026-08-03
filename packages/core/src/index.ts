@@ -1,5 +1,5 @@
 /**
- * @nekkos/core, the pure-TS engine behind Nekkos. No Electron imports, so it
+ * @kotrain/core, the pure-TS engine behind Kotrain. No Electron imports, so it
  * is unit-testable and could be reused in a CLI or server. The Electron main
  * process wires these modules to the filesystem, shell, and IPC.
  */

@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { createProvider } from '@nekkos/core';
-import type { DesignBoard, DesignPage, GenerateDesignInput } from '@nekkos/shared';
+import { createProvider } from '@kotrain/core';
+import type { DesignBoard, DesignPage, GenerateDesignInput } from '@kotrain/shared';
 import { dataDir, getSettings } from './store.js';
 
 /**
@@ -12,7 +12,7 @@ import { dataDir, getSettings } from './store.js';
  * Concepts come from a prompt or a hand-drawn sketch (vision models) and are
  * generated one-shot with the default provider/model; the resulting
  * self-contained HTML prototype is stored on the page (rendered via srcdoc)
- * and mirrored into the workspace's nekkos-designs/ folder so agents and
+ * and mirrored into the workspace's kotrain-designs/ folder so agents and
  * users can iterate on it as code. Stored in one JSON file keyed by
  * workspaceId; live "snapshots" are scaled previews rendered in the UI.
  */
@@ -149,11 +149,12 @@ export async function generateDesign(workspaceId: string, input: GenerateDesignI
   const ws = settings.workspaces.find((w) => w.id === workspaceId);
   if (ws) {
     try {
-      // Prefer nekkos-designs, but keep filling a pre-rebrand kotrain-designs
-      // folder if the workspace already has one (no split-brain folders).
-      let dir = join(ws.path, 'nekkos-designs');
+      // Prefer kotrain-designs, but keep filling a nekkos-designs folder from
+      // the interim rebrand if the workspace already has one (no split-brain
+      // folders).
+      let dir = join(ws.path, 'kotrain-designs');
       if (!existsSync(dir)) {
-        const legacy = join(ws.path, 'kotrain-designs');
+        const legacy = join(ws.path, 'nekkos-designs');
         if (existsSync(legacy)) dir = legacy;
         else mkdirSync(dir, { recursive: true });
       }

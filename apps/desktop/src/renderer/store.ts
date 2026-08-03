@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo } from '@nekkos/shared';
-import { getMarketSkill, marketToSkillDef } from '@nekkos/shared';
+import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo } from '@kotrain/shared';
+import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
 
 export type View = 'command' | 'chat' | 'models' | 'connectors' | 'memory' | 'settings' | 'design' | 'skills' | 'training' | 'goals';
@@ -80,7 +80,7 @@ interface UiState {
   /** Open a PR's diff in a workbench pane. */
   openPrPane: (url: string) => void;
 
-  /** Marketplace installs (all targets) + the Nekkos ones as runnable skills. */
+  /** Marketplace installs (all targets) + the Kotrain ones as runnable skills. */
   installedSkills: InstalledSkillRecord[];
   installedSkillDefs: SkillDef[];
   refreshSkills: () => Promise<void>;
@@ -196,7 +196,7 @@ export const useStore = create<UiState>((set, get) => ({
       return { monitorDockRect: r };
     }),
   newChat: async () => {
-    const s = await window.nekkos.createSession(get().activeWorkspaceId ?? undefined);
+    const s = await window.kotrain.createSession(get().activeWorkspaceId ?? undefined);
     await get().refreshSessions();
     set({ activeSessionId: s.id, view: 'chat' });
     get().openChatPane(s.id);
@@ -205,7 +205,7 @@ export const useStore = create<UiState>((set, get) => ({
   setView: (v) => set({ view: v }),
 
   refreshSettings: async () => {
-    const settings = await window.nekkos.getSettings();
+    const settings = await window.kotrain.getSettings();
     set({ settings });
     get().applyTheme();
     if (!get().activeProviderId && settings.defaultProviderId) {
@@ -217,7 +217,7 @@ export const useStore = create<UiState>((set, get) => ({
   },
 
   refreshSessions: async () => {
-    const sessions = await window.nekkos.listSessions();
+    const sessions = await window.kotrain.listSessions();
     set({ sessions });
     if (!get().activeSessionId && sessions[0]) set({ activeSessionId: sessions[0].id });
   },
@@ -226,9 +226,9 @@ export const useStore = create<UiState>((set, get) => ({
   installedSkillDefs: [],
   refreshSkills: async () => {
     try {
-      const installedSkills = await window.nekkos.listInstalledSkills();
+      const installedSkills = await window.kotrain.listInstalledSkills();
       const installedSkillDefs = installedSkills
-        .filter((r) => r.target === 'nekkos')
+        .filter((r) => r.target === 'kotrain')
         // Vaizer (non-catalog) installs carry their own snapshot on the record.
         .map((r) => r.skill ?? getMarketSkill(r.skillId))
         .filter((m): m is NonNullable<typeof m> => !!m)
@@ -252,7 +252,7 @@ export const useStore = create<UiState>((set, get) => ({
   setActiveSession: (id) => set({ activeSessionId: id }),
 
   refreshProviders: async () => {
-    const providers = await window.nekkos.listProviders();
+    const providers = await window.kotrain.listProviders();
     set({ providers });
     const active = get().activeProviderId ?? providers[0]?.id ?? null;
     if (active) {
@@ -266,7 +266,7 @@ export const useStore = create<UiState>((set, get) => ({
 
   selectProvider: async (id) => {
     set({ activeProviderId: id, models: [] });
-    const models = await window.nekkos.listModels(id);
+    const models = await window.kotrain.listModels(id);
     set({ models });
     // Keep the current model if this provider serves it, otherwise leave it
     // unset: a chat then asks which model to use instead of inheriting a guess.
@@ -276,12 +276,12 @@ export const useStore = create<UiState>((set, get) => ({
     if (!models.some((m) => m.id === get().activeModelId)) set({ activeModelId: null });
     // Remember as the default for new chats and next launch.
     const activeModelId = get().activeModelId;
-    window.nekkos.updateSettings({ defaultProviderId: id, ...(activeModelId ? { defaultModelId: activeModelId } : {}) });
+    window.kotrain.updateSettings({ defaultProviderId: id, ...(activeModelId ? { defaultModelId: activeModelId } : {}) });
   },
 
   selectModel: (id) => {
     set({ activeModelId: id });
-    window.nekkos.updateSettings({ defaultProviderId: get().activeProviderId ?? undefined, defaultModelId: id });
+    window.kotrain.updateSettings({ defaultProviderId: get().activeProviderId ?? undefined, defaultModelId: id });
   },
 
   toggleContextPanel: () => set((s) => ({ contextPanelOpen: !s.contextPanelOpen })),
@@ -301,7 +301,7 @@ export const useStore = create<UiState>((set, get) => ({
 
   refreshTerminals: async () => {
     try {
-      set({ terminals: await window.nekkos.listTerminals() });
+      set({ terminals: await window.kotrain.listTerminals() });
     } catch {
       /* terminals unsupported on this transport */
     }
@@ -309,7 +309,7 @@ export const useStore = create<UiState>((set, get) => ({
 
   newTerminal: async (workspaceId, shell) => {
     const wid = workspaceId ?? get().activeWorkspaceId ?? undefined;
-    const t = await window.nekkos.createTerminal({ workspaceId: wid, shell });
+    const t = await window.kotrain.createTerminal({ workspaceId: wid, shell });
     await get().refreshTerminals();
     set({ view: 'chat' });
     get().openTerminalPane(t.id);
@@ -374,7 +374,7 @@ export const useStore = create<UiState>((set, get) => ({
     // Target the active chat; create one if there isn't a usable session.
     let sid = get().activeSessionId;
     if (!sid || !get().sessions.some((s) => s.id === sid)) {
-      const s = await window.nekkos.createSession(get().activeWorkspaceId ?? undefined);
+      const s = await window.kotrain.createSession(get().activeWorkspaceId ?? undefined);
       await get().refreshSessions();
       sid = s.id;
       set({ activeSessionId: sid });
@@ -386,7 +386,7 @@ export const useStore = create<UiState>((set, get) => ({
 
   refreshSessionPrs: async (sessionId) => {
     try {
-      const prs = await window.nekkos.listSessionPrs(sessionId);
+      const prs = await window.kotrain.listSessionPrs(sessionId);
       set((s) => ({ prsBySession: { ...s.prsBySession, [sessionId]: prs } }));
     } catch {
       /* older host without PR channels, or gh/API unavailable */
@@ -472,19 +472,19 @@ export const useStore = create<UiState>((set, get) => ({
     const byId = new Map(s.workspaces.map((w) => [w.id, w]));
     const workspaces = orderedIds.map((id) => byId.get(id)).filter((w): w is NonNullable<typeof w> => !!w);
     if (workspaces.length !== s.workspaces.length) return; // guard against a lost entry
-    await window.nekkos.updateSettings({ workspaces });
+    await window.kotrain.updateSettings({ workspaces });
     await get().refreshSettings();
   },
 
   layoutChats: async (targetWorkspaceId, orderedIds, moveId) => {
-    if (moveId) await window.nekkos.setSessionWorkspace(moveId, targetWorkspaceId);
-    await Promise.all(orderedIds.map((id, i) => window.nekkos.setSessionOptions(id, { order: i })));
+    if (moveId) await window.kotrain.setSessionWorkspace(moveId, targetWorkspaceId);
+    await Promise.all(orderedIds.map((id, i) => window.kotrain.setSessionOptions(id, { order: i })));
     await get().refreshSessions();
   },
 
   layoutTerminals: async (targetWorkspaceId, orderedIds, moveId) => {
-    if (moveId) await window.nekkos.updateTerminal(moveId, { workspaceId: targetWorkspaceId ?? null });
-    await Promise.all(orderedIds.map((id, i) => window.nekkos.updateTerminal(id, { order: i })));
+    if (moveId) await window.kotrain.updateTerminal(moveId, { workspaceId: targetWorkspaceId ?? null });
+    await Promise.all(orderedIds.map((id, i) => window.kotrain.updateTerminal(id, { order: i })));
     await get().refreshTerminals();
   },
 }));

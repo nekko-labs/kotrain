@@ -24,7 +24,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ghcr.io/nekkos-labs/nekkos
+          images: ghcr.io/nekko-labs/kotrain
           tags: |
             type=ref,event=tag
             type=raw,value=latest
@@ -50,7 +50,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ghcr.io/nekkos-labs/nekkos-relay
+          images: ghcr.io/nekko-labs/kotrain-relay
           tags: |
             type=ref,event=tag
             type=raw,value=latest

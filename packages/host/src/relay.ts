@@ -1,4 +1,4 @@
-import { IpcEvents, deriveKey, seal, open, type RemoteHelloReply } from '@nekkos/shared';
+import { IpcEvents, deriveKey, seal, open, type RemoteHelloReply } from '@kotrain/shared';
 import { createDispatcher } from './dispatch.js';
 import type { Host } from './host.js';
 
@@ -71,7 +71,7 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
     // On run completion, ping the relay (plain, content-free control frame) so it
     // can push a notification to a paired phone that's currently offline.
     if ((e as { type?: string })?.type === 'done') {
-      sendRaw({ type: 'notify', title: 'Nekkos finished', body: 'Your task is ready.' });
+      sendRaw({ type: 'notify', title: 'Kotrain finished', body: 'Your task is ready.' });
     }
   };
   const onIndex = (s: unknown) => void broadcast({ type: 'event', channel: IpcEvents.indexProgress, payload: s });
