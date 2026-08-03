@@ -153,22 +153,25 @@
   function setupPick(root) {
     const main = root.querySelector('[data-dl-main]');
     const mainTitle = root.querySelector('[data-dl-title]');
-    const mainSub = root.querySelector('[data-dl-sub]');
+    const mainVer = root.querySelector('[data-dl-ver]');
     const caret = root.querySelector('[data-dl-caret]');
     const menu = root.querySelector('[data-dl-menu]');
     const isOpen = () => !menu.hidden;
 
+    // Label + version chip only; the format and arch ride along as the link's
+    // tooltip and in the caption under the download-section button.
     function renderMain() {
       const b = chosen();
+      mainVer.textContent = version;
       if (!b) {
         mainTitle.textContent = 'Download Kotrain';
-        mainSub.textContent = mobile ? 'Desktop app, then pair this phone' : 'Latest release on GitHub';
         main.href = RELEASES;
+        main.title = mobile ? 'Install on your computer, then pair this phone' : 'All builds on GitHub Releases';
         return;
       }
       mainTitle.textContent = `Download for ${OS_NAME[b.os]}`;
-      mainSub.textContent = `${b.fmt} · ${b.hint}${version ? ` · ${version}` : ''}`;
       main.href = urlFor(b) || RELEASES;
+      main.title = `${b.fmt} · ${b.hint}`;
     }
 
     function renderMenu() {
@@ -279,8 +282,9 @@
 
   function renderNote() {
     if (!note) return;
-    if (chosen()) {
-      note.textContent = 'Not your machine? Use the arrow for every other build.';
+    const b = chosen();
+    if (b) {
+      note.textContent = `${b.fmt} · ${b.hint}. Not your machine? Use the arrow for every other build.`;
     } else {
       note.textContent = mobile
         ? 'Kotrain runs on your computer. Install it there, then pair this phone to it over the encrypted relay.'
