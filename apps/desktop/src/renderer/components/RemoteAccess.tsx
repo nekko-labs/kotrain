@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import type { PairingGrant, RemoteDevice, RemoteStatus } from '@nekkos/shared';
+import type { PairingGrant, RemoteDevice, RemoteStatus } from '@kotrain/shared';
 import { Badge } from './primitives/index.js';
 
 /**
@@ -10,9 +10,9 @@ import { Badge } from './primitives/index.js';
  * sees ciphertext. Self-hosting the relay is documented and first-class.
  */
 
-/** Managed relay (free during beta; becomes a Nekkos Cloud perk). */
-export const MANAGED_RELAY_URL = 'wss://nekkos-relay.fly.dev';
-const SELF_HOST_DOCS = 'https://github.com/nekko-labs/nekkos/blob/main/docs/REMOTE.md';
+/** Managed relay (free during beta; becomes a Kotrain Cloud perk). */
+export const MANAGED_RELAY_URL = 'wss://kotrain-relay.fly.dev';
+const SELF_HOST_DOCS = 'https://github.com/nekko-labs/kotrain/blob/main/docs/REMOTE.md';
 
 export function RemoteAccess() {
   const [status, setStatus] = useState<RemoteStatus>({ enabled: false });
@@ -26,7 +26,7 @@ export function RemoteAccess() {
   const editedUrl = useRef(false);
 
   const refresh = async () => {
-    const s = await window.nekkos.getRemoteStatus();
+    const s = await window.kotrain.getRemoteStatus();
     setStatus(s);
     if (s.relayUrl && !editedUrl.current) setRelayUrl(s.relayUrl);
   };
@@ -54,10 +54,10 @@ export function RemoteAccess() {
 
   // Pairing link: on an http origin (web edition) the link opens this same UI;
   // the desktop app has no web origin, so the QR carries the raw pairing params
-  // (the Nekkos phone app parses those directly).
+  // (the Kotrain phone app parses those directly).
   const link =
     status.enabled && liveGrant
-      ? `${location.protocol.startsWith('http') ? location.origin + '/' : 'nekkos-pair:'}?relay=${encodeURIComponent(
+      ? `${location.protocol.startsWith('http') ? location.origin + '/' : 'kotrain-pair:'}?relay=${encodeURIComponent(
           status.relayUrl!,
         )}&room=${status.room}&key=${status.key}&pair=${liveGrant.code}`
       : '';
@@ -70,31 +70,31 @@ export function RemoteAccess() {
   const enable = async () => {
     if (!relayUrl.trim()) return;
     setBusy(true);
-    setStatus(await window.nekkos.enableRemote(relayUrl.trim()));
+    setStatus(await window.kotrain.enableRemote(relayUrl.trim()));
     setBusy(false);
   };
   const disable = async () => {
     setBusy(true);
     setGrant(null);
-    setStatus(await window.nekkos.disableRemote());
+    setStatus(await window.kotrain.disableRemote());
     setBusy(false);
   };
   const pair = async () => {
-    setGrant(await window.nekkos.startRemotePairing());
+    setGrant(await window.kotrain.startRemotePairing());
     setNow(Date.now());
   };
   const revoke = async (d: RemoteDevice) => {
     if (!confirm(`Revoke "${d.name}"? It loses access immediately and must be paired again.`)) return;
-    await window.nekkos.revokeRemoteDevice(d.id);
+    await window.kotrain.revokeRemoteDevice(d.id);
     void refresh();
   };
   const rotate = async () => {
     if (!confirm('Rotate the pairing secret? Every paired device is removed and must pair again with a fresh QR.')) return;
     setGrant(null);
-    setStatus(await window.nekkos.rotateRemoteSecret());
+    setStatus(await window.kotrain.rotateRemoteSecret());
   };
   const saveRename = async (id: string) => {
-    if (renameText.trim()) await window.nekkos.renameRemoteDevice(id, renameText.trim());
+    if (renameText.trim()) await window.kotrain.renameRemoteDevice(id, renameText.trim());
     setRenaming(null);
     void refresh();
   };
@@ -138,7 +138,7 @@ export function RemoteAccess() {
             </button>
           </div>
           <p className="text-[11.5px] text-ink-faint">
-            The default is the managed Nekkos relay (free during beta). Privacy purists can{' '}
+            The default is the managed Kotrain relay (free during beta). Privacy purists can{' '}
             <a className="underline" href={SELF_HOST_DOCS} target="_blank" rel="noreferrer">
               self-host the relay
             </a>{' '}
@@ -210,7 +210,7 @@ export function RemoteAccess() {
               {qr && <img src={qr} alt="Pairing QR" width={132} height={132} className="rounded-lg border border-line" />}
               <div className="min-w-0">
                 <div className="text-[12px]">
-                  Scan from the Nekkos app (or open the link in your phone's browser). One device,{' '}
+                  Scan from the Kotrain app (or open the link in your phone's browser). One device,{' '}
                   <span className="font-mono font-medium">{Math.floor(secsLeft / 60)}:{String(secsLeft % 60).padStart(2, '0')}</span>{' '}
                   left.
                 </div>

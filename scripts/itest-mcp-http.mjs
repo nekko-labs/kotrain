@@ -1,9 +1,9 @@
-// Exercises the MCP streamable-HTTP transport against a running NekkosMCP
-// daemon (nekkos-mcpd, default http://localhost:7777): detects the gateway,
-// adds a scratch echo server through the daemon API, connects Nekkos'
+// Exercises the MCP streamable-HTTP transport against a running KotrainMCP
+// daemon (kotrain-mcpd, default http://localhost:7777): detects the gateway,
+// adds a scratch echo server through the daemon API, connects Kotrain'
 // host MCP client to the gateway URL, and lists + calls a tool through it.
 // Usage: node scripts/itest-mcp-http.mjs [daemonBase]
-import { createHost } from '@nekkos/host';
+import { createHost } from '@kotrain/host';
 import { mkdtempSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -11,15 +11,15 @@ import { tmpdir } from 'node:os';
 const base = process.argv[2] || 'http://localhost:7777';
 
 const health = await (await fetch(`${base}/health`)).json().catch(() => null);
-if (health?.service !== 'nekkos-mcpd') {
-  console.error(`No nekkos-mcpd at ${base} — start it (npm run daemon in nekkos-mcp) and retry.`);
+if (health?.service !== 'kotrain-mcpd') {
+  console.error(`No kotrain-mcpd at ${base} — start it (npm run daemon in kotrain-mcp) and retry.`);
   process.exit(1);
 }
 const gw = await (await fetch(`${base}/api/gateway`)).json();
 console.log(`gateway: ${gw.url} (daemon v${health.version})`);
 
-// Give the gateway something to aggregate: the nekkos-mcp echo fixture.
-const echoPath = resolve(process.cwd(), '../nekkos-mcp/packages/core/src/fixtures/echo-server.mjs');
+// Give the gateway something to aggregate: the kotrain-mcp echo fixture.
+const echoPath = resolve(process.cwd(), '../kotrain-mcp/packages/core/src/fixtures/echo-server.mjs');
 await fetch(`${base}/api/servers/op-itest-echo`, { method: 'DELETE' }).catch(() => {});
 const added = await (await fetch(`${base}/api/servers`, {
   method: 'POST',
@@ -33,17 +33,17 @@ if (added.state !== 'ready') {
 
 const host = createHost({ dataDir: mkdtempSync(join(tmpdir(), 'op-mcp-itest-')) });
 await host.updateSettings({
-  mcpServers: [{ id: 'nekkos-mcp', name: 'NekkosMCP gateway', command: '', args: [], url: gw.url, token: gw.token, enabled: true }],
+  mcpServers: [{ id: 'kotrain-mcp', name: 'KotrainMCP gateway', command: '', args: [], url: gw.url, token: gw.token, enabled: true }],
 });
 
 const status = await host.mcpStatus();
-const gwStatus = status.find((s) => s.id === 'nekkos-mcp');
+const gwStatus = status.find((s) => s.id === 'kotrain-mcp');
 console.log(`status: connected=${gwStatus?.connected} tools=${gwStatus?.tools.length} err=${gwStatus?.error ?? '-'}`);
 const echoTool = gwStatus?.tools.find((t) => t.name === 'op-itest-echo__echo');
 
 // Call the tool through the agent tool-routing path.
 const { callMcpTool } = await import('../packages/host/dist/mcp.js');
-const result = await callMcpTool({ id: 't1', name: 'mcp__nekkos-mcp__op-itest-echo__echo', input: { text: 'paw-to-paw' } });
+const result = await callMcpTool({ id: 't1', name: 'mcp__kotrain-mcp__op-itest-echo__echo', input: { text: 'paw-to-paw' } });
 console.log(`tool call: isError=${result.isError} output=${JSON.stringify(result.output)}`);
 
 // Also prove a bad token is rejected.

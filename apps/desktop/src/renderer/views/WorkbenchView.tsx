@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentEvent, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@nekkos/shared';
-import { collectSessionPrUrls, parsePrUrl } from '@nekkos/shared';
+import type { AgentEvent, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@kotrain/shared';
+import { collectSessionPrUrls, parsePrUrl } from '@kotrain/shared';
 import { useStore, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
@@ -11,7 +11,7 @@ import { PrPane, PrBadge } from '../components/PrCard.js';
 import { ContextInspector } from '../components/ContextInspector.js';
 import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
 import { SHORTCUTS } from '../shortcuts.js';
-import { NekkosAvatar } from '../components/Mascot.js';
+import { AphelionAvatar } from '../components/Mascot.js';
 
 /** Short label for a pane's tab/title. */
 function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
@@ -121,7 +121,7 @@ export function WorkbenchView() {
   const newMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { refreshTerminals(); }, [refreshTerminals]);
-  useEffect(() => { window.nekkos.listShells().then(setShells).catch(() => {}); }, []);
+  useEffect(() => { window.kotrain.listShells().then(setShells).catch(() => {}); }, []);
 
   // Close the "+" create menu on an outside click.
   useEffect(() => {
@@ -144,7 +144,7 @@ export function WorkbenchView() {
   // sub-agents by refreshing the list when an unknown id appears.
   useEffect(() => {
     const known = new Set(sessions.map((s) => s.id));
-    const off = window.nekkos.onAgentEvent((e: AgentEvent) => {
+    const off = window.kotrain.onAgentEvent((e: AgentEvent) => {
       const next = statusFromEvent(e.type);
       setStatuses((prev) => {
         const m = new Map(prev);
@@ -609,7 +609,7 @@ function PaneGroupView({
 function EmptyState({ onNewChat, onNewTerminal }: { onNewChat: () => void; onNewTerminal: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-      <div className="grid h-14 w-14 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><NekkosAvatar size={34} /></div>
+      <div className="grid h-14 w-14 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><AphelionAvatar size={34} /></div>
       <div>
         <h2 className="text-lg font-semibold">Your workbench is empty</h2>
         <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">Open a chat to drive an agent, or a terminal to run commands. Open several and split them side by side.</p>

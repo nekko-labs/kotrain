@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { DirEntry } from '@nekkos/shared';
+import type { DirEntry } from '@kotrain/shared';
 import { FileTypeIcon } from '../fileIcons.js';
 import { FolderIcon } from '../icons.js';
 
@@ -8,7 +8,7 @@ import { FolderIcon } from '../icons.js';
  * folder, each directory fetching its children the first time it's expanded.
  * Clicking a file opens it in a FilePane (view/edit in-app). Not a full IDE
  * tree, no rename/DnD yet, just enough to browse and open without leaving
- * Nekkos. The disclosure header belongs to the caller: in the Context panel
+ * Kotrain. The disclosure header belongs to the caller: in the Context panel
  * each project folder's accordion row is the header for its tree.
  */
 export function DirTree({ root, onOpen }: { root: string; onOpen: (path: string) => void }) {
@@ -19,7 +19,7 @@ function DirChildren({ path, depth, onOpen }: { path: string; depth: number; onO
   const [entries, setEntries] = useState<DirEntry[] | null>(null);
   useEffect(() => {
     let live = true;
-    window.nekkos.listDir(path).then((e) => { if (live) setEntries(e); }).catch(() => { if (live) setEntries([]); });
+    window.kotrain.listDir(path).then((e) => { if (live) setEntries(e); }).catch(() => { if (live) setEntries([]); });
     return () => { live = false; };
   }, [path]);
 

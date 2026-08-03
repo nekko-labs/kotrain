@@ -14,7 +14,11 @@ coverage/
 release/
 cli-dist/
 # runtime artifacts written by training/goal/design runs when this repo is
-# itself used as a Nekkos workspace (dogfooding)
+# itself used as a Kotrain workspace (dogfooding). The nekkos-* names are from
+# the interim rebrand and stay ignored so leftovers don't get committed.
+kotrain-training/
+kotrain-goal/
+kotrain-designs/
 nekkos-training/
 nekkos-goal/
 nekkos-designs/

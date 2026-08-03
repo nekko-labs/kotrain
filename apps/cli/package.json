@@ -1,12 +1,12 @@
 {
-  "name": "@nekkos/cli",
+  "name": "@kotrain/cli",
   "version": "0.1.5",
   "private": true,
   "type": "module",
-  "description": "Nekkos CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
+  "description": "Kotrain CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
   "bin": {
-    "nekkos": "./dist/index.js",
-    "kotrain": "./dist/index.js"
+    "kotrain": "./dist/index.js",
+    "nekkos": "./dist/index.js"
   },
   "main": "./dist/run.js",
   "scripts": {
@@ -15,7 +15,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@nekkos/host": "*",
-    "@nekkos/shared": "*"
+    "@kotrain/host": "*",
+    "@kotrain/shared": "*"
   }
 }

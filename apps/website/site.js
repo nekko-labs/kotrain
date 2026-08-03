@@ -1,4 +1,4 @@
-// Nekkos marketing site: starfield backdrop, scroll reveals, OS highlight.
+// Kotrain marketing site: starfield backdrop, scroll reveals, OS highlight.
 (function () {
   // ---- drifting starfield (space-travel feel, honors reduced motion) ----
   const canvas = document.getElementById('stars');
@@ -72,8 +72,8 @@
   window.addEventListener('load', showInView);
 
   // ---- smart download: default to the visitor's machine, menu for everything else ----
-  const RELEASES = 'https://github.com/nekko-labs/nekkos/releases/latest';
-  const API = 'https://api.github.com/repos/nekko-labs/nekkos/releases/latest';
+  const RELEASES = 'https://github.com/nekko-labs/kotrain/releases/latest';
+  const API = 'https://api.github.com/repos/nekko-labs/kotrain/releases/latest';
 
   // Each build we publish, with the pattern that finds it in a release's assets.
   // `pick` is what the primary button chooses for a detected os+arch.
@@ -143,12 +143,12 @@
   function renderMain() {
     const b = chosen();
     if (!b) {
-      mainTitle.textContent = 'Download Nekkos';
+      mainTitle.textContent = 'Download Kotrain';
       mainSub.textContent = mobile ? 'Desktop app, then pair this phone' : 'Latest release on GitHub';
       main.href = RELEASES;
       if (note) {
         note.textContent = mobile
-          ? 'Nekkos runs on your computer. Install it there, then pair this phone to it over the encrypted relay.'
+          ? 'Kotrain runs on your computer. Install it there, then pair this phone to it over the encrypted relay.'
           : 'Pick a build from the menu, or see them all on GitHub Releases.';
       }
       return;

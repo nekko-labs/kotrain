@@ -6,7 +6,7 @@
  * the draft here means it is still waiting when you come back.
  */
 
-const KEY = 'nekkos.appposerDrafts';
+const KEY = 'kotrain.composerDrafts';
 
 /**
  * Rough ceiling for the whole draft map. Pending images are data URLs, so a

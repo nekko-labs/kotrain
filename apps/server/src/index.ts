@@ -6,27 +6,27 @@ import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
-import { createHost, createDispatcher } from '@nekkos/host';
-import { IpcEvents } from '@nekkos/shared';
+import { createHost, createDispatcher } from '@kotrain/host';
+import { IpcEvents } from '@kotrain/shared';
 import { runRelayAgent } from './relay-agent.js';
-import { runCli } from '@nekkos/cli';
+import { runCli } from '@kotrain/cli';
 
-/** Subcommands handled by the embedded CLI (so `npx nekkos mcp|chat|…` works). */
+/** Subcommands handled by the embedded CLI (so `npx kotrain mcp|chat|…` works). */
 const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', 'help', 'version']);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** NEKKOS_* env with legacy KOTRAIN_* / OPENPAW_* fallbacks (pre-rebrand installs). */
+/** KOTRAIN_* env with legacy NEKKOS_* / OPENPAW_* fallbacks (earlier-brand installs). */
 function env(name: string): string | undefined {
   return (
-    process.env[`NEKKOS_${name}`] ?? process.env[`KOTRAIN_${name}`] ?? process.env[`OPENPAW_${name}`]
+    process.env[`KOTRAIN_${name}`] ?? process.env[`NEKKOS_${name}`] ?? process.env[`OPENPAW_${name}`]
   );
 }
-/** Default data dir: ~/.nekkos, but keep using a pre-rebrand ~/.kotrain or ~/.open-paw if one exists. */
+/** Default data dir: ~/.kotrain, but keep using a ~/.nekkos or ~/.open-paw if one exists. */
 function defaultDataDir(): string {
-  const next = join(homedir(), '.nekkos');
+  const next = join(homedir(), '.kotrain');
   if (existsSync(next)) return next;
-  for (const name of ['.kotrain', '.open-paw']) {
+  for (const name of ['.nekkos', '.open-paw']) {
     const legacy = join(homedir(), name);
     if (existsSync(legacy)) return legacy;
   }
@@ -39,7 +39,7 @@ const isLocal = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
 const DATA_DIR = env('DATA_DIR') ?? defaultDataDir();
 // Auth is required iff a token is configured. (Containers must bind 0.0.0.0 but
 // are typically published only to the host's localhost, so we don't force a
-// token just because of the bind address, set NEKKOS_TOKEN when truly exposed.)
+// token just because of the bind address, set KOTRAIN_TOKEN when truly exposed.)
 const TOKEN = env('TOKEN') ?? '';
 const requireAuth = TOKEN !== '';
 
@@ -56,7 +56,7 @@ function findRendererDir(): string {
 const RENDERER_DIR = findRendererDir();
 
 async function main() {
-  // Subcommand → embedded CLI (e.g. `npx nekkos mcp`, `nekkos status`).
+  // Subcommand → embedded CLI (e.g. `npx kotrain mcp`, `kotrain status`).
   const sub = process.argv[2];
   if (sub && CLI_SUBCOMMANDS.has(sub)) {
     await runCli(process.argv.slice(2));
@@ -78,17 +78,17 @@ async function main() {
 
   if (!existsSync(join(RENDERER_DIR, 'index.html'))) {
     console.error(
-      `[nekkos] Renderer not found at ${RENDERER_DIR}.\n` +
-        `Build it first (npm run build -w @nekkos/desktop) or set NEKKOS_RENDERER_DIR.`,
+      `[kotrain] Renderer not found at ${RENDERER_DIR}.\n` +
+        `Build it first (npm run build -w @kotrain/desktop) or set KOTRAIN_RENDERER_DIR.`,
     );
     process.exit(1);
   }
 
   // Report this build's version (for the web edition's refresh-when-updated check).
-  if (!process.env.NEKKOS_VERSION) {
+  if (!process.env.KOTRAIN_VERSION) {
     try {
       const { createRequire } = await import('node:module');
-      process.env.NEKKOS_VERSION = createRequire(import.meta.url)('../package.json').version ?? '0.0.0';
+      process.env.KOTRAIN_VERSION = createRequire(import.meta.url)('../package.json').version ?? '0.0.0';
     } catch {
       /* leave unset → host reports 0.0.0 */
     }
@@ -99,7 +99,7 @@ async function main() {
   const app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
   await app.register(websocket);
 
-  // Auth: only enforced when a token is configured (NEKKOS_TOKEN).
+  // Auth: only enforced when a token is configured (KOTRAIN_TOKEN).
   const authorized = (suppliedToken: string | undefined) => !requireAuth || suppliedToken === TOKEN;
 
   app.addHook('onRequest', async (req, reply) => {
@@ -110,7 +110,7 @@ async function main() {
     if (!authorized(bearer ?? q)) reply.code(401).send({ error: 'unauthorized' });
   });
 
-  // One HTTP route fronts the whole NekkosApi via the shared dispatcher.
+  // One HTTP route fronts the whole KotrainApi via the shared dispatcher.
   app.post<{ Params: { channel: string }; Body: { args?: unknown[] } }>('/api/:channel', async (req, reply) => {
     try {
       const result = await dispatch(req.params.channel, req.body?.args ?? []);
@@ -150,11 +150,11 @@ async function main() {
 
   await app.listen({ port: PORT, host: HOST });
   const url = `http://${isLocal ? 'localhost' : HOST}:${PORT}`;
-  console.log(`\n🐾 Nekkos web edition running at ${url}`);
+  console.log(`\n🐾 Kotrain web edition running at ${url}`);
   console.log(`   data dir: ${DATA_DIR}`);
   if (requireAuth) console.log(`   auth: token required (append ?token=… to the URL)`);
   else if (!isLocal)
-    console.log(`   ⚠ bound to ${HOST} without a token, set NEKKOS_TOKEN to require auth before exposing publicly.`);
+    console.log(`   ⚠ bound to ${HOST} without a token, set KOTRAIN_TOKEN to require auth before exposing publicly.`);
   console.log(`   (offline-first, only reaches the model servers + connectors you configure)\n`);
 }
 

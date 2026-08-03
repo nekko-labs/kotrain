@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { ChatMode, Session } from '@nekkos/shared';
+import type { ChatMode, Session } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { WrenchIcon, PlaneIcon, MaskIcon } from '../icons.js';
 
@@ -36,7 +36,7 @@ export function ChatControls({
   const [toolQuery, setToolQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { window.nekkos.listTools().then(setTools); }, []);
+  useEffect(() => { window.kotrain.listTools().then(setTools); }, []);
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) { setToolsOpen(false); setModeOpen(false); }
@@ -61,7 +61,7 @@ export function ChatControls({
     : tools;
 
   const patch = async (p: Partial<Session>) => {
-    const next = await window.nekkos.setSessionOptions(session.id, p as any);
+    const next = await window.kotrain.setSessionOptions(session.id, p as any);
     onChange(next);
   };
 

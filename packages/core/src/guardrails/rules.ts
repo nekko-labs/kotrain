@@ -1,4 +1,4 @@
-import type { GuardrailRule } from '@nekkos/shared';
+import type { GuardrailRule } from '@kotrain/shared';
 
 /**
  * Default guardrail ruleset. These ship enabled out of the box so that risky

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 export type MascotMood = 'idle' | 'waving' | 'thinking';
 
-/** A space move in Nekkos' zero-g routine (cycled while the model thinks). */
+/** A space move in Aphelion' zero-g routine (cycled while the model thinks). */
 type SpaceMove = 'drift' | 'orbit' | 'bat';
 
 /**
@@ -10,7 +10,7 @@ type SpaceMove = 'drift' | 'orbit' | 'bat';
  * helmet's ear pods, the whiskers, and the ginger tail (a nod to the original
  * ginger Nekko) are the only cat tells.
  */
-const NEKKOS = {
+const APHELION = {
   ink: '#454e73', // pencil ink, muted indigo so lines read on the dark chrome
   face: '#2d3348', // feature ink on the cream face
   suit: '#f5efdf',
@@ -60,14 +60,14 @@ function Sparkle({ x, y, s, color, className }: { x: number; y: number; s: numbe
 }
 
 /**
- * A tiny inline Nekkos: just the helmet with a spark running its orbit, sized
+ * A tiny inline Aphelion: just the helmet with a spark running its orbit, sized
  * to sit on a single text line next to a status label (a la Claude Code's
  * spinner). The orbiting spark is the "working" signal.
  */
-export function MiniNekkos({ size = 18 }: { size?: number }) {
-  const C = NEKKOS;
+export function MiniAphelion({ size = 18 }: { size?: number }) {
+  const C = APHELION;
   return (
-    <span className="nekkos-mini-float inline-block shrink-0 align-middle" style={{ lineHeight: 0 }}>
+    <span className="aphelion-mini-float inline-block shrink-0 align-middle" style={{ lineHeight: 0 }}>
       <svg viewBox="0 0 26 26" width={size} height={size} fill="none">
         {/* ear pods */}
         <path d="M 8.6 6.9 Q 7.8 2.6 10.4 1.7 Q 12.5 2.8 12.3 5.4" fill={C.suit} stroke={C.ink} strokeWidth={1.1} strokeLinejoin="round" />
@@ -82,7 +82,7 @@ export function MiniNekkos({ size = 18 }: { size?: number }) {
         {/* glint */}
         <path d="M 7.4 9.6 Q 9.2 6.9 12 6.2" stroke={C.glint} strokeWidth={1.2} strokeLinecap="round" opacity={0.85} />
         {/* the working spark, running a lap around the helmet */}
-        <g style={{ transformBox: 'view-box', transformOrigin: '13px 13.6px' }} className="nekkos-orbit">
+        <g style={{ transformBox: 'view-box', transformOrigin: '13px 13.6px' }} className="aphelion-orbit">
           <circle cx={13} cy={1.8} r={1.4} fill={C.star} />
         </g>
       </svg>
@@ -91,13 +91,13 @@ export function MiniNekkos({ size = 18 }: { size?: number }) {
 }
 
 /**
- * Nekkos' helmet portrait, still and centred, for the identity tiles: the
+ * Aphelion' helmet portrait, still and centred, for the identity tiles: the
  * rail's brand mark, the empty states, and the login/pairing heroes. Same
  * hand-drawn vocabulary as the animated mascot, so the app has one cat rather
  * than a mascot in the corner and an emoji everywhere else.
  */
-export function NekkosAvatar({ size = 28, title }: { size?: number; title?: string }) {
-  const C = NEKKOS;
+export function AphelionAvatar({ size = 28, title }: { size?: number; title?: string }) {
+  const C = APHELION;
   return (
     <svg
       viewBox="0 0 26 24"
@@ -132,7 +132,7 @@ export function NekkosAvatar({ size = 28, title }: { size?: number; title?: stri
 }
 
 /**
- * Nekkos, a hand-drawn astronaut cat that floats at the bottom of the left nav
+ * Aphelion, a hand-drawn astronaut cat that floats at the bottom of the left nav
  * rail. It waves on idle/greeting and works in zero-g while the model is
  * thinking: a slow drift, then a lap around its own little orbit, then batting
  * at a passing comet, cycling until the turn ends.
@@ -140,7 +140,7 @@ export function NekkosAvatar({ size = 28, title }: { size?: number; title?: stri
 export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }) {
   const [peek, setPeek] = useState(false);
   // Interaction: hovering gives a gentle wiggle, clicking a one-shot boost hop,
-  // and either (like thinking) leans Nekkos to the right so it "points" that way.
+  // and either (like thinking) leans Aphelion to the right so it "points" that way.
   const [hovering, setHovering] = useState(false);
   const [reacting, setReacting] = useState(false);
   const thinking = mood === 'thinking';
@@ -152,7 +152,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
   }, [enabled]);
 
   if (!enabled) return null;
-  const C = NEKKOS;
+  const C = APHELION;
   const drifting = thinking && move === 'drift';
   const orbiting = thinking && move === 'orbit';
   const batting = thinking && move === 'bat';
@@ -160,21 +160,21 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
   // Point right whenever anything is animating; pick the reaction animation
   // (click beats hover; thinking keeps its own in-sprite moves).
   const active = thinking || hovering || reacting;
-  const reactionAnim = reacting ? 'nekkos-hop' : hovering && !thinking ? 'nekkos-hover-wiggle' : '';
-  const bodyAnim = drifting ? 'nekkos-drift' : 'nekkos-float';
+  const reactionAnim = reacting ? 'aphelion-hop' : hovering && !thinking ? 'aphelion-hover-wiggle' : '';
+  const bodyAnim = drifting ? 'aphelion-drift' : 'aphelion-float';
 
   return (
     <div
-      className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'nekkos-peek' : ''}`}
+      className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'aphelion-peek' : ''}`}
     >
       <div
-        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${active ? 'nekkos-lean-right' : 'nekkos-lean'}`}
+        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${active ? 'aphelion-lean-right' : 'aphelion-lean'}`}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         onClick={() => setReacting(true)}
-        title={thinking ? 'Nekkos is in orbit…' : reacting ? 'Boost!' : 'Nekkos'}
+        title={thinking ? 'Aphelion is in orbit…' : reacting ? 'Boost!' : 'Aphelion'}
         role="button"
-        aria-label="Nekkos mascot"
+        aria-label="Aphelion mascot"
       >
         <div
           className={reactionAnim}
@@ -182,10 +182,10 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
         >
           {/* viewBox extends past the body so the orbit + comet aren't clipped */}
           <svg viewBox="-6 -8 76 104" width="62" height="85" fill="none">
-            {/* backdrop sparkles, twinkling while Nekkos works */}
-            <Sparkle x={4} y={14} s={2.2} color={C.star} className={thinking ? 'nekkos-twinkle' : 'nekkos-twinkle-slow'} />
-            <Sparkle x={60} y={40} s={1.8} color={C.violet} className="nekkos-twinkle-slow" />
-            <Sparkle x={8} y={64} s={1.6} color={C.glint} className={thinking ? 'nekkos-twinkle' : 'nekkos-twinkle-slow'} />
+            {/* backdrop sparkles, twinkling while Aphelion works */}
+            <Sparkle x={4} y={14} s={2.2} color={C.star} className={thinking ? 'aphelion-twinkle' : 'aphelion-twinkle-slow'} />
+            <Sparkle x={60} y={40} s={1.8} color={C.violet} className="aphelion-twinkle-slow" />
+            <Sparkle x={8} y={64} s={1.6} color={C.glint} className={thinking ? 'aphelion-twinkle' : 'aphelion-twinkle-slow'} />
 
             <g className={bodyAnim} style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
               {/* ear pods on the helmet, ginger-tipped (the subtle cat) */}
@@ -246,7 +246,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
               {/* left arm: waves on greeting, floats otherwise */}
               <g
-                className={mood === 'waving' ? 'nekkos-wave' : ''}
+                className={mood === 'waving' ? 'aphelion-wave' : ''}
                 style={{ transformBox: 'fill-box', transformOrigin: '85% 20%' }}
               >
                 <path d="M 24 48.6 C 20 50.2 16.6 53.2 15 56.8" stroke={C.ink} strokeWidth={6.6} strokeLinecap="round" fill="none" />
@@ -255,7 +255,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
               </g>
               {/* right arm: swipes at the comet while batting */}
               <g
-                className={batting ? 'nekkos-bat' : ''}
+                className={batting ? 'aphelion-bat' : ''}
                 style={{ transformBox: 'fill-box', transformOrigin: '15% 20%' }}
               >
                 <path d="M 40 48.6 C 44 50.2 47.4 53.2 49 56.8" stroke={C.ink} strokeWidth={6.6} strokeLinecap="round" fill="none" />
@@ -271,19 +271,19 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
               {/* boost puff under the boots on click */}
               {reacting && (
-                <g className="nekkos-puff">
+                <g className="aphelion-puff">
                   <path d="M 26 84 q 1.4 1.6 3 0 M 33 84.6 q 1.6 1.6 3.4 0" stroke={C.glint} strokeWidth={1.6} strokeLinecap="round" />
                   <circle cx={31} cy={87} r={1.2} fill={C.glint} />
                 </g>
               )}
             </g>
 
-            {/* orbit move: a spark laps Nekkos on a tilted ring */}
+            {/* orbit move: a spark laps Aphelion on a tilted ring */}
             {orbiting && (
               <g transform="rotate(-14 32 48)">
                 <g transform="translate(32 48) scale(1 0.34)">
                   <circle cx={0} cy={0} r={30} stroke={C.glint} strokeWidth={1.6} strokeDasharray="3 5" opacity={0.4} fill="none" />
-                  <g className="nekkos-orbit">
+                  <g className="aphelion-orbit">
                     <circle cx={30} cy={0} r={3.1} fill={C.star} />
                   </g>
                 </g>
@@ -292,7 +292,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
             {/* bat move: a comet drifts through and gets swatted */}
             {batting && (
-              <g className="nekkos-comet">
+              <g className="aphelion-comet">
                 <path d="M 0 0 q -7 1.4 -13 3.6" stroke={C.star} strokeWidth={1.3} strokeLinecap="round" strokeDasharray="4 3" opacity={0.7} />
                 <circle cx={1.5} cy={-0.5} r={2.5} fill={C.star} />
               </g>

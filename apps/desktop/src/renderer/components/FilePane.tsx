@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { LineComment } from '@nekkos/shared';
+import type { LineComment } from '@kotrain/shared';
 import { Markdown } from './Markdown.js';
 import { FileTypeIcon } from '../fileIcons.js';
 import { ExternalIcon, CloseIcon, UndoIcon, RedoIcon, CopyIcon, PasteIcon } from '../icons.js';
@@ -13,7 +13,7 @@ const AUTOSAVE_DELAY = 900;
 const COALESCE_MS = 600;
 /** Cap on the undo history, so a long editing session can't grow unbounded. */
 const HISTORY_LIMIT = 200;
-const AUTOSAVE_KEY = 'nekkos.editor.autoSave';
+const AUTOSAVE_KEY = 'kotrain.editor.autoSave';
 
 /** A point in the edit history: the text plus where the caret was. */
 interface Snapshot {
@@ -46,7 +46,7 @@ function readAutoSavePref(): boolean {
  * with auto-save, undo/redo, and clipboard actions. A gutter "+" lets you drop
  * an inline comment on any line that the agent picks up, Add to prompt (queue
  * it) or Run now (send it). Deliberately not a full IDE, just enough to read,
- * tweak, and steer changes without leaving Nekkos.
+ * tweak, and steer changes without leaving Kotrain.
  */
 export function FilePane({ path }: { path: string }) {
   const isMd = /\.(md|markdown)$/i.test(path);
@@ -89,7 +89,7 @@ export function FilePane({ path }: { path: string }) {
     redoStack.current = [];
     setHistoryDepth({ undo: 0, redo: 0 });
     setSavedAt(null);
-    window.nekkos.readFile(path).then((f) => {
+    window.kotrain.readFile(path).then((f) => {
       if (!live) return;
       setContent(f.content);
       setBinary(f.binary);
@@ -97,7 +97,7 @@ export function FilePane({ path }: { path: string }) {
       setDirty(false);
       setLoaded(true);
     }).catch(() => { if (live) { setLoaded(true); setBinary(false); } });
-    window.nekkos.listComments(path).then((c) => { if (live) setComments(c); }).catch(() => {});
+    window.kotrain.listComments(path).then((c) => { if (live) setComments(c); }).catch(() => {});
     return () => { live = false; };
   }, [path]);
 
@@ -111,7 +111,7 @@ export function FilePane({ path }: { path: string }) {
   const write = useCallback(async (text: string) => {
     setSaving(true);
     try {
-      await window.nekkos.writeFile(path, text);
+      await window.kotrain.writeFile(path, text);
       setDirty(false);
       setSavedAt(Date.now());
     } catch {
@@ -140,7 +140,7 @@ export function FilePane({ path }: { path: string }) {
   useEffect(() => {
     const flush = () => {
       const { dirty: isDirty, truncated: isTruncated, content: text } = latest.current;
-      if (readAutoSavePref() && isDirty && !isTruncated) void window.nekkos.writeFile(path, text).catch(() => {});
+      if (readAutoSavePref() && isDirty && !isTruncated) void window.kotrain.writeFile(path, text).catch(() => {});
     };
     window.addEventListener('beforeunload', flush);
     return () => { window.removeEventListener('beforeunload', flush); flush(); };
@@ -257,19 +257,19 @@ export function FilePane({ path }: { path: string }) {
     }
   };
 
-  const reloadComments = () => window.nekkos.listComments(path).then(setComments).catch(() => {});
+  const reloadComments = () => window.kotrain.listComments(path).then(setComments).catch(() => {});
 
   // Persist a new comment on the active line, then optionally route it to a chat.
   const addComment = async (text: string, action: 'save' | 'prompt' | 'run') => {
     if (activeLine == null || !text.trim()) return;
     const lineText = lines[activeLine - 1] ?? '';
-    await window.nekkos.addComment(path, activeLine, lineText, text.trim());
+    await window.kotrain.addComment(path, activeLine, lineText, text.trim());
     await reloadComments();
     if (action !== 'save') await sendToChat(commentBlock(name, activeLine, lineText, text.trim()), action === 'run');
   };
 
   const resolveComment = async (id: string) => {
-    await window.nekkos.resolveComment(path, id);
+    await window.kotrain.resolveComment(path, id);
     reloadComments();
   };
 
@@ -325,7 +325,7 @@ export function FilePane({ path }: { path: string }) {
             </button>
           )}
           <button className="rounded p-1 text-ink-faint hover:text-ink" title="Reveal in OS"
-            onClick={() => window.nekkos.openPath(path)}><ExternalIcon className="h-3.5 w-3.5" /></button>
+            onClick={() => window.kotrain.openPath(path)}><ExternalIcon className="h-3.5 w-3.5" /></button>
         </span>
       </div>
 

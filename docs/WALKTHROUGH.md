@@ -1,6 +1,6 @@
-# Nekkos, Walkthrough
+# Kotrain, Walkthrough
 
-A guided tour of Nekkos, from install to your first agentic edit. Screenshots
+A guided tour of Kotrain, from install to your first agentic edit. Screenshots
 are from the running app.
 
 - [1. Install](#1-install)
@@ -18,31 +18,31 @@ are from the running app.
 ## 1. Install
 
 **Download a build** for your platform from the
-[Releases page](https://github.com/nekko-labs/nekkos/releases/latest):
+[Releases page](https://github.com/nekko-labs/kotrain/releases/latest):
 
 | Platform | Artifact |
 | --- | --- |
-| Windows | `Nekkos-Paw-<version>-x64.msi` (or the `.exe`) |
-| macOS | `Nekkos-Paw-<version>-arm64.dmg` (Apple Silicon) |
+| Windows | `Kotrain-Paw-<version>-x64.msi` (or the `.exe`) |
+| macOS | `Kotrain-Paw-<version>-arm64.dmg` (Apple Silicon) |
 | Linux | `.AppImage` or `.deb` |
 
 **Or run from source:**
 
 ```bash
-git clone https://github.com/nekko-labs/nekkos
-cd nekkos
+git clone https://github.com/nekko-labs/kotrain
+cd kotrain
 npm install
 npm run dev          # launches the desktop app
 ```
 
-Nekkos stores everything locally (under your OS app-data dir): settings,
+Kotrain stores everything locally (under your OS app-data dir): settings,
 sessions, memory, and a usage log. No account, no telemetry.
 
 ---
 
 ## 2. Connect a model
 
-Open the **Models** tab. This is where Nekkos differs from most tools, local
+Open the **Models** tab. This is where Kotrain differs from most tools, local
 model servers are first-class, not an afterthought.
 
 ![Models tab](screenshots/models.png)
@@ -62,8 +62,8 @@ model servers are first-class, not an afterthought.
 ### Example: connect an LM Studio server
 
 1. In LM Studio, load a model and start its server (Developer → Start Server).
-2. In Nekkos: **Add provider → LM Studio**, set the **Base URL** to your server,
-   e.g. `http://10.5.0.2:1338` (you can paste just `host:port`, Nekkos appends
+2. In Kotrain: **Add provider → LM Studio**, set the **Base URL** to your server,
+   e.g. `http://10.5.0.2:1338` (you can paste just `host:port`, Kotrain appends
    `/v1` automatically). No API key needed.
 3. **Test connection** → the model dropdown fills with whatever LM Studio is serving.
 4. Pick the model in the chat header and go.
@@ -78,7 +78,7 @@ answer, so you see progress during long reasoning and the answer stays clean.
 
 The **Chat** tab is the heart of the app. There are no separate "chat", "cowork",
 and "code" modes, it's one thread. Ask a question, or hand off a task and let
-Nekkos act on your machine through tools (read / write / edit files, glob, grep,
+Kotrain act on your machine through tools (read / write / edit files, glob, grep,
 list dirs, run shell commands).
 
 ![Unified chat](screenshots/chat.png)
@@ -88,7 +88,7 @@ list dirs, run shell commands).
   makes shows up as a card so you can see exactly what it did.
 - Streaming is live; hit **Stop** to abort a turn.
 
-**Keyboard shortcuts**: Nekkos has a command palette (think Cmd-K everywhere):
+**Keyboard shortcuts**: Kotrain has a command palette (think Cmd-K everywhere):
 
 | Shortcut | Action |
 | --- | --- |
@@ -102,7 +102,7 @@ list dirs, run shell commands).
 
 ## 4. The Context Inspector
 
-The right-hand panel (toggle it with the panel icon) is Nekkos' signature
+The right-hand panel (toggle it with the panel icon) is Kotrain's signature
 feature. It shows **exactly what is entering the prompt this turn**, grouped by
 where it came from:
 
@@ -121,7 +121,7 @@ and shape it.
 
 ## 5. Guardrails & sandbox
 
-Open **Settings**. Two layers keep Nekkos from doing something you didn't intend.
+Open **Settings**. Two layers keep Kotrain from doing something you didn't intend.
 
 ![Guardrails & sandbox](screenshots/guardrails.png)
 
@@ -163,7 +163,7 @@ classes, interfaces, types) so the agent and search have a fast map of your code
 The **Memory** tab is a simple, durable knowledge base stored as plain markdown.
 Keep **global** memories (preferences, conventions) and **per-project** memories.
 Relevant entries are surfaced in the Context Inspector and injected automatically,
-so Nekkos remembers how you like to work across sessions.
+so Kotrain remembers how you like to work across sessions.
 
 ---
 
@@ -178,11 +178,11 @@ to confirm it works, and the results become available to the assistant.
 
 ## 9. The mascot
 
-**Nekkos** is the 8-bit cat that lives at the edge of the window. It waves to say
+**Kotrain** is the 8-bit cat that lives at the edge of the window. It waves to say
 hello, peeks in from the side, and **"makes cat biscuits"** (kneads its paws) while
 the model is thinking. Don't want it? Toggle it off in Settings → Appearance.
 
 ---
 
 Questions or ideas? Open an issue on
-[GitHub](https://github.com/nekko-labs/nekkos/issues).
+[GitHub](https://github.com/nekko-labs/kotrain/issues).

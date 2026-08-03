@@ -1,4 +1,4 @@
-import type { ContextItem } from '@nekkos/shared';
+import type { ContextItem } from '@kotrain/shared';
 
 /**
  * Semantic color tokens for inline styles.

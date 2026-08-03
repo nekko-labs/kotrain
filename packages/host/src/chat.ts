@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@nekkos/shared';
-import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, clampMaxSteps, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@nekkos/shared';
+import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@kotrain/shared';
+import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, clampMaxSteps, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@kotrain/shared';
 import {
   createProvider,
   runAgent,
@@ -14,7 +14,7 @@ import {
   REPORT_EXPERIMENT_TOOL,
   REPORT_ARTIFACT_TOOL,
   UPDATE_PLAN_TOOL,
-} from '@nekkos/core';
+} from '@kotrain/core';
 import { reportExperiment, reportArtifact, updateRunPlan } from './training.js';
 import { getSettings } from './store.js';
 import { getSession, saveSession, createSession } from './sessions.js';

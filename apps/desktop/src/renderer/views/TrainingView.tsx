@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { DatasetRef, BaseModelRef, NewTrainingRun, TrainingConfig, TrainingRun } from '@nekkos/shared';
+import type { DatasetRef, BaseModelRef, NewTrainingRun, TrainingConfig, TrainingRun } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { ArtifactsCard, ChampionCard, HintComposer, IdeaMaze, RunLog, RunModelPicker, RunNowStrip, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
 
@@ -19,8 +19,8 @@ export function TrainingView() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    void window.nekkos.listTrainingRuns().then(setRuns);
-    return window.nekkos.onTrainingUpdated(setRuns);
+    void window.kotrain.listTrainingRuns().then(setRuns);
+    return window.kotrain.onTrainingUpdated(setRuns);
   }, []);
 
   const mine = runs.filter((r) => r.kind === 'training');
@@ -79,11 +79,11 @@ export function TrainingView() {
 }
 
 function RunDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (sessionId: string) => void }) {
-  const start = () => void window.nekkos.startTrainingRun(run.id);
-  const pause = () => void window.nekkos.pauseTrainingRun(run.id);
-  const stop = () => void window.nekkos.stopTrainingRun(run.id);
+  const start = () => void window.kotrain.startTrainingRun(run.id);
+  const pause = () => void window.kotrain.pauseTrainingRun(run.id);
+  const stop = () => void window.kotrain.stopTrainingRun(run.id);
   const remove = () => {
-    if (confirm(`Delete run "${run.name}"? The experiment history is lost.`)) void window.nekkos.deleteTrainingRun(run.id);
+    if (confirm(`Delete run "${run.name}"? The experiment history is lost.`)) void window.kotrain.deleteTrainingRun(run.id);
   };
   const cfg = run.config ?? {};
   // Run controls live in one cluster (Start · Pause · Stop); Open chat + Delete
@@ -202,8 +202,8 @@ function NewRunForm({
       ...(providerId && modelId.trim() ? { providerId, modelId: modelId.trim() } : {}),
     };
     try {
-      const run = await window.nekkos.createTrainingRun(input);
-      if (startNow) await window.nekkos.startTrainingRun(run.id);
+      const run = await window.kotrain.createTrainingRun(input);
+      if (startNow) await window.kotrain.startTrainingRun(run.id);
       onCreated(run);
     } finally {
       setBusy(false);

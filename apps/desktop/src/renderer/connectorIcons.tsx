@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ConnectorKind } from '@nekkos/shared';
+import type { ConnectorKind } from '@kotrain/shared';
 
 /**
  * Official brand marks for the connectors (single-path logos from Simple Icons,

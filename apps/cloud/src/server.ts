@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
-import { createHost, createDispatcher, withDataDir, type Host } from '@nekkos/host';
-import { IpcChannels, IpcEvents } from '@nekkos/shared';
+import { createHost, createDispatcher, withDataDir, type Host } from '@kotrain/host';
+import { IpcChannels, IpcEvents } from '@kotrain/shared';
 import { CloudStore, publicAccount, type Account } from './accounts.js';
 import { entitlements, requireWithin } from './entitlements.js';
 import { createBilling, planChangeFromEvent, type Billing, type PaidPlan } from './billing.js';
@@ -19,7 +19,7 @@ export interface CloudServerOptions {
 }
 
 /**
- * Nekkos Cloud server. Fronts the SAME host engine + dispatcher as every other
+ * Kotrain Cloud server. Fronts the SAME host engine + dispatcher as every other
  * edition, but per authenticated account: each account gets an isolated data
  * dir (its own settings/sessions/memory) via `withDataDir`, and feature limits
  * are enforced server-side from the account's plan. The OSS app never does any
@@ -95,7 +95,7 @@ export function createCloudServer(opts: CloudServerOptions): { app: FastifyInsta
     });
 
     // --- Relay (managed passthrough) ---
-    // A gated relay (NEKKOS_RELAY_AUTHZ_URL pointing here) asks whether the
+    // A gated relay (KOTRAIN_RELAY_AUTHZ_URL pointing here) asks whether the
     // agent presenting this bearer token may enroll. Any authenticated account
     // qualifies today (managed relay is free during beta); the reply carries the
     // plan's device allowance so limits can be surfaced/enforced downstream.
@@ -137,7 +137,7 @@ export function createCloudServer(opts: CloudServerOptions): { app: FastifyInsta
       }
     });
 
-    // --- Authenticated NekkosApi (per-account host, isolated data dir) ---
+    // --- Authenticated KotrainApi (per-account host, isolated data dir) ---
     api.post<{ Params: { channel: string }; Body: { args?: unknown[] } }>(
       '/api/:channel',
       async (req, reply) => {

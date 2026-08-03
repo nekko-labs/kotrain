@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { dataDir } from '@nekkos/host';
+import { dataDir } from '@kotrain/host';
 
 export interface WindowBounds {
   width: number;

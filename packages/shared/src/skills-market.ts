@@ -9,7 +9,7 @@
  *    offline-first snapshot so the marketplace works with no internet.
  *  - **Installed**, what the user has installed, and where.
  *
- * A skill can be installed into **Nekkos** itself (it joins the `/` menu and
+ * A skill can be installed into **Kotrain** itself (it joins the `/` menu and
  * the Skills tab) or exported to another agent app that reads the SKILL.md
  * convention (Claude Code `~/.claude/skills`, Codex `~/.codex/skills`).
  */
@@ -19,7 +19,7 @@ import type { SkillCategory, SkillDef, SkillWorkflow } from './skills.js';
 export type SkillSource = 'nekkolabs' | 'community' | 'vaizer';
 
 /** Where a skill can be installed. */
-export type InstallTarget = 'nekkos' | 'claude' | 'codex';
+export type InstallTarget = 'kotrain' | 'claude' | 'codex';
 
 export interface InstallTargetInfo {
   id: InstallTarget;
@@ -34,7 +34,7 @@ export interface InstallTargetInfo {
 
 export interface MarketplaceSkill {
   id: string;
-  /** Invoked as `/name` once installed into Nekkos. */
+  /** Invoked as `/name` once installed into Kotrain. */
   name: string;
   description: string;
   author: string;
@@ -46,14 +46,14 @@ export interface MarketplaceSkill {
   stars?: number;
   installs?: number;
   tools?: string[];
-  /** Text dropped into the composer when run inside Nekkos. */
+  /** Text dropped into the composer when run inside Kotrain. */
   template: string;
   /** Longer instructions written to SKILL.md for file-based installs. */
   instructions: string;
   /** Optional bespoke workflow graph; `marketWorkflow` derives one otherwise. */
   workflow?: SkillWorkflow;
   /** Trust tier for skills from the Vaizer hub. */
-  tier?: 'nekkos-official' | 'community';
+  tier?: 'kotrain-official' | 'community';
   /**
    * Verbatim SKILL.md for skills sourced outside the built-in catalog
    * (Vaizer). File-based installs write this instead of a generated summary.
@@ -76,15 +76,15 @@ export interface InstalledSkillRecord {
 }
 
 /** First-party skills by Nekko Labs. */
-export const NEKKOS_SKILLS: MarketplaceSkill[] = [
+export const KOTRAIN_SKILLS: MarketplaceSkill[] = [
   {
-    id: 'nekkos-review-council',
+    id: 'kotrain-review-council',
     name: 'review-council',
     description: 'Summon a council of specialised reviewers over your diff: correctness, security, and simplicity, each reporting separately',
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Code quality',
-    url: 'https://github.com/nekko-labs/nekkos',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 4820,
     tools: ['git diff', 'read_file', 'spawn_agent'],
     template: 'Run a review council over the current changes: spawn three parallel reviewers (correctness bugs, security, simplification), then merge their findings into one ranked report.',
@@ -113,13 +113,13 @@ export const NEKKOS_SKILLS: MarketplaceSkill[] = [
     },
   },
   {
-    id: 'nekkos-spec-sync',
+    id: 'kotrain-spec-sync',
     name: 'spec-sync',
     description: 'Reconcile SPEC.md with the code: find shipped features the spec missed and spec promises the code broke',
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Research & planning',
-    url: 'https://github.com/nekko-labs/nekkos',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 3110,
     tools: ['read_file', 'search'],
     template: 'Compare SPEC.md against the actual code: list shipped features the spec does not mention, and spec claims the code no longer satisfies. Then update SPEC.md to match reality.',
@@ -127,13 +127,13 @@ export const NEKKOS_SKILLS: MarketplaceSkill[] = [
       'Read the workspace SPEC.md, then survey the codebase (entry points, routes, views, commands). Produce two lists: features that exist in code but are missing from the spec, and spec statements the code contradicts. Update SPEC.md so it describes the system as it actually is, keeping its existing voice and structure.',
   },
   {
-    id: 'nekkos-changelog',
+    id: 'kotrain-changelog',
     name: 'changelog',
     description: 'Write a user-facing changelog entry from the commits since the last release tag',
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Delivery',
-    url: 'https://github.com/nekko-labs/nekkos',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 2740,
     tools: ['git log', 'write_file'],
     template: 'Write a user-facing changelog entry from the commits since the last release tag: group by Added / Changed / Fixed, plain language, no commit hashes.',
@@ -141,13 +141,13 @@ export const NEKKOS_SKILLS: MarketplaceSkill[] = [
       'Run git log from the last release tag to HEAD. Group the changes into Added / Changed / Fixed sections written for end users (plain language, no commit hashes, no internal refactors unless user-visible). Prepend the entry to CHANGELOG.md with the version and date.',
   },
   {
-    id: 'nekkos-standup',
+    id: 'kotrain-standup',
     name: 'standup',
     description: 'Summarize what changed in this workspace since yesterday, written as a standup update',
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Delivery',
-    url: 'https://github.com/nekko-labs/nekkos',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 1980,
     tools: ['git log', 'git diff'],
     template: 'Summarize what changed in this repo in the last 24h as a standup update: done / in progress / blockers, three bullets each max.',
@@ -155,13 +155,13 @@ export const NEKKOS_SKILLS: MarketplaceSkill[] = [
       'Inspect git log and the working tree for the last 24 hours. Write a standup update with three short sections: Done (merged/committed), In progress (uncommitted or branch work), Blockers (failing tests, TODOs, unresolved conflicts). Keep each section to three bullets.',
   },
   {
-    id: 'nekkos-dep-audit',
+    id: 'kotrain-dep-audit',
     name: 'dep-audit',
     description: 'Audit dependencies for known vulnerabilities, unused packages, and majors you are behind on',
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Code quality',
-    url: 'https://github.com/nekko-labs/nekkos',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 1540,
     tools: ['bash', 'read_file'],
     template: 'Audit the dependencies: run the package manager audit, find unused packages, and list majors we are behind on, with a prioritized upgrade plan.',
@@ -169,13 +169,13 @@ export const NEKKOS_SKILLS: MarketplaceSkill[] = [
       'Run the package manager audit (npm audit / cargo audit / pip-audit as appropriate), cross-check package manifests against actual imports to find unused dependencies, and list major versions the project is behind on. Produce a prioritized plan: security fixes first, then easy majors, then risky ones with their breaking changes.',
   },
   {
-    id: 'nekkos-a11y-audit',
+    id: 'kotrain-a11y-audit',
     name: 'a11y-audit',
     description: 'Audit UI code for accessibility: contrast, keyboard navigation, labels, and focus handling',
     author: 'Nekko Labs',
     source: 'nekkolabs',
     category: 'Code quality',
-    url: 'https://github.com/nekko-labs/nekkos',
+    url: 'https://github.com/nekko-labs/kotrain',
     installs: 1210,
     tools: ['read_file', 'search'],
     template: 'Audit the UI components for accessibility issues: missing labels/alt text, keyboard traps, focus handling, contrast risks. Report by severity with fixes.',
@@ -309,7 +309,7 @@ export const POPULAR_SKILLS: MarketplaceSkill[] = [
   },
 ];
 
-export const MARKET_SKILLS: MarketplaceSkill[] = [...NEKKOS_SKILLS, ...POPULAR_SKILLS];
+export const MARKET_SKILLS: MarketplaceSkill[] = [...KOTRAIN_SKILLS, ...POPULAR_SKILLS];
 
 export function getMarketSkill(id: string): MarketplaceSkill | undefined {
   return MARKET_SKILLS.find((s) => s.id === id);
@@ -336,7 +336,7 @@ export function marketWorkflow(skill: MarketplaceSkill): SkillWorkflow {
   return { nodes, edges };
 }
 
-/** A marketplace skill as a runnable in-app SkillDef (once installed to Nekkos). */
+/** A marketplace skill as a runnable in-app SkillDef (once installed to Kotrain). */
 export function marketToSkillDef(m: MarketplaceSkill): SkillDef {
   return {
     id: m.id,
@@ -363,7 +363,7 @@ export function skillToMarkdown(m: MarketplaceSkill): string {
     '',
     m.instructions,
     '',
-    `> Installed from the Nekkos skills marketplace (author: ${m.author}${m.url ? `, ${m.url}` : ''}).`,
+    `> Installed from the Kotrain skills marketplace (author: ${m.author}${m.url ? `, ${m.url}` : ''}).`,
     '',
   ].join('\n');
 }

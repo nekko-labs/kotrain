@@ -9,8 +9,8 @@ describe('Markdown', () => {
   it('turns a dashed run glued to a sentence into a real list', () => {
     // The shape people actually type into the composer: a lead-in line with no
     // blank line before the dashes.
-    const out = html('nekkos project.\n- first thing\n- second thing');
-    expect(out).toContain('<p>nekkos project.</p>');
+    const out = html('kotrain project.\n- first thing\n- second thing');
+    expect(out).toContain('<p>kotrain project.</p>');
     expect(out.match(/<li>/g)).toHaveLength(2);
     expect(out).toContain('<li>first thing</li>');
     expect(out).toContain('list-style-type:disc');
@@ -56,16 +56,16 @@ describe('Markdown', () => {
   });
 
   it('covers inline bold, italic, strike, code and links', () => {
-    const out = html('**b** *i* ~~s~~ `c` [text](https://nekkos.app)');
+    const out = html('**b** *i* ~~s~~ `c` [text](https://kotrain.com)');
     expect(out).toContain('<strong>b</strong>');
     expect(out).toContain('<em>i</em>');
     expect(out).toContain('>s</s>');
     expect(out).toContain('>c</code>');
-    expect(out).toContain('href="https://nekkos.app"');
+    expect(out).toContain('href="https://kotrain.com"');
   });
 
   it('auto-links a bare url', () => {
-    expect(html('see https://nekkos.app now')).toContain('href="https://nekkos.app"');
+    expect(html('see https://kotrain.com now')).toContain('href="https://kotrain.com"');
   });
 
   it('leaves snake_case and arithmetic alone', () => {
@@ -98,10 +98,10 @@ describe('Markdown (document mode)', () => {
   });
 
   it('strips embedded HTML down to its text, and drops layout-only lines', () => {
-    const out = doc('<div align="center">\n\n# Nekkos\n\n</div>');
+    const out = doc('<div align="center">\n\n# Kotrain\n\n</div>');
     expect(out).not.toContain('&lt;div');
     expect(out).toContain('<h1');
-    expect(out).toContain('Nekkos');
+    expect(out).toContain('Kotrain');
   });
 
   it('turns an HTML img into the same chip as markdown image syntax', () => {

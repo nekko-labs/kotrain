@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkosMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@nekkos/shared';
+import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, KotrainMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Badge } from '../components/primitives/index.js';
-import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps } from '@nekkos/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
@@ -27,10 +27,10 @@ export function SettingsView() {
   const tr = useT();
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
-  useEffect(() => { window.nekkos.getSettings().then(setSettings); }, []);
+  useEffect(() => { window.kotrain.getSettings().then(setSettings); }, []);
 
   const update = async (patch: Partial<AppSettings>) => {
-    const next = await window.nekkos.updateSettings(patch);
+    const next = await window.kotrain.updateSettings(patch);
     setSettings(next);
     useStore.setState({ settings: next });
     applyTheme();
@@ -92,7 +92,7 @@ export function SettingsView() {
         {/* Sandbox */}
         <section className="card mt-5 p-5">
           <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">{tr('settings.sandbox')}</h2></div>
-          <p className="mt-1 text-[12px] text-ink-faint">How Nekkos is allowed to touch your machine.</p>
+          <p className="mt-1 text-[12px] text-ink-faint">How Kotrain is allowed to touch your machine.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {SANDBOX_OPTS.map((o) => (
               <button key={o.value} onClick={() => update({ sandboxMode: o.value })} className={`card p-3 text-left ${settings.sandboxMode === o.value ? 'border-accent' : ''}`}>
@@ -211,7 +211,7 @@ export function SettingsView() {
         {/* Data & privacy */}
         <DataSection onSettings={(s) => { setSettings(s); useStore.setState({ settings: s }); applyTheme(); }} />
 
-        <p className="mt-6 text-center text-[11px] text-ink-faint">Nekkos · open source · MIT</p>
+        <p className="mt-6 text-center text-[11px] text-ink-faint">Kotrain · open source · MIT</p>
       </div>
     </div>
   );
@@ -219,7 +219,7 @@ export function SettingsView() {
 
 /**
  * The agent loop's step budget: how many tool steps one reply may take before
- * Nekkos stops and answers with what it has. Committed on blur/Enter (not per
+ * Kotrain stops and answers with what it has. Committed on blur/Enter (not per
  * keystroke) so a half-typed number never becomes the live setting.
  */
 function AgentLoopSection({ settings, update }: { settings: AppSettings; update: (patch: Partial<AppSettings>) => void }) {
@@ -239,7 +239,7 @@ function AgentLoopSection({ settings, update }: { settings: AppSettings; update:
       <div className="flex items-center gap-2"><RobotIcon className="h-4 w-4" /><h2 className="font-semibold">Agent loop</h2></div>
       <p className="mt-1 text-[12px] text-ink-faint">
         A long task takes many tool steps (read, search, edit, verify). This is the backstop that catches a loop
-        going nowhere, not a work limit: when a reply reaches it, Nekkos stops calling tools and answers with what
+        going nowhere, not a work limit: when a reply reaches it, Kotrain stops calling tools and answers with what
         it found plus the next steps, so nothing is thrown away.
       </p>
       <div className="mt-3 flex min-h-[40px] items-center justify-between gap-3">
@@ -273,7 +273,7 @@ function BackupSection({ settings, onSettings }: { settings: AppSettings; onSett
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'nekkos-settings.json';
+    a.download = 'kotrain-settings.json';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -289,7 +289,7 @@ function BackupSection({ settings, onSettings }: { settings: AppSettings; onSett
         const parsed = JSON.parse(await file.text());
         if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Not a settings object');
         if (!window.confirm('Import these settings? This overwrites your current configuration.')) return;
-        const next = await window.nekkos.updateSettings(parsed);
+        const next = await window.kotrain.updateSettings(parsed);
         onSettings(next);
         await refreshProviders();
         pushToast('success', 'Settings imported.');
@@ -319,7 +319,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   const clear = async (scope: 'today' | 'month' | 'all', label: string) => {
     if (!window.confirm(`Delete ${label}? This can't be undone.`)) return;
     setBusy(true);
-    const n = await window.nekkos.clearSessions(scope);
+    const n = await window.kotrain.clearSessions(scope);
     await refreshSessions();
     useStore.setState({ activeSessionId: null });
     setBusy(false);
@@ -329,7 +329,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   const reset = async () => {
     if (!window.confirm('Reset all settings to defaults? Your providers and preferences will be cleared (chats are kept).')) return;
     setBusy(true);
-    const s = await window.nekkos.resetSettings();
+    const s = await window.kotrain.resetSettings();
     onSettings(s);
     await refreshProviders();
     setBusy(false);
@@ -338,9 +338,9 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
 
   const wipe = async () => {
     if (!window.confirm('Delete EVERYTHING, all chats, settings, memory, and usage? This cannot be undone.')) return;
-    if (!window.confirm('Are you absolutely sure? This wipes all Nekkos data.')) return;
+    if (!window.confirm('Are you absolutely sure? This wipes all Kotrain data.')) return;
     setBusy(true);
-    const s = await window.nekkos.wipeAllData();
+    const s = await window.kotrain.wipeAllData();
     onSettings(s);
     await refreshSessions();
     await refreshProviders();
@@ -391,10 +391,10 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
   const servers = settings.mcpServers ?? [];
   const [status, setStatus] = useState<McpServerStatus[]>([]);
   const [busy, setBusy] = useState(false);
-  // A local NekkosMCP daemon (github.com/nekko-labs/nekkos-mcp), if one is running.
+  // A local KotrainMCP daemon (github.com/nekko-labs/kotrain-mcp), if one is running.
   // undefined = still probing, null = no daemon found.
-  const [nekkos, setNekkos] = useState<NekkosMcpInfo | null | undefined>(undefined);
-  useEffect(() => { void window.nekkos.detectNekkosMcp().then(setNekkos).catch(() => setNekkos(null)); }, []);
+  const [kotrain, setKotrain] = useState<KotrainMcpInfo | null | undefined>(undefined);
+  useEffect(() => { void window.kotrain.detectKotrainMcp().then(setKotrain).catch(() => setKotrain(null)); }, []);
   const setServers = (next: typeof servers) => update({ mcpServers: next });
   const add = () =>
     setServers([
@@ -406,12 +406,12 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       ...servers,
       { id: `m_${Date.now().toString(36)}`, name: 'http server', command: '', args: [], url: 'http://localhost:7777/mcp', token: '', enabled: false },
     ]);
-  const connectNekkos = async () => {
-    if (!nekkos) return;
-    const existing = servers.find((s) => s.id === 'nekkos-mcp');
-    const entry = { id: 'nekkos-mcp', name: 'NekkosMCP gateway', command: '', args: [], url: nekkos.url, token: nekkos.token, enabled: true };
-    setServers(existing ? servers.map((s) => (s.id === 'nekkos-mcp' ? { ...s, ...entry } : s)) : [...servers, entry]);
-    pushToast('success', 'NekkosMCP gateway added — its servers\' tools join every chat.');
+  const connectKotrain = async () => {
+    if (!kotrain) return;
+    const existing = servers.find((s) => s.id === 'kotrain-mcp');
+    const entry = { id: 'kotrain-mcp', name: 'KotrainMCP gateway', command: '', args: [], url: kotrain.url, token: kotrain.token, enabled: true };
+    setServers(existing ? servers.map((s) => (s.id === 'kotrain-mcp' ? { ...s, ...entry } : s)) : [...servers, entry]);
+    pushToast('success', 'KotrainMCP gateway added — its servers\' tools join every chat.');
   };
   const edit = (id: string, patch: Partial<(typeof servers)[number]>) =>
     setServers(servers.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -419,7 +419,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
   const connect = async () => {
     setBusy(true);
     try {
-      const st = await window.nekkos.getMcpStatus();
+      const st = await window.kotrain.getMcpStatus();
       setStatus(st);
       const tools = st.reduce((n, s) => n + s.tools.length, 0);
       pushToast('success', `Connected ${st.filter((s) => s.connected).length}/${st.length} server(s), ${tools} tool(s).`);
@@ -445,41 +445,41 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       <p className="mt-1 text-[12px] text-ink-faint">
         Model Context Protocol servers extend the agent with extra tools. Enabled servers' tools are offered in every chat.
       </p>
-      {nekkos && (
+      {kotrain && (
         <div className="card mt-3 p-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
           <div className="flex items-center gap-2">
             <span className="text-[15px]">🐾</span>
             <div>
-              <p className="text-[12.5px] font-semibold">NekkosMCP detected <span className="font-normal text-ink-faint">· v{nekkos.version} · {nekkos.servers} managed server(s)</span></p>
+              <p className="text-[12.5px] font-semibold">KotrainMCP detected <span className="font-normal text-ink-faint">· v{kotrain.version} · {kotrain.servers} managed server(s)</span></p>
               <p className="text-[11.5px] text-ink-faint">Run and supervise MCP servers locally, then reach them all here through one gateway endpoint.</p>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              {nekkos.uiUrl && (
+              {kotrain.uiUrl && (
                 <button
                   className="btn btn-outline py-1 text-[12px]"
-                  onClick={() => { useStore.getState().openBrowserPane(nekkos.uiUrl); useStore.getState().setView('chat'); }}
+                  onClick={() => { useStore.getState().openBrowserPane(kotrain.uiUrl); useStore.getState().setView('chat'); }}
                 >
                   Open manager
                 </button>
               )}
-              <button className="btn btn-primary py-1 text-[12px]" onClick={() => void connectNekkos()}>
-                {servers.some((s) => s.id === 'nekkos-mcp') ? 'Reconnect gateway' : 'Connect gateway'}
+              <button className="btn btn-primary py-1 text-[12px]" onClick={() => void connectKotrain()}>
+                {servers.some((s) => s.id === 'kotrain-mcp') ? 'Reconnect gateway' : 'Connect gateway'}
               </button>
             </div>
           </div>
         </div>
       )}
-      {nekkos === null && !servers.some((s) => s.id === 'nekkos-mcp') && (
+      {kotrain === null && !servers.some((s) => s.id === 'kotrain-mcp') && (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-line px-3 py-2">
           <span className="text-[15px] opacity-70">🐾</span>
           <p className="text-[11.5px] text-ink-faint">
-            Optional: <span className="font-medium text-ink-soft">NekkosMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
+            Optional: <span className="font-medium text-ink-soft">KotrainMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
           </p>
           <button
             className="btn btn-ghost ml-auto shrink-0 !px-2 !py-0.5 text-[11px] text-accent"
-            onClick={() => window.nekkos.openPath('https://github.com/nekko-labs/nekkos-mcp')}
+            onClick={() => window.kotrain.openPath('https://github.com/nekko-labs/kotrain-mcp')}
           >
-            Get NekkosMCP ↗
+            Get KotrainMCP ↗
           </button>
         </div>
       )}
@@ -667,11 +667,11 @@ function UpdatesSection({ settings, onToggle }: { settings: AppSettings; onToggl
   const [status, setStatus] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
 
-  useEffect(() => { window.nekkos.getAppInfo().then(setInfo); }, []);
+  useEffect(() => { window.kotrain.getAppInfo().then(setInfo); }, []);
 
   const check = async () => {
     setChecking(true);
-    setStatus(await window.nekkos.checkForUpdates());
+    setStatus(await window.kotrain.checkForUpdates());
     setChecking(false);
   };
 
@@ -691,7 +691,7 @@ function UpdatesSection({ settings, onToggle }: { settings: AppSettings; onToggl
     <section className="card mt-5 p-5">
       <div className="flex items-center gap-2"><SunIcon className="h-4 w-4" /><h2 className="font-semibold">Updates</h2></div>
       <p className="mt-1 text-[12px] text-ink-faint">
-        {info ? `Nekkos ${info.version} · ${info.edition} edition` : ' '}
+        {info ? `Kotrain ${info.version} · ${info.edition} edition` : ' '}
       </p>
       <div className="mt-3 flex min-h-[40px] items-center justify-between">
         <div>

@@ -5,19 +5,19 @@ import type {
   GuardrailRule,
   MemoryEntry,
   MemoryScope,
-  NekkosApi,
+  KotrainApi,
   ProviderConfig,
   SendOptions,
   AgentEvent,
   IndexStatus,
   UpdateInfo,
   TerminalEvent,
-} from '@nekkos/shared';
-import { IpcChannels, IpcEvents } from '@nekkos/shared';
+} from '@kotrain/shared';
+import { IpcChannels, IpcEvents } from '@kotrain/shared';
 
 const inv = ipcRenderer.invoke.bind(ipcRenderer);
 
-const api: NekkosApi = {
+const api: KotrainApi = {
   getSettings: () => inv(IpcChannels.settingsGet),
   updateSettings: (patch) => inv(IpcChannels.settingsUpdate, patch),
 
@@ -169,7 +169,7 @@ const api: NekkosApi = {
 
   getAppInfo: () => inv(IpcChannels.appInfo),
   getMcpStatus: () => inv(IpcChannels.mcpStatus),
-  detectNekkosMcp: () => inv(IpcChannels.mcpNekkos),
+  detectKotrainMcp: () => inv(IpcChannels.mcpKotrain),
   registerPushToken: () => Promise.resolve(), // desktop isn't a relay client
   checkForUpdates: () => inv(IpcChannels.updateCheck),
   downloadUpdate: () => inv(IpcChannels.updateDownload),
@@ -201,15 +201,15 @@ const api: NekkosApi = {
     return () => ipcRenderer.removeListener(IpcEvents.changesUpdated, listener);
   },
   onTasksUpdated: (cb) => {
-    const listener = (_: unknown, tasks: import('@nekkos/shared').AutomationTask[]) => cb(tasks);
+    const listener = (_: unknown, tasks: import('@kotrain/shared').AutomationTask[]) => cb(tasks);
     ipcRenderer.on(IpcEvents.tasksUpdated, listener);
     return () => ipcRenderer.removeListener(IpcEvents.tasksUpdated, listener);
   },
   onTrainingUpdated: (cb) => {
-    const listener = (_: unknown, runs: import('@nekkos/shared').TrainingRun[]) => cb(runs);
+    const listener = (_: unknown, runs: import('@kotrain/shared').TrainingRun[]) => cb(runs);
     ipcRenderer.on(IpcEvents.trainingUpdated, listener);
     return () => ipcRenderer.removeListener(IpcEvents.trainingUpdated, listener);
   },
 };
 
-contextBridge.exposeInMainWorld('nekkos', api);
+contextBridge.exposeInMainWorld('kotrain', api);
