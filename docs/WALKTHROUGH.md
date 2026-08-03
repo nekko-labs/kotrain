@@ -102,7 +102,7 @@ list dirs, run shell commands).
 
 ## 4. The Context Inspector
 
-The right-hand panel (toggle it with the panel icon) is Kotrain' signature
+The right-hand panel (toggle it with the panel icon) is Kotrain's signature
 feature. It shows **exactly what is entering the prompt this turn**, grouped by
 where it came from:
 

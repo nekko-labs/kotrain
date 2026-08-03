@@ -11,7 +11,7 @@ export const SOURCE_META: Record<ContextItem['source'] | 'draft', { label: strin
   system: {
     label: 'System prompt',
     color: CONTEXT_SOURCE.system,
-    explain: "Kotrain' base instructions to the model, its role, available tools, and safety rules. Always included.",
+    explain: "Kotrain's base instructions to the model, its role, available tools, and safety rules. Always included.",
   },
   conversation: {
     label: 'Conversation',

@@ -1,6 +1,6 @@
 # Kotrain
 
-> Open-source, local-first AI chat, cowork, and coding in one calm window. Kotrain' headline feature is **first-class local model support**: point it at Ollama, LM Studio, or vLLM in one click, alongside every major cloud provider. Desktop, self-hosted web, and Docker editions run the same engine and the same UI. MIT licensed, by Nekko Labs.
+> Open-source, local-first AI chat, cowork, and coding in one calm window. Kotrain's headline feature is **first-class local model support**: point it at Ollama, LM Studio, or vLLM in one click, alongside every major cloud provider. Desktop, self-hosted web, and Docker editions run the same engine and the same UI. MIT licensed, by Nekko Labs.
 
 Local model UIs are essentially a chat box around a model with no awareness of your files or projects. Terminal agents are powerful but blind. Kotrain sits in between: an IDE-like surface where the agent reads, edits, searches, and runs inside your actual codebases, with every action visible through a context-provenance inspector and approval prompts.
 
@@ -14,7 +14,7 @@ Local model UIs are essentially a chat box around a model with no awareness of y
 
 ## Features
 
-Kotrain' second pitch, after local models, is **the harness**: the scaffolding around the model that decides how well a model you run yourself performs on real work. It splits into what the model sees, what it can reach, and what happens when it gets something wrong.
+Kotrain's second pitch, after local models, is **the harness**: the scaffolding around the model that decides how well a model you run yourself performs on real work. It splits into what the model sees, what it can reach, and what happens when it gets something wrong.
 
 **Unified chat / cowork / code** in one window, no mode switching.
 

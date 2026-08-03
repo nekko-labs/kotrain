@@ -74,7 +74,7 @@ export function MemoryView() {
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
             <div className="grid h-14 w-14 place-items-center rounded-2xl text-3xl" style={{ background: 'var(--accent-soft)' }}>🧠</div>
             <div>
-              <h2 className="text-lg font-semibold">Kotrain' long-term memory</h2>
+              <h2 className="text-lg font-semibold">Kotrain's long-term memory</h2>
               <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">
                 Notes saved here are injected into every chat's context. Select one on the left, or write a new one.
               </p>

@@ -113,7 +113,7 @@ export const VAIZER_SNAPSHOT: VaizerCatalog = {
   ],
 };
 
-/** Map Vaizer's free-form category onto Kotrain' skill categories. */
+/** Map Vaizer's free-form category onto Kotrain's skill categories. */
 export function vaizerCategory(cat: string): SkillCategory {
   const c = cat.toLowerCase();
   if (/research|planning|naming|brainstorm|career|resume|job/.test(c)) return 'Research & planning';
