@@ -39,7 +39,9 @@ body {
     radial-gradient(45% 35% at 15% 25%, rgba(34, 211, 238, 0.1), transparent 70%),
     radial-gradient(60% 50% at 50% 110%, rgba(1, 14, 34, 0.9), transparent 70%);
 }
-main, header, footer { position: relative; z-index: 1; }
+/* main sits above the footer so an open download menu can overlap it */
+main { position: relative; z-index: 2; }
+header, footer { position: relative; z-index: 1; }
 
 /* ---- nav ---- */
 .nav {
@@ -111,7 +113,8 @@ a { color: var(--accent-2); }
   font-size: clamp(20px, 2.6vw, 30px); font-weight: 600; letter-spacing: -0.015em; line-height: 1.25;
 }
 .lede { max-width: 620px; margin: 20px auto 0; font-size: 16px; }
-.cta-row { display: flex; gap: 14px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
+/* align-items: stretch so the ghost pill matches the split button's height */
+.cta-row { display: flex; align-items: stretch; gap: 14px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
 .hero .micro { margin-top: 18px; }
 
 .btn {
@@ -131,6 +134,22 @@ a { color: var(--accent-2); }
   border: 1px solid var(--line); backdrop-filter: blur(8px);
 }
 .btn-glass:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* quiet outline pill, for the link that sits beside a primary CTA */
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 12px 28px; border-radius: 99px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  color: var(--ink); text-decoration: none;
+  font-weight: 600; font-size: 14.5px; letter-spacing: 0.01em; white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.3); }
+.btn-ghost:active { transform: translateY(1px); }
+.btn-ghost:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+.btn-ghost .arr { font-size: 12px; opacity: 0.7; }
 
 .scroll-hint {
   position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -254,7 +273,8 @@ a { color: var(--accent-2); }
 .download { text-align: center; }
 .download .chapter-lede { margin-left: auto; margin-right: auto; }
 .dl-cta { margin: 34px 0 26px; }
-.dl-pick { position: relative; display: inline-flex; isolation: isolate; }
+/* z-index (not isolation) so the open menu clears whatever follows it in flow */
+.dl-pick { position: relative; display: inline-flex; z-index: 30; }
 .dl-main,
 .dl-caret {
   background: var(--grad); color: #fff; border: 0; cursor: pointer;
@@ -283,18 +303,26 @@ a { color: var(--accent-2); }
 
 .dl-menu {
   position: absolute; top: calc(100% + 10px); right: 0; z-index: 20;
-  width: min(340px, calc(100vw - 40px));
+  width: min(340px, calc(100vw - 40px)); min-width: 100%;
   padding: 8px; text-align: left;
-  background: rgba(2, 10, 22, 0.92);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.6);
-  max-height: min(66vh, 520px); overflow-y: auto;
+  /* near-opaque: this menu overlaps body copy and the footer, it has to read as a layer */
+  background: rgba(3, 11, 24, 0.97);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.72);
+  max-height: min(66vh, 520px); overflow-y: auto; overscroll-behavior: contain;
   animation: dl-pop 0.16s ease-out;
 }
-@keyframes dl-pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+/* flipped above the button when the page bottom is nearer than the menu is tall */
+.dl-menu.up { top: auto; bottom: calc(100% + 10px); animation-name: dl-pop-up; }
+/* transform only, no opacity: where animations are throttled (hidden tabs,
+   embedded webviews) a frozen first frame still leaves the menu readable */
+@keyframes dl-pop { from { transform: translateY(-6px); } to { transform: none; } }
+@keyframes dl-pop-up { from { transform: translateY(6px); } to { transform: none; } }
 .dl-group {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
   color: var(--muted); padding: 12px 12px 6px;
 }
+.dl-group:first-child { padding-top: 6px; }
 .dl-item {
   display: flex; align-items: baseline; gap: 10px;
   padding: 9px 12px; border-radius: 10px; text-decoration: none; color: var(--ink);
@@ -303,10 +331,46 @@ a { color: var(--accent-2); }
 .dl-item:hover, .dl-item:focus-visible { background: rgba(109, 94, 252, 0.18); outline: none; }
 .dl-item .dl-fmt { font-family: var(--mono); font-size: 12px; }
 .dl-item .dl-hint { margin-left: auto; color: var(--muted); font-size: 11.5px; }
-.dl-item[aria-current='true'] .dl-hint::after { content: ' ·  yours'; color: var(--accent-2); }
+.dl-item[aria-current='true'] .dl-hint::after {
+  content: 'yours'; color: var(--accent-2);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  border: 1px solid rgba(34, 211, 238, 0.4); border-radius: 99px;
+  padding: 1px 6px; margin-left: 8px;
+}
 .dl-sep { height: 1px; background: var(--line); margin: 6px 10px; }
 .dl-note { margin-top: 14px; }
 .download .micro { margin-top: 8px; }
+
+/* ---- the same build as a one-liner, for people who'd rather stay in a shell ---- */
+.dl-term { max-width: 760px; margin: 30px auto 0; text-align: left; }
+.dl-term-or {
+  display: block; text-align: center; margin-bottom: 10px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--muted);
+}
+.dl-term-or b { color: var(--ink); font-weight: 500; }
+.dl-term-row { display: flex; align-items: stretch; border-radius: 12px; overflow: hidden; }
+.dl-term-cmd {
+  flex: 1; min-width: 0;
+  background: none; border: 0; border-radius: 0;
+  padding: 13px 12px 13px 14px;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.65; color: var(--ink);
+  /* wraps rather than scrolls: nobody should paste a command they can't see */
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.dl-term-cmd::before { content: '❯ '; color: var(--accent-2); }
+.dl-copy {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 0 16px; cursor: pointer;
+  border: 0; border-left: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05); color: var(--muted);
+  font-family: var(--sans); font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+  transition: background 0.18s, color 0.18s;
+}
+.dl-copy:hover { background: rgba(109, 94, 252, 0.22); color: var(--ink); }
+.dl-copy:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+.dl-copy.done { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.dl-copy-t { min-width: 46px; text-align: left; }
 
 /* ---- footer ---- */
 footer {
@@ -339,6 +403,12 @@ footer a:hover { color: var(--ink); }
   .dl-main { min-width: 0; flex: 1; }
   .dl-pick { display: flex; width: 100%; }
   .dl-menu { right: auto; left: 0; }
+  .cta-row { display: block; }
+  .cta-row .btn-ghost { display: flex; margin-top: 12px; }
+  /* the command is long: give it the full width and put Copy underneath */
+  .dl-term-row { flex-direction: column; }
+  .dl-copy { border-left: 0; border-top: 1px solid var(--line); padding: 11px 14px; justify-content: center; }
+  .dl-copy-t { min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }

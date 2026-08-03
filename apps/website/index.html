@@ -138,8 +138,30 @@
           <em>see and touch</em> your codebases do the work.
         </p>
         <div class="cta-row reveal">
-          <a class="btn btn-primary" id="heroDl" href="#download">Download for free</a>
-          <a class="btn btn-glass" href="https://github.com/nekko-labs/kotrain" target="_blank" rel="noopener">Star on GitHub</a>
+          <!-- the same smart download button as the download section: one click
+               takes the build for this machine, the caret opens every other one -->
+          <div class="dl-pick" data-dl-pick>
+            <a class="dl-main" data-dl-main href="https://github.com/nekko-labs/kotrain/releases/latest">
+              <span class="dl-main-t" data-dl-title>Download Kotrain</span>
+              <span class="dl-main-s" data-dl-sub>Latest release on GitHub</span>
+            </a>
+            <button
+              class="dl-caret"
+              id="heroDlCaret"
+              data-dl-caret
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="heroDlMenu"
+              aria-label="Choose a different platform or format"
+            >
+              <svg viewBox="0 0 12 8" width="12" aria-hidden="true"><path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="dl-menu glass" id="heroDlMenu" data-dl-menu role="menu" aria-labelledby="heroDlCaret" hidden></div>
+          </div>
+          <a class="btn-ghost" href="https://github.com/nekko-labs/kotrain" target="_blank" rel="noopener">
+            View GitHub repo <span class="arr" aria-hidden="true">↗</span>
+          </a>
         </div>
         <p class="micro reveal">No telemetry · no account · your code never leaves your machine unless you say so</p>
 
@@ -380,14 +402,15 @@
 
         <!-- smart download: primary button = detected OS/arch, caret = every other build -->
         <div class="dl-cta reveal">
-          <div class="dl-pick" id="dlPick">
-            <a class="dl-main" id="dlMain" href="https://github.com/nekko-labs/kotrain/releases/latest">
-              <span class="dl-main-t" id="dlMainTitle">Download Kotrain</span>
-              <span class="dl-main-s" id="dlMainSub">Latest release on GitHub</span>
+          <div class="dl-pick" data-dl-pick>
+            <a class="dl-main" data-dl-main href="https://github.com/nekko-labs/kotrain/releases/latest">
+              <span class="dl-main-t" data-dl-title>Download Kotrain</span>
+              <span class="dl-main-s" data-dl-sub>Latest release on GitHub</span>
             </a>
             <button
               class="dl-caret"
               id="dlCaret"
+              data-dl-caret
               type="button"
               aria-haspopup="true"
               aria-expanded="false"
@@ -396,9 +419,24 @@
             >
               <svg viewBox="0 0 12 8" width="12" aria-hidden="true"><path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <div class="dl-menu glass" id="dlMenu" role="menu" aria-labelledby="dlCaret" hidden></div>
+            <div class="dl-menu glass" id="dlMenu" data-dl-menu role="menu" aria-labelledby="dlCaret" hidden></div>
           </div>
           <p class="micro dl-note" id="dlNote">All builds live on GitHub Releases.</p>
+
+          <!-- terminal people: the same build, in their shell's syntax, one copy away -->
+          <div class="dl-term" id="dlTerm" hidden>
+            <span class="dl-term-or">or paste this into <b id="dlTermShell">your terminal</b></span>
+            <div class="dl-term-row glass">
+              <code class="dl-term-cmd" id="dlCmd"></code>
+              <button class="dl-copy" id="dlCopy" type="button" aria-label="Copy command to clipboard">
+                <svg viewBox="0 0 16 16" width="13" aria-hidden="true">
+                  <rect x="5.2" y="1.8" width="9" height="10.4" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M10.8 14.2H3.7A1.9 1.9 0 0 1 1.8 12.3V4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span class="dl-copy-t">Copy</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <p class="micro center reveal">Or build from source: <code>git clone</code> · <code>npm install</code> · <code>npm run dev</code></p>

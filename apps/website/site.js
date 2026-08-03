@@ -90,14 +90,22 @@
   const OS_ORDER = ['win', 'mac', 'linux'];
   const OS_NAME = { win: 'Windows', mac: 'macOS', linux: 'Linux' };
 
-  const pick = document.getElementById('dlPick');
-  const main = document.getElementById('dlMain');
-  const mainTitle = document.getElementById('dlMainTitle');
-  const mainSub = document.getElementById('dlMainSub');
-  const caret = document.getElementById('dlCaret');
-  const menu = document.getElementById('dlMenu');
+  // The same one-liner the button downloads, in the shell that visitor actually
+  // has: fetch the exact release asset, then launch it.
+  const CMD = {
+    win: (u) => `iwr ${u} -OutFile kotrain-setup.exe; .\\kotrain-setup.exe`,
+    mac: (u) => `curl -L ${u} -o Kotrain.dmg && open Kotrain.dmg`,
+    linux: (u) =>
+      `curl -L ${u} -o Kotrain.AppImage && chmod +x Kotrain.AppImage && ./Kotrain.AppImage`,
+  };
+  const SHELL = { win: 'PowerShell', mac: 'Terminal', linux: 'a shell' };
+
   const note = document.getElementById('dlNote');
-  const heroDl = document.getElementById('heroDl');
+  const term = document.getElementById('dlTerm');
+  const termCmd = document.getElementById('dlCmd');
+  const termShell = document.getElementById('dlTermShell');
+  const copyBtn = document.getElementById('dlCopy');
+  const copyLabel = copyBtn?.querySelector('.dl-copy-t');
 
   // ---- who's visiting ----
   const uaStr = navigator.userAgent;
@@ -140,85 +148,98 @@
     return forOs.find((b) => b.arch === arch) || forOs[0] || null;
   }
 
-  function renderMain() {
-    const b = chosen();
-    if (!b) {
-      mainTitle.textContent = 'Download Kotrain';
-      mainSub.textContent = mobile ? 'Desktop app, then pair this phone' : 'Latest release on GitHub';
-      main.href = RELEASES;
-      if (note) {
-        note.textContent = mobile
-          ? 'Kotrain runs on your computer. Install it there, then pair this phone to it over the encrypted relay.'
-          : 'Pick a build from the menu, or see them all on GitHub Releases.';
+  // ---- one picker: primary button for this machine, caret menu for the rest.
+  //      Wired per .dl-pick, so the hero and the download section behave the same. ----
+  function setupPick(root) {
+    const main = root.querySelector('[data-dl-main]');
+    const mainTitle = root.querySelector('[data-dl-title]');
+    const mainSub = root.querySelector('[data-dl-sub]');
+    const caret = root.querySelector('[data-dl-caret]');
+    const menu = root.querySelector('[data-dl-menu]');
+    const isOpen = () => !menu.hidden;
+
+    function renderMain() {
+      const b = chosen();
+      if (!b) {
+        mainTitle.textContent = 'Download Kotrain';
+        mainSub.textContent = mobile ? 'Desktop app, then pair this phone' : 'Latest release on GitHub';
+        main.href = RELEASES;
+        return;
       }
-      return;
+      mainTitle.textContent = `Download for ${OS_NAME[b.os]}`;
+      mainSub.textContent = `${b.fmt} · ${b.hint}${version ? ` · ${version}` : ''}`;
+      main.href = urlFor(b) || RELEASES;
     }
-    const href = urlFor(b);
-    mainTitle.textContent = `Download for ${OS_NAME[b.os]}`;
-    mainSub.textContent = `${b.fmt} · ${b.hint}${version ? ` · ${version}` : ''}`;
-    main.href = href || RELEASES;
-    if (note) note.textContent = 'Not your machine? Use the arrow for every other build.';
-    if (heroDl) heroDl.textContent = `Download for ${OS_NAME[b.os]}`;
-  }
 
-  function renderMenu() {
-    menu.textContent = '';
-    const current = chosen();
-    let wrote = false;
-    for (const key of OS_ORDER) {
-      const builds = BUILDS.filter((b) => b.os === key).filter((b) => !assets || urlFor(b));
-      if (!builds.length) continue;
-      const head = document.createElement('div');
-      head.className = 'dl-group';
-      head.textContent = OS_NAME[key];
-      menu.appendChild(head);
-      for (const b of builds) {
-        const a = document.createElement('a');
-        a.className = 'dl-item';
-        a.href = urlFor(b) || RELEASES;
-        a.setAttribute('role', 'menuitem');
-        if (b === current) a.setAttribute('aria-current', 'true');
-        a.innerHTML =
-          `<span class="dl-fmt">${b.fmt}</span><span class="dl-hint">${b.hint}</span>`;
-        menu.appendChild(a);
-        wrote = true;
+    function renderMenu() {
+      menu.textContent = '';
+      const current = chosen();
+      let wrote = false;
+      for (const key of OS_ORDER) {
+        const builds = BUILDS.filter((b) => b.os === key).filter((b) => !assets || urlFor(b));
+        if (!builds.length) continue;
+        const head = document.createElement('div');
+        head.className = 'dl-group';
+        head.textContent = OS_NAME[key];
+        menu.appendChild(head);
+        for (const b of builds) {
+          const a = document.createElement('a');
+          a.className = 'dl-item';
+          a.href = urlFor(b) || RELEASES;
+          a.setAttribute('role', 'menuitem');
+          if (b === current) a.setAttribute('aria-current', 'true');
+          a.innerHTML =
+            `<span class="dl-fmt">${b.fmt}</span><span class="dl-hint">${b.hint}</span>`;
+          menu.appendChild(a);
+          wrote = true;
+        }
+      }
+      if (wrote) {
+        const sep = document.createElement('div');
+        sep.className = 'dl-sep';
+        menu.appendChild(sep);
+      }
+      const all = document.createElement('a');
+      all.className = 'dl-item';
+      all.href = RELEASES;
+      all.setAttribute('role', 'menuitem');
+      all.innerHTML = `<span class="dl-fmt">All downloads</span><span class="dl-hint">GitHub Releases</span>`;
+      menu.appendChild(all);
+    }
+
+    // Drop the menu below the button, or flip it above when the page bottom (and
+    // the footer) is closer than the menu is tall. Cap it to the room it has.
+    function place() {
+      menu.classList.remove('up');
+      menu.style.maxHeight = '';
+      const gap = 24;
+      const r = root.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom - gap;
+      const above = r.top - gap;
+      const needed = menu.offsetHeight;
+      const up = needed > below && above > below;
+      menu.classList.toggle('up', up);
+      const room = up ? above : below;
+      if (needed > room) menu.style.maxHeight = `${Math.max(200, room)}px`;
+    }
+
+    function setOpen(open) {
+      if (open) closeOtherMenus(root);
+      menu.hidden = !open;
+      root.classList.toggle('open', open);
+      caret.setAttribute('aria-expanded', String(open));
+      if (open) {
+        place();
+        menu.querySelector('.dl-item')?.focus();
       }
     }
-    if (wrote) {
-      const sep = document.createElement('div');
-      sep.className = 'dl-sep';
-      menu.appendChild(sep);
-    }
-    const all = document.createElement('a');
-    all.className = 'dl-item';
-    all.href = RELEASES;
-    all.setAttribute('role', 'menuitem');
-    all.innerHTML = `<span class="dl-fmt">All downloads</span><span class="dl-hint">GitHub Releases</span>`;
-    menu.appendChild(all);
-  }
 
-  function render() {
-    renderMain();
-    renderMenu();
-  }
-
-  // ---- menu open/close ----
-  function setOpen(open) {
-    menu.hidden = !open;
-    pick.classList.toggle('open', open);
-    caret.setAttribute('aria-expanded', String(open));
-    if (open) menu.querySelector('.dl-item')?.focus();
-  }
-  const isOpen = () => !menu.hidden;
-
-  if (pick) {
-    render();
     caret.addEventListener('click', (e) => {
       e.stopPropagation();
       setOpen(!isOpen());
     });
     document.addEventListener('click', (e) => {
-      if (isOpen() && !pick.contains(e.target)) setOpen(false);
+      if (isOpen() && !root.contains(e.target)) setOpen(false);
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && isOpen()) {
@@ -235,6 +256,96 @@
       items[(next + items.length) % items.length].focus();
     });
     menu.addEventListener('click', () => setOpen(false));
+    const reflow = () => isOpen() && place();
+    window.addEventListener('resize', reflow);
+    window.addEventListener('scroll', reflow, { passive: true });
+
+    return {
+      root,
+      close: () => setOpen(false),
+      isOpen,
+      render: () => {
+        renderMain();
+        renderMenu();
+        if (isOpen()) place();
+      },
+    };
+  }
+
+  const picks = [...document.querySelectorAll('[data-dl-pick]')].map(setupPick);
+  function closeOtherMenus(except) {
+    picks.forEach((p) => p.root !== except && p.isOpen() && p.close());
+  }
+
+  function renderNote() {
+    if (!note) return;
+    if (chosen()) {
+      note.textContent = 'Not your machine? Use the arrow for every other build.';
+    } else {
+      note.textContent = mobile
+        ? 'Kotrain runs on your computer. Install it there, then pair this phone to it over the encrypted relay.'
+        : 'Pick a build from the menu, or see them all on GitHub Releases.';
+    }
+  }
+
+  // Only shown once the real asset URL is known, so the command is never a guess.
+  function renderTerm() {
+    if (!term) return;
+    const b = chosen();
+    const url = b && assets ? urlFor(b) : null;
+    if (!url || !CMD[b.os]) {
+      term.hidden = true;
+      return;
+    }
+    termCmd.textContent = CMD[b.os](url);
+    termShell.textContent = SHELL[b.os];
+    term.hidden = false;
+  }
+
+  function copyFallback(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch (_) {}
+    ta.remove();
+    return ok;
+  }
+
+  let copyTimer;
+  copyBtn?.addEventListener('click', async () => {
+    const text = termCmd.textContent;
+    let ok = true;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (_) {
+      ok = copyFallback(text);
+    }
+    if (!ok) window.getSelection()?.selectAllChildren(termCmd); // let them hit copy themselves
+    copyBtn.classList.toggle('done', ok);
+    copyLabel.textContent = ok ? 'Copied' : 'Select all';
+    copyBtn.setAttribute('aria-label', ok ? 'Command copied to clipboard' : 'Command selected, copy it with your keyboard');
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => {
+      copyBtn.classList.remove('done');
+      copyLabel.textContent = 'Copy';
+      copyBtn.setAttribute('aria-label', 'Copy command to clipboard');
+    }, 1900);
+  });
+
+  function render() {
+    picks.forEach((p) => p.render());
+    renderNote();
+    renderTerm();
+  }
+
+  if (picks.length) {
+    render();
 
     // refine the Mac arch guess, then swap in real asset URLs when they arrive
     if (os === 'mac') {
