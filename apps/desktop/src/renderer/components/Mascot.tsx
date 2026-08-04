@@ -162,7 +162,7 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
               <path d="M 73 57 C 84 58 91 52 91 42 C 91 35 87 31 82 32" stroke={C.ink} strokeWidth={5.8} strokeLinecap="round" fill="none" />
               <path d="M 73 57 C 84 58 91 52 91 42 C 91 35 87 31 82 32" stroke={C.ginger} strokeWidth={3.6} strokeLinecap="round" fill="none" />
 
-              <SuitLeg C={C} d="M 39 59 C 38 66 38 72 39 77" boot={{ cx: 39, cy: 79 }} />
+              <SuitLeg C={C} d="M 44 59 C 43 66 43 72 44 77" boot={{ cx: 44, cy: 79 }} />
               <SuitLeg C={C} d="M 68 59 C 68 66 67 72 67 77" boot={{ cx: 67, cy: 79 }} />
 
               <path d="M 32 44 C 37 41 43 42 48 40 C 56 38 68 40 75 45 C 80 49 81 58 77 64 C 73 70 65 72 54 71 C 45 72 36 69 32 64 C 29 59 28 49 32 44 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.7} strokeLinejoin="round" />
@@ -173,10 +173,10 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
               {liftedFrontPaw ? (
                 <g className={mood === 'waving' ? 'aphelion-wave' : batting ? 'aphelion-bat' : ''} style={{ transformBox: 'fill-box', transformOrigin: '100% 100%' }}>
-                  <path d="M 45 49 C 39 46 35 41 34 35" stroke={C.ink} strokeWidth={6.2} strokeLinecap="round" fill="none" />
-                  <path d="M 45 49 C 39 46 35 41 34 35" stroke={C.suit} strokeWidth={4.1} strokeLinecap="round" fill="none" />
-                  <circle cx={33.6} cy={33.2} r={3.5} fill={C.suit} stroke={C.ink} strokeWidth={1.4} />
-                  <path d="M 31.7 31.8 q 1.1 -1.3 2.2 0 M 33.4 31.4 q 1.3 -1.1 2.1 0" stroke={C.ink} strokeWidth={0.8} strokeLinecap="round" />
+                  <path d="M 46 50 C 48 45 51 39 52 33" stroke={C.ink} strokeWidth={6.2} strokeLinecap="round" fill="none" />
+                  <path d="M 46 50 C 48 45 51 39 52 33" stroke={C.suit} strokeWidth={4.1} strokeLinecap="round" fill="none" />
+                  <circle cx={52.2} cy={30.5} r={3.8} fill={C.suit} stroke={C.ink} strokeWidth={1.45} />
+                  <path d="M 49.9 29.1 q 1.1 -1.4 2.2 0 M 51.8 28.8 q 1.4 -1.2 2.3 0 M 53.5 29.2 q 1.1 -1 1.8 0" stroke={C.ink} strokeWidth={0.8} strokeLinecap="round" />
                 </g>
               ) : (
                 <path d="M 46 49 C 42 51 40 54 39 58" stroke={C.suitShade} strokeWidth={2} strokeLinecap="round" />
@@ -200,8 +200,8 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
             {batting && (
               <g className="aphelion-comet">
-                <path d="M 66 20 q -8 5 -14 12" stroke={C.star} strokeWidth={1.3} strokeLinecap="round" strokeDasharray="4 3" opacity={0.7} />
-                <circle cx={68} cy={18.5} r={2.5} fill={C.star} />
+                <path d="M 62 29 q -7 2 -12 5" stroke={C.star} strokeWidth={1.3} strokeLinecap="round" strokeDasharray="4 3" opacity={0.7} />
+                <circle cx={64} cy={26} r={2.7} fill={C.star} />
               </g>
             )}
           </svg>
