@@ -2,16 +2,21 @@ import React, { useEffect, useState } from 'react';
 
 export type MascotMood = 'idle' | 'waving' | 'thinking';
 
+/** Thinking moves: a gentle drift followed by a front-paw comet bat. */
 type SpaceMove = 'drift' | 'bat';
 
+/**
+ * Shared hand-drawn palette for the quadruped astronaut cat. Ink and face are
+ * tuned for dark chrome; ginger identifies the tail and cat-ear inner fill.
+ */
 const APHELION = {
-  ink: '#454e73',
-  face: '#2d3348',
+  ink: '#454e73', // pencil ink that stays legible on the dark chrome
+  face: '#2d3348', // feature ink against the cream face
   suit: '#f5efdf',
   suitShade: '#e6dcc4',
   glass: 'rgba(125, 205, 235, 0.22)',
   glint: '#d8eefb',
-  ginger: '#f0a35e',
+  ginger: '#f0a35e', // ginger tail and the helmet's inner cat ears
   blush: '#f2a6a0',
   star: '#ffd66e',
   violet: '#8b7bff',
@@ -36,6 +41,7 @@ function useSpaceMove(active: boolean): SpaceMove {
   return MOVE_SEQUENCE[i].move;
 }
 
+/** A wobbly four-point sparkle made from two crossed pencil strokes. */
 function Sparkle({ x, y, s, color, className }: { x: number; y: number; s: number; color: string; className?: string }) {
   return (
     <g className={className} style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
