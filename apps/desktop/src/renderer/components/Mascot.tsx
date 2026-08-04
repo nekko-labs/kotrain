@@ -130,10 +130,11 @@ export function AphelionAvatar({ size = 28, title }: { size?: number; title?: st
   const C = APHELION;
   return (
     <svg
-      viewBox="0 0 64 48"
+      viewBox="14.5 3 36.5 46.5"
       width={size}
-      height={(size * 48) / 64}
+      height={size}
       fill="none"
+      preserveAspectRatio="none"
       role={title ? 'img' : 'presentation'}
       aria-label={title}
       aria-hidden={title ? undefined : true}
