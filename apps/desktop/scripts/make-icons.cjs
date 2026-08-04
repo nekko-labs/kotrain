@@ -10,8 +10,9 @@
  * is the difference between a readable taskbar icon and a smudge.
  *
  * Writes build/icon.svg (512 reference), build/icon.png (512, what
- * electron-builder uses for mac/linux) and build/icon.ico (Windows, PNG-encoded
- * entries at every size Explorer asks for).
+ * electron-builder uses for mac/linux), renderer/icon.svg (small vector mark),
+ * and build/icon.ico (Windows, PNG-encoded entries at every size Explorer asks
+ * for).
  */
 const { app, BrowserWindow, nativeImage } = require('electron');
 const { writeFileSync } = require('fs');
@@ -134,6 +135,7 @@ app.whenReady().then(async () => {
 
   // The web/PWA edition's icon (also the apple-touch-icon) is the same art.
   writeFileSync(join(PUBLIC, 'icon-512.png'), await render(win, 512));
+  writeFileSync(join(PUBLIC, 'icon.svg'), iconSvg(512, 64));
 
   // NSIS art. Sizes are fixed by the installer: 150x57 header, 164x314 sidebar.
   const header = await shoot(
@@ -159,7 +161,7 @@ app.whenReady().then(async () => {
   writeFileSync(join(BUILD, 'installerSidebar.bmp'), toBmp24(sidebar));
 
   console.log(
-    `wrote icon.svg, icon.png (512), icon.ico (${SIZES.join(', ')}), renderer icon-512.png, and the two installer BMPs`,
+    `wrote icon.svg, icon.png (512), icon.ico (${SIZES.join(', ')}), renderer icon.svg + icon-512.png, and the two installer BMPs`,
   );
   win.destroy();
   app.quit();
