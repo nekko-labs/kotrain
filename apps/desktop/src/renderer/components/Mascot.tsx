@@ -130,9 +130,9 @@ export function AphelionAvatar({ size = 28, title }: { size?: number; title?: st
   const C = APHELION;
   return (
     <svg
-      viewBox="16 3.5 34.5 44.5"
+      viewBox="16.1 3.5 31 44.5"
       width={size}
-      height={(size * 44.5) / 34.5}
+      height={(size * 44.5) / 31}
       fill="none"
       role={title ? 'img' : 'presentation'}
       aria-label={title}
