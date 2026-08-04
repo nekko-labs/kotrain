@@ -422,7 +422,7 @@ h1 { letter-spacing: -0.02em; }
   0%, 100% { transform: translateY(0) rotate(-6deg); }
   50% { transform: translateY(-6px) rotate(7deg); }
 }
-/* one full lap: the orbiting spark (and the mini spinner) run on this */
+/* The mini status spinner keeps its working spark; the full mascot has no orbit. */
 @keyframes aphelion-spin {
   to { transform: rotate(360deg); }
 }
