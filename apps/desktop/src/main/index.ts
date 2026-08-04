@@ -6,6 +6,15 @@ import { registerIpc } from './ipc.js';
 import { checkForUpdates } from './update.js';
 import { loadWindowBounds, saveWindowBounds } from './windowState.js';
 
+function resolveWindowIcon(): string | undefined {
+  const candidates = [
+    join(__dirname, '../renderer/icon-512.png'),
+    join(__dirname, '../renderer/public/icon-512.png'),
+    join(__dirname, '../../src/renderer/public/icon-512.png'),
+  ];
+  return candidates.find((path) => existsSync(path));
+}
+
 function createWindow(): void {
   const bounds = loadWindowBounds();
   const win = new BrowserWindow({
@@ -14,6 +23,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     backgroundColor: '#0f0f11',
+    icon: resolveWindowIcon(),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

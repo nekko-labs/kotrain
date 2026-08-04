@@ -448,7 +448,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       {kotrain && (
         <div className="card mt-3 p-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
           <div className="flex items-center gap-2">
-            <span className="text-[15px]">🐾</span>
+            <img src="./icon.svg" alt="Kotrain orbit mark" width="20" height="20" />
             <div>
               <p className="text-[12.5px] font-semibold">KotrainMCP detected <span className="font-normal text-ink-faint">· v{kotrain.version} · {kotrain.servers} managed server(s)</span></p>
               <p className="text-[11.5px] text-ink-faint">Run and supervise MCP servers locally, then reach them all here through one gateway endpoint.</p>
@@ -471,7 +471,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       )}
       {kotrain === null && !servers.some((s) => s.id === 'kotrain-mcp') && (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-line px-3 py-2">
-          <span className="text-[15px] opacity-70">🐾</span>
+          <img src="./icon.svg" alt="Kotrain orbit mark" width="20" height="20" className="opacity-70" />
           <p className="text-[11.5px] text-ink-faint">
             Optional: <span className="font-medium text-ink-soft">KotrainMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
           </p>
