@@ -150,7 +150,7 @@ async function main() {
 
   await app.listen({ port: PORT, host: HOST });
   const url = `http://${isLocal ? 'localhost' : HOST}:${PORT}`;
-  console.log(`\n🐾 Kotrain web edition running at ${url}`);
+  console.log(`\nKotrain web edition running at ${url}`);
   console.log(`   data dir: ${DATA_DIR}`);
   if (requireAuth) console.log(`   auth: token required (append ?token=… to the URL)`);
   else if (!isLocal)

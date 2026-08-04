@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐾 Kotrain
+# Kotrain
 
 **Local-first AI chat, cowork, and coding in one calm window.**
 

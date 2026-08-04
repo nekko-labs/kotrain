@@ -5,6 +5,7 @@ afterPack: scripts/after-pack.cjs
 directories:
   output: release
   buildResources: build
+icon: build/icon
 files:
   - out/**/*
   - package.json
