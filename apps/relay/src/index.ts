@@ -12,7 +12,7 @@ async function main() {
   const authzUrl = process.env.KOTRAIN_RELAY_AUTHZ_URL || undefined;
   const { app } = buildRelay({ authzUrl });
   await app.listen({ port: PORT, host: HOST });
-  console.log(`\nKotrain relay listening on ws://${HOST}:${PORT}/relay`);
+  console.log(`\n🐾 Kotrain relay listening on ws://${HOST}:${PORT}/relay`);
   console.log(`   access: ${authzUrl ? `gated (agents authorized via ${authzUrl})` : 'open (set KOTRAIN_RELAY_AUTHZ_URL to gate agent enrollment)'}`);
   console.log(`   push: ${process.env.APNS_KEY_P8 || process.env.FCM_SERVICE_ACCOUNT ? 'configured (APNs/FCM)' : 'disabled (set APNS_* and/or FCM_SERVICE_ACCOUNT)'}\n`);
 }
