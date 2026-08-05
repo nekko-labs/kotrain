@@ -16,7 +16,7 @@ type Dict = Record<string, string>;
 // English is the source of truth; other locales fall back to it per-key.
 const en: Dict = {
   'nav.command': 'Command Center',
-  'nav.chat': 'Chat',
+  'nav.chat': 'Agent',
   'nav.design': 'Design',
   'nav.skills': 'Skills',
   'nav.training': 'Training',
@@ -48,7 +48,7 @@ const en: Dict = {
 
 const es: Dict = {
   'nav.command': 'Centro de mando',
-  'nav.chat': 'Chat',
+  'nav.chat': 'Agente',
   'nav.models': 'Modelos',
   'nav.connectors': 'Conectores',
   'nav.memory': 'Memoria',
@@ -74,7 +74,7 @@ const es: Dict = {
 
 const fr: Dict = {
   'nav.command': 'Centre de commande',
-  'nav.chat': 'Discussion',
+  'nav.chat': 'Agent',
   'nav.models': 'Modèles',
   'nav.connectors': 'Connecteurs',
   'nav.memory': 'Mémoire',
@@ -100,7 +100,7 @@ const fr: Dict = {
 
 const de: Dict = {
   'nav.command': 'Kommandozentrale',
-  'nav.chat': 'Chat',
+  'nav.chat': 'Agent',
   'nav.models': 'Modelle',
   'nav.connectors': 'Konnektoren',
   'nav.memory': 'Speicher',
@@ -126,7 +126,7 @@ const de: Dict = {
 
 const pt: Dict = {
   'nav.command': 'Central de comando',
-  'nav.chat': 'Conversa',
+  'nav.chat': 'Agente',
   'nav.models': 'Modelos',
   'nav.connectors': 'Conectores',
   'nav.memory': 'Memória',
@@ -152,7 +152,7 @@ const pt: Dict = {
 
 const ja: Dict = {
   'nav.command': 'コマンドセンター',
-  'nav.chat': 'チャット',
+  'nav.chat': 'エージェント',
   'nav.models': 'モデル',
   'nav.connectors': 'コネクタ',
   'nav.memory': 'メモリ',
@@ -178,7 +178,7 @@ const ja: Dict = {
 
 const zh: Dict = {
   'nav.command': '指挥中心',
-  'nav.chat': '聊天',
+  'nav.chat': '智能体',
   'nav.models': '模型',
   'nav.connectors': '连接器',
   'nav.memory': '记忆',

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgentEvent, AutoQuality, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
-import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls } from '@kotrain/shared';
+import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls, detectSessionWorkspace } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { clearDraft, loadDraft, saveDraft } from '../composerDrafts.js';
 import { Markdown } from './Markdown.js';
@@ -12,7 +12,7 @@ import { ScheduleTaskModal } from './ScheduleTaskModal.js';
 import { PrCard, PrBadge } from './PrCard.js';
 import { MiniAphelion, AphelionAvatar } from './Mascot.js';
 import { Modal } from './primitives/index.js';
-import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon, StarIcon } from '../icons.js';
+import { PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, ThoughtIcon, ListIcon, ToolStepIcon, RobotIcon, StarIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 const NO_PRS: PrInfo[] = []; // stable empty ref so the store selector doesn't churn
@@ -194,8 +194,10 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [cost, setCost] = useState(0);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
-  // The + menu has two pages: attachments, and the chat's skills.
-  const [attachMenuPage, setAttachMenuPage] = useState<'root' | 'skills'>('root');
+  // The + menu's Skill row expands its skills as a side flyout on hover (no
+  // click needed); a short close-delay lets the pointer cross the seam.
+  const [skillsHover, setSkillsHover] = useState(false);
+  const skillsFlyTimer = useRef<number | null>(null);
   const [pendingImages, setPendingImages] = useState<string[]>(() => loadDraft(sessionId)?.images ?? []);
   // The context panel toggle lives in the store so the ⌘\ shortcut and the
   // command palette's "Toggle context panel" act on this pane too.
@@ -658,6 +660,19 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       ...(images.length ? { images } : {}),
       ...(skill ? { skill: { name: skill.name, input } } : {}),
     });
+
+    // Auto-file a project-less chat under the project it's about, inferred from
+    // its attachments + first prompt, so it lands in the right sidebar group.
+    // A general chat (no confident match) simply stays under "General".
+    if (session && !session.workspaceId) {
+      const workspaces = useStore.getState().settings?.workspaces ?? [];
+      const wsId = detectSessionWorkspace({ text, workspaces, attachedPaths: session.attachedPaths ?? [] });
+      if (wsId) {
+        const updated = await window.kotrain.setSessionWorkspace(sessionId, wsId);
+        if (updated) setSession(updated);
+        useStore.getState().refreshSessions();
+      }
+    }
   };
 
   // Queue the draft to run after the current reply (and any earlier queued
@@ -765,11 +780,23 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atQuery, session?.workspaceId]);
 
-  /** Close the + menu and reset it to its first page. */
+  /** Close the + menu (and its skills flyout). */
   const closeAttachMenu = (refocus = false) => {
     setAttachMenuOpen(false);
-    setAttachMenuPage('root');
+    setSkillsHover(false);
+    if (skillsFlyTimer.current) { clearTimeout(skillsFlyTimer.current); skillsFlyTimer.current = null; }
     if (refocus) attachButtonRef.current?.focus();
+  };
+
+  // Hover-intent for the Skill flyout: open immediately, close on a short delay
+  // so the pointer can travel from the row to the flyout without it collapsing.
+  const openSkillsFly = () => {
+    if (skillsFlyTimer.current) { clearTimeout(skillsFlyTimer.current); skillsFlyTimer.current = null; }
+    setSkillsHover(true);
+  };
+  const closeSkillsFly = () => {
+    if (skillsFlyTimer.current) clearTimeout(skillsFlyTimer.current);
+    skillsFlyTimer.current = window.setTimeout(() => setSkillsHover(false), 140);
   };
 
   const armSkill = (sk: SkillDef) => {
@@ -1323,8 +1350,8 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     onKeyDown={(e) => {
                       if (e.key !== 'Escape' || !attachMenuOpen) return;
                       e.stopPropagation();
-                      // Escape steps back a page before it closes the menu.
-                      if (attachMenuPage === 'skills') setAttachMenuPage('root');
+                      // Escape closes the skills flyout first, then the menu.
+                      if (skillsHover) { setSkillsHover(false); }
                       else closeAttachMenu(true);
                     }}
                   >
@@ -1339,12 +1366,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     >
                       <PlusIcon className="h-4 w-4" />
                     </button>
-                    {attachMenuOpen && attachMenuPage === 'root' && (
+                    {attachMenuOpen && (
                       <div className="card absolute bottom-full left-0 z-40 mb-2 w-48 p-1.5 shadow-lg" role="menu">
                         <button
                           role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
                           onClick={() => { closeAttachMenu(); imageInputRef.current?.click(); }}
+                          onMouseEnter={closeSkillsFly}
                         >
                           Photo
                         </button>
@@ -1352,6 +1380,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                           role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
                           onClick={() => { closeAttachMenu(); void addFiles(); }}
+                          onMouseEnter={closeSkillsFly}
                         >
                           File
                         </button>
@@ -1359,66 +1388,68 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                           role="menuitem"
                           className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
                           onClick={() => { closeAttachMenu(); void window.kotrain.addWorkspace(); }}
+                          onMouseEnter={closeSkillsFly}
                         >
                           Folder
                         </button>
-                        {/* Skills are reachable by typing `/`, but only if you know
-                            to. The + menu is where someone new goes looking. */}
+                        {/* Skills expand as a side flyout on hover, so someone new
+                            finds them without knowing to type `/` or to click. */}
                         <div className="my-1 border-t border-line" />
-                        <button
-                          role="menuitem"
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] hover:bg-surface-2"
-                          onClick={() => setAttachMenuPage('skills')}
-                          aria-haspopup="menu"
-                        >
-                          <span className="flex-1">Skill</span>
-                          {allSkills.length > 0 && (
-                            <span className="tabular-nums text-[11px] text-ink-faint">{allSkills.length}</span>
-                          )}
-                          <span className="text-[10px] text-ink-faint">&#9656;</span>
-                        </button>
-                      </div>
-                    )}
-                    {attachMenuOpen && attachMenuPage === 'skills' && (
-                      <div className="card absolute bottom-full left-0 z-40 mb-2 w-72 p-1.5 shadow-lg" role="menu" aria-label="Skills">
-                        <div className="flex items-center gap-1 px-1 pb-1">
-                          <button
-                            className="rounded-sm px-1 text-[11px] text-ink-faint hover:text-ink"
-                            onClick={() => setAttachMenuPage('root')}
-                            aria-label="Back to attachments"
-                          >
-                            &#9666;
-                          </button>
-                          <span className="text-[10px] uppercase tracking-wide text-ink-faint">Skills</span>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto">
-                          {allSkills.length === 0 && (
-                            <p className="px-2.5 py-2 text-[11px] text-ink-faint">
-                              No skills registered yet. Add one to run it from any chat.
-                            </p>
-                          )}
-                          {allSkills.map((sk) => (
-                            <button
-                              key={sk.id}
-                              role="menuitem"
-                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
-                              onClick={() => { closeAttachMenu(); armSkill(sk); }}
-                              title={sk.description}
-                            >
-                              {sk.highlighted && <span className="shrink-0 text-[12px] text-accent">&#9733;</span>}
-                              <span className="shrink-0 font-mono text-[12px] text-accent">/{sk.name}</span>
-                              <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{sk.description}</span>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-1 border-t border-line pt-1">
+                        <div className="relative" onMouseEnter={openSkillsFly} onMouseLeave={closeSkillsFly}>
                           <button
                             role="menuitem"
-                            className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[12px] text-accent hover:bg-surface-2"
-                            onClick={() => { closeAttachMenu(); useStore.getState().setView('skills'); }}
+                            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] ${skillsHover ? 'bg-surface-2' : 'hover:bg-surface-2'}`}
+                            onClick={() => setSkillsHover((v) => !v)}
+                            onFocus={openSkillsFly}
+                            aria-haspopup="menu"
+                            aria-expanded={skillsHover}
                           >
-                            <PlusIcon className="h-3.5 w-3.5" /> Add skill
+                            <span className="flex-1">Skill</span>
+                            {allSkills.length > 0 && (
+                              <span className="tabular-nums text-[11px] text-ink-faint">{allSkills.length}</span>
+                            )}
+                            <span className="text-[10px] text-ink-faint">&#9656;</span>
                           </button>
+                          {skillsHover && (
+                            <div
+                              className="card absolute bottom-0 left-full z-50 ml-1.5 w-72 p-1.5 shadow-lg"
+                              role="menu"
+                              aria-label="Skills"
+                              onMouseEnter={openSkillsFly}
+                              onMouseLeave={closeSkillsFly}
+                            >
+                              <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-faint">Skills</div>
+                              <div className="max-h-64 overflow-y-auto">
+                                {allSkills.length === 0 && (
+                                  <p className="px-2.5 py-2 text-[11px] text-ink-faint">
+                                    No skills registered yet. Add one to run it from any chat.
+                                  </p>
+                                )}
+                                {allSkills.map((sk) => (
+                                  <button
+                                    key={sk.id}
+                                    role="menuitem"
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
+                                    onClick={() => { closeAttachMenu(); armSkill(sk); }}
+                                    title={sk.description}
+                                  >
+                                    {sk.highlighted && <span className="shrink-0 text-[12px] text-accent">&#9733;</span>}
+                                    <span className="shrink-0 font-mono text-[12px] text-accent">/{sk.name}</span>
+                                    <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{sk.description}</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="mt-1 border-t border-line pt-1">
+                                <button
+                                  role="menuitem"
+                                  className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[12px] text-accent hover:bg-surface-2"
+                                  onClick={() => { closeAttachMenu(); useStore.getState().setView('skills'); }}
+                                >
+                                  <PlusIcon className="h-3.5 w-3.5" /> Add skill
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1455,13 +1486,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                     <button className="btn btn-outline h-8 px-3 py-0 text-[12px]" onClick={() => window.kotrain.abortChat(sessionId)}>Stop</button>
                   ) : (
                     <button
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-white transition-all duration-150 enabled:hover:brightness-110 disabled:opacity-40"
-                      style={{ background: 'var(--brand-grad)' }}
+                      className="send-avatar grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-all duration-150 disabled:opacity-40"
                       onClick={() => send()}
                       disabled={(!draft.trim() && pendingImages.length === 0 && !activeSkill) || !hasProvider}
                       title="Send"
+                      aria-label="Send"
                     >
-                      <SendIcon />
+                      <AphelionAvatar size={24} />
                     </button>
                   )}
                 </div>
@@ -1805,16 +1836,28 @@ function toStreamBlocks(messages: ChatMessage[]): StreamBlock[] {
   const flush = () => {
     if (run.length) { blocks.push({ type: 'activity', key: `act_${runKey}`, items: run }); run = []; }
   };
+  // The turn's answer is the last assistant message's own text, even when that
+  // message also made tool calls, a run cut short by the step budget, an abort,
+  // or a model that concludes in the same message as its final tool call.
+  // Without this its wrap-up would fold into the collapsed activity group and
+  // vanish; mid-run narration still folds in as before.
+  let lastAssistant = -1;
+  messages.forEach((m, i) => { if (m.role === 'assistant') lastAssistant = i; });
+
   messages.forEach((m, i) => {
     if (m.role === 'tool') return;
     if (m.role === 'user') { flush(); blocks.push({ type: 'msg', message: m }); return; }
     // Assistant messages that still call tools are working steps; the one that
     // stops calling tools is the answer.
     if (m.toolCalls?.length) {
+      const isFinalAnswer = i === lastAssistant && m.content.trim().length > 0;
       if (!run.length) runKey = `${m.id}_${i}`;
       if (m.reasoning) run.push({ kind: 'reasoning', text: m.reasoning, duration: m.reasoningSeconds ?? null });
-      if (m.content.trim()) run.push({ kind: 'note', text: m.content });
+      // Mid-run narration folds into the group; the final message's text is the
+      // turn's answer and is surfaced as its own bubble instead.
+      if (m.content.trim() && !isFinalAnswer) run.push({ kind: 'note', text: m.content });
       m.toolCalls.forEach((c) => run.push({ kind: 'tool', call: c }));
+      if (isFinalAnswer) { flush(); blocks.push({ type: 'msg', message: m }); }
     } else {
       flush();
       blocks.push({ type: 'msg', message: m });

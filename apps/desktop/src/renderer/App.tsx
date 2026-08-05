@@ -20,7 +20,6 @@ import { MemoryView } from './views/MemoryView.js';
 import { SettingsView } from './views/SettingsView.js';
 import {
   CommandHudIcon,
-  ChatColorIcon,
   SkillsColorIcon,
   TrainingColorIcon,
   GoalsColorIcon,
@@ -31,9 +30,12 @@ import {
   SettingsColorIcon,
 } from './navIcons.js';
 
+/** The Agent destination wears Aphelion herself, so the cat is the way in. */
+const AgentCatIcon = (_p: { className?: string }) => <AphelionAvatar size={22} />;
+
 const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string }) => React.JSX.Element }> = [
   { view: 'command', labelKey: 'nav.command', Icon: CommandHudIcon },
-  { view: 'chat', labelKey: 'nav.chat', Icon: ChatColorIcon },
+  { view: 'chat', labelKey: 'nav.chat', Icon: AgentCatIcon },
   { view: 'skills', labelKey: 'nav.skills', Icon: SkillsColorIcon },
   { view: 'training', labelKey: 'nav.training', Icon: TrainingColorIcon },
   { view: 'goals', labelKey: 'nav.goals', Icon: GoalsColorIcon },
@@ -140,11 +142,9 @@ export function App() {
           touch), where the bottom tab bar below takes over. */}
       <nav className="relative z-40 hidden w-16 shrink-0 md:block">
         <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
-          <div className="mb-3 flex h-9 items-center gap-2.5">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--brand-grad)' }}>
-              <AphelionAvatar size={22} />
-            </div>
-            <span className="rail-label text-[14px] font-semibold tracking-tight">Kotrain</span>
+          {/* Wordmark only, no logo mark: the cat now lives on the Agent tab. */}
+          <div className="mb-3 flex h-9 items-center px-1.5">
+            <span className="rail-label text-[15px] font-semibold tracking-tight">Kotrain</span>
           </div>
           {NAV.map(({ view: v, labelKey, Icon }) => (
             <button

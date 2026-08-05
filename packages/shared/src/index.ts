@@ -19,6 +19,7 @@ export * from './skills.js';
 export * from './skills-market.js';
 export * from './vaizer.js';
 export * from './agent-types.js';
+export * from './project-detect.js';
 export * from './connectors.js';
 export * from './ipc.js';
 export * from './settings.js';

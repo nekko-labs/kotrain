@@ -122,19 +122,17 @@
 }
 
 /* Border beam: while the agent works, a violet→cyan beam laps the composer's
-   border and a faint wash drifts across the surface (the border-beam pattern,
-   in brand colors). Where @property can't animate the angle the ring degrades
+   border (the border-beam pattern, in brand colors). It's the border only, no
+   surface wash, so the composer reads as "busy" without the interior shifting
+   color as you type. Where @property can't animate the angle the ring degrades
    to a static gradient border, which still reads as "busy". */
 @utility composer-beam {
   position: relative;
-  &::before,
-  &::after {
+  &::before {
     content: '';
     position: absolute;
     pointer-events: none;
     border-radius: 1rem; /* track the composer's rounded-2xl corners */
-  }
-  &::before {
     inset: -1px;
     padding: 1.5px;
     background: conic-gradient(
@@ -152,18 +150,18 @@
     mask-composite: exclude;
     animation: beam-lap 3.2s linear infinite;
   }
-  &::after {
-    inset: 0;
-    background: linear-gradient(
-      100deg,
-      transparent 20%,
-      var(--accent-soft) 42%,
-      color-mix(in srgb, var(--accent-2) 10%, transparent) 55%,
-      transparent 75%
-    );
-    background-size: 250% 100%;
-    animation: beam-wash 3.2s linear infinite;
-    opacity: 0.8;
+}
+
+/* The send control is Aphelion herself, not a filled button: no background,
+   just the avatar that lifts and brightens a touch on hover / press. */
+@utility send-avatar {
+  background: transparent;
+  &:enabled:hover {
+    transform: translateY(-1px) scale(1.06);
+    filter: drop-shadow(0 2px 5px color-mix(in srgb, var(--accent) 35%, transparent));
+  }
+  &:enabled:active {
+    transform: scale(0.94);
   }
 }
 
@@ -816,8 +814,7 @@
   background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 }
 
-/* The border-beam angle has to be a registered property to interpolate; the
-   wash animates background-position instead so it needs no registration. */
+/* The border-beam angle has to be a registered property to interpolate. */
 @property --beam-angle {
   syntax: '<angle>';
   inherits: false;
@@ -828,17 +825,8 @@
     --beam-angle: 360deg;
   }
 }
-@keyframes beam-wash {
-  from {
-    background-position: 125% 0;
-  }
-  to {
-    background-position: -125% 0;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .composer-beam::before,
-  .composer-beam::after {
+  .composer-beam::before {
     animation: none;
   }
 }
