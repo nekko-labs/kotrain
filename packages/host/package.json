@@ -16,8 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@lydell/node-pty": "^1.2.0-beta.12",
     "@kotrain/core": "*",
-    "@kotrain/shared": "*"
+    "@kotrain/shared": "*",
+    "@lydell/node-pty": "^1.2.0-beta.14"
   }
 }
