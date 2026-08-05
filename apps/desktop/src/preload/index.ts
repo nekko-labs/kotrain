@@ -14,6 +14,12 @@ import type {
   TerminalEvent,
 } from '@kotrain/shared';
 import { IpcChannels, IpcEvents } from '@kotrain/shared';
+import {
+  TITLEBAR_HEIGHT,
+  TITLEBAR_OVERLAY_CHANNEL,
+  type TitleBarOverlayTheme,
+  type WindowChromeBridge,
+} from '../windowChrome.js';
 
 const inv = ipcRenderer.invoke.bind(ipcRenderer);
 
@@ -213,3 +219,17 @@ const api: KotrainApi = {
 };
 
 contextBridge.exposeInMainWorld('kotrain', api);
+
+/**
+ * The window-chrome bridge, separate from the app API on purpose: `KotrainApi`
+ * is the contract the web transport also implements, and a browser tab has no
+ * title bar to draw. Its absence is how the renderer knows it isn't in the
+ * desktop shell.
+ */
+const chrome: WindowChromeBridge = {
+  platform: process.platform,
+  titleBarHeight: TITLEBAR_HEIGHT,
+  setTitleBarOverlay: (theme: TitleBarOverlayTheme) => ipcRenderer.send(TITLEBAR_OVERLAY_CHANNEL, theme),
+};
+
+contextBridge.exposeInMainWorld('kotrainChrome', chrome);

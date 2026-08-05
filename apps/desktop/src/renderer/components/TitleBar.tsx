@@ -1,0 +1,24 @@
+import { hasAppChrome, isMacChrome } from '../chrome.js';
+
+/**
+ * The window's title bar, drawn by the app.
+ *
+ * One strip in the app's own background colour: the wordmark at the leading
+ * edge, empty space the rest of the way, and the OS buttons landing in that
+ * space rather than in a frame of their own. Dragging it moves the window and
+ * double-clicking it maximises, both handled by Chromium through the
+ * `app-region` rules in `styles.css`.
+ *
+ * The wordmark lives here rather than in the rail so it isn't shown twice; the
+ * rail keeps it for the web and phone builds, which have no strip to put it in.
+ *
+ * Renders nothing outside the desktop shell.
+ */
+export function TitleBar() {
+  if (!hasAppChrome) return null;
+  return (
+    <div className={`titlebar ${isMacChrome ? 'titlebar-mac' : ''}`}>
+      <span className="titlebar-word">Kotrain</span>
+    </div>
+  );
+}

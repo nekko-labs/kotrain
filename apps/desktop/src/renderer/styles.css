@@ -375,6 +375,44 @@
   }
 }
 
+@utility titlebar {
+  /* The window's own title bar (desktop shell only; see components/TitleBar).
+     Same background as the app, so the OS buttons Chromium draws on top of it
+     read as part of the page instead of as a frame around it. Its height is
+     `TITLEBAR_HEIGHT` in src/windowChrome.ts — the main process gives the
+     Window Controls Overlay the same number, and the two have to agree or the
+     buttons stop lining up with the wordmark. */
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  background: var(--paper);
+  /* Drag the strip to move the window, double-click it to maximise. Anything
+     interactive placed here has to opt out again with `no-drag`, or it stops
+     receiving clicks. */
+  -webkit-app-region: drag;
+  user-select: none;
+  & button,
+  & a,
+  & input,
+  & .no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+@utility titlebar-mac {
+  /* macOS puts its traffic lights at the leading edge, inside our strip
+     (`trafficLightPosition` in the main process centres them on this line), so
+     the wordmark starts after them rather than underneath. */
+  padding-left: 78px;
+}
+
+@utility titlebar-word {
+  @apply text-[13px] font-semibold tracking-tight;
+  color: var(--ink-soft);
+}
+
 @utility nav-item {
   @apply relative flex h-11 w-full items-center rounded-xl text-ink-faint;
   transition:

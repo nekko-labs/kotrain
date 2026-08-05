@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
 import { useT } from './i18n.js';
 import { SHORTCUTS } from './shortcuts.js';
+import { hasAppChrome } from './chrome.js';
+import { TitleBar } from './components/TitleBar.js';
 import { Mascot, AphelionAvatar } from './components/Mascot.js';
 import { ResourceHud } from './components/ResourceMonitor.js';
 import { Toasts } from './components/Toasts.js';
@@ -136,52 +138,61 @@ export function App() {
   }, []);
 
   return (
-    <div className="flex h-full w-full" style={{ background: 'var(--paper)' }}>
-      {/* Left rail: icon-only at rest, expands over the content on hover to
-          reveal each destination's label. Hidden on phones (hover is useless on
-          touch), where the bottom tab bar below takes over. */}
-      <nav className="relative z-40 hidden w-16 shrink-0 md:block">
-        <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
-          {/* Wordmark only, no logo mark: the cat now lives on the Agent tab. */}
-          <div className="mb-3 flex h-9 items-center px-1.5">
-            <span className="rail-label text-[15px] font-semibold tracking-tight">Kotrain</span>
-          </div>
-          {NAV.map(({ view: v, labelKey, Icon }) => (
-            <button
-              key={v}
-              className={`nav-item ${view === v ? 'active' : ''}`}
-              aria-label={t(labelKey)}
-              onClick={() => setView(v)}
-            >
-              <span className="grid h-11 w-11 shrink-0 place-items-center"><Icon /></span>
-              <span className="rail-label text-[13px] font-medium">{t(labelKey)}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+    <div className="flex h-full w-full flex-col" style={{ background: 'var(--paper)' }}>
+      {/* The window's own title bar, in the desktop shell only. */}
+      <TitleBar />
 
-      {/* Main (bottom padding on phones so the tab bar never covers content) */}
-      <main className="relative flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
-        {providers.length === 0 && view !== 'models' && view !== 'settings' && (
-          <button
-            className="flex items-center justify-center gap-2 border-b border-line py-2.5 text-[13px]"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-            onClick={() => setView('models')}
-          >
-            <span className="font-medium">Get started:</span> connect your first model in Models →
-          </button>
-        )}
-        {view === 'command' && <CommandCenterView />}
-        {view === 'chat' && <WorkbenchView />}
-        {view === 'skills' && <SkillsView />}
-        {view === 'training' && <TrainingView />}
-        {view === 'goals' && <GoalsView />}
-        {view === 'design' && <DesignBoardView />}
-        {view === 'models' && <ModelsView />}
-        {view === 'connectors' && <ConnectorsView />}
-        {view === 'memory' && <MemoryView />}
-        {view === 'settings' && <SettingsView />}
-      </main>
+      <div className="flex min-h-0 w-full flex-1">
+        {/* Left rail: icon-only at rest, expands over the content on hover to
+            reveal each destination's label. Hidden on phones (hover is useless on
+            touch), where the bottom tab bar below takes over. */}
+        <nav className="relative z-40 hidden w-16 shrink-0 md:block">
+          <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
+            {/* Wordmark only, no logo mark: the cat now lives on the Agent tab.
+                In the desktop shell the title bar carries it instead, so it isn't
+                shown twice and the rail starts on its first destination. */}
+            {!hasAppChrome && (
+              <div className="mb-3 flex h-9 items-center px-1.5">
+                <span className="rail-label text-[15px] font-semibold tracking-tight">Kotrain</span>
+              </div>
+            )}
+            {NAV.map(({ view: v, labelKey, Icon }) => (
+              <button
+                key={v}
+                className={`nav-item ${view === v ? 'active' : ''}`}
+                aria-label={t(labelKey)}
+                onClick={() => setView(v)}
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center"><Icon /></span>
+                <span className="rail-label text-[13px] font-medium">{t(labelKey)}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {/* Main (bottom padding on phones so the tab bar never covers content) */}
+        <main className="relative flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+          {providers.length === 0 && view !== 'models' && view !== 'settings' && (
+            <button
+              className="flex items-center justify-center gap-2 border-b border-line py-2.5 text-[13px]"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              onClick={() => setView('models')}
+            >
+              <span className="font-medium">Get started:</span> connect your first model in Models →
+            </button>
+          )}
+          {view === 'command' && <CommandCenterView />}
+          {view === 'chat' && <WorkbenchView />}
+          {view === 'skills' && <SkillsView />}
+          {view === 'training' && <TrainingView />}
+          {view === 'goals' && <GoalsView />}
+          {view === 'design' && <DesignBoardView />}
+          {view === 'models' && <ModelsView />}
+          {view === 'connectors' && <ConnectorsView />}
+          {view === 'memory' && <MemoryView />}
+          {view === 'settings' && <SettingsView />}
+        </main>
+      </div>
 
       {/* Phone bottom tab bar: the remote-control surface. The long tail of
           destinations (models, connectors, …) stays reachable via ⌘K / More. */}
