@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo } from '@kotrain/shared';
 import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
+import { syncTitleBarOverlay } from './chrome.js';
 
 export type View = 'command' | 'chat' | 'models' | 'connectors' | 'memory' | 'settings' | 'design' | 'skills' | 'training' | 'goals';
 
@@ -297,6 +298,9 @@ export const useStore = create<UiState>((set, get) => ({
     document.documentElement.setAttribute('data-theme', resolved);
     const accent = get().settings?.accent;
     if (accent) document.documentElement.style.setProperty('--accent', accent);
+    // The native window buttons sit in our title bar, so they have to follow
+    // the theme with everything else.
+    syncTitleBarOverlay();
   },
 
   refreshTerminals: async () => {

@@ -1,10 +1,24 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import { join } from 'path';
 import { existsSync, cpSync } from 'fs';
 import { createHost } from '@kotrain/host';
 import { registerIpc } from './ipc.js';
 import { checkForUpdates } from './update.js';
 import { loadWindowBounds, saveWindowBounds } from './windowState.js';
+import {
+  TITLEBAR_HEIGHT,
+  TITLEBAR_OVERLAY_CHANNEL,
+  type TitleBarOverlayTheme,
+} from '../windowChrome.js';
+
+/**
+ * What the native buttons look like before the renderer has told us the theme.
+ *
+ * Dark `--paper` and `--ink-soft`, because the window is created with a dark
+ * background and a light-themed overlay would flash white in the corner for
+ * the frame or two before the page mounts.
+ */
+const DEFAULT_OVERLAY: TitleBarOverlayTheme = { color: '#0c0c11', symbolColor: '#a3a1b0' };
 
 function resolveWindowIcon(): string | undefined {
   const candidates = [
@@ -22,9 +36,19 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    backgroundColor: '#0f0f11',
+    backgroundColor: DEFAULT_OVERLAY.color,
     icon: resolveWindowIcon(),
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    // One bar, not three. The app draws its own title strip (see
+    // `windowChrome.ts`), so the OS contributes buttons and nothing else: no
+    // title bar and no File/Edit/View/Window strip stacked above the UI.
+    titleBarStyle: 'hidden',
+    // macOS keeps its traffic lights; centre them in our strip so they sit on
+    // the wordmark's line. Windows and Linux get the Window Controls Overlay,
+    // painted in the app's own background so the buttons read as part of the
+    // page rather than as a frame around it.
+    ...(process.platform === 'darwin'
+      ? { trafficLightPosition: { x: 14, y: (TITLEBAR_HEIGHT - 16) / 2 } }
+      : { titleBarOverlay: { ...DEFAULT_OVERLAY, height: TITLEBAR_HEIGHT } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -36,6 +60,23 @@ function createWindow(): void {
   });
 
   win.on('ready-to-show', () => win.show());
+
+  // Reload and devtools used to hang off the View menu. The menu is gone, the
+  // shortcuts people reach for shouldn't be, so bind the two that were worth
+  // keeping directly. Everything else in that menu duplicated a shortcut the
+  // app already owns (see `shortcuts.ts`) or a gesture Chromium handles itself.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const mod = input.control || input.meta;
+    const key = input.key.toLowerCase();
+    if (key === 'f12' || (mod && input.shift && key === 'i')) {
+      event.preventDefault();
+      win.webContents.toggleDevTools();
+    } else if (mod && key === 'r') {
+      event.preventDefault();
+      win.webContents.reload();
+    }
+  });
 
   // Persist size/position (debounced) so the window reopens where it was.
   let saveTimer: NodeJS.Timeout | undefined;
@@ -86,11 +127,37 @@ function migrateLegacyData(nextDir: string): void {
   }
 }
 
+/**
+ * Keep the native buttons the same colour as the strip they sit in.
+ *
+ * The renderer owns the theme (system, light, dark, plus a user accent), so it
+ * is the only side that knows what `--paper` currently resolves to; without
+ * this the buttons stay dark after the app goes light.
+ */
+function registerTitleBarOverlaySync(): void {
+  ipcMain.on(TITLEBAR_OVERLAY_CHANNEL, (e, theme: TitleBarOverlayTheme) => {
+    if (process.platform === 'darwin') return;
+    const win = BrowserWindow.fromWebContents(e.sender);
+    try {
+      win?.setTitleBarOverlay({ ...theme, height: TITLEBAR_HEIGHT });
+    } catch {
+      /* the platform has no overlay to repaint */
+    }
+  });
+}
+
 app.whenReady().then(() => {
+  // No File/Edit/View/Window bar: it cost a whole strip of chrome above the UI
+  // to duplicate shortcuts the app already owns. macOS keeps its menu — there
+  // it lives in the system bar rather than in the window, and ⌘Q/⌘H/⌘W come
+  // from it.
+  if (process.platform !== 'darwin') Menu.setApplicationMenu(null);
+
   const dataDir = join(app.getPath('userData'), 'kotrain');
   migrateLegacyData(dataDir);
   const host = createHost({ dataDir });
   registerIpc(host);
+  registerTitleBarOverlaySync();
   createWindow();
 
   // Auto-check for updates a few seconds after launch, if the user opted in.
