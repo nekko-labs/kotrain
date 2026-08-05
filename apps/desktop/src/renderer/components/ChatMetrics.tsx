@@ -55,7 +55,7 @@ export function ContextGauge({
   return (
     <div className="group relative flex min-w-0 items-center gap-1.5 text-[11px] text-ink-faint">
       <span
-        className="flex cursor-default items-center gap-1.5 rounded-md px-1 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        className="flex cursor-default items-center gap-1.5 rounded-md px-1 py-0.5 outline-hidden focus-visible:ring-2 focus-visible:ring-(--ring)"
         tabIndex={0}
         aria-label={`Context: ${used.toLocaleString()}${windowTokens ? ` of ${windowTokens.toLocaleString()}` : ''} tokens in use`}
       >

@@ -26,8 +26,8 @@ export function useDialog<T extends HTMLElement>({
   onClose: () => void;
   closeOnEscape?: boolean;
   /** Element to focus on open; defaults to the first focusable child. */
-  initialFocus?: React.RefObject<HTMLElement>;
-}): React.RefObject<T> {
+  initialFocus?: React.RefObject<HTMLElement | null>;
+}): React.RefObject<T | null> {
   const ref = useRef<T>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -116,7 +116,7 @@ export function Modal({
   onClose: () => void;
   closeOnEscape?: boolean;
   closeOnScrimClick?: boolean;
-  initialFocus?: React.RefObject<HTMLElement>;
+  initialFocus?: React.RefObject<HTMLElement | null>;
   align?: 'center' | 'top' | 'stretch';
   scrim?: string;
   zIndex?: number;
@@ -147,7 +147,7 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={descId}
         tabIndex={-1}
-        className={`outline-none ${className}`}
+        className={`outline-hidden ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {!labelledBy && <h2 id={titleId} className="sr-only">{title}</h2>}

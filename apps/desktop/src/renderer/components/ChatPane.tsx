@@ -1020,7 +1020,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   {session?.messages.some((m) => m.role === 'user') && (
                     <button className="btn btn-outline shrink-0 px-2.5 py-0.5 text-[11px]" onClick={retryLast}>Retry</button>
                   )}
-                  <button className="shrink-0 rounded p-0.5 text-ink-faint hover:text-ink" title="Dismiss" onClick={() => setErrorNotice(null)}>
+                  <button className="shrink-0 rounded-sm p-0.5 text-ink-faint hover:text-ink" title="Dismiss" onClick={() => setErrorNotice(null)}>
                     <CloseIcon className="h-3 w-3" />
                   </button>
                 </div>
@@ -1150,7 +1150,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                         <span className="shrink-0 text-[10px] tabular-nums text-ink-faint">{i + 1}</span>
                         <span className="min-w-0 flex-1 truncate text-ink-soft" title={q}>{q}</span>
                         <button
-                          className="shrink-0 rounded px-1 text-ink-faint hover:text-[var(--danger)]"
+                          className="shrink-0 rounded-sm px-1 text-ink-faint hover:text-(--danger)"
                           title="Remove from queue"
                           onClick={() => removeQueued(i)}
                         >
@@ -1303,7 +1303,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                 )}
                 <textarea
                   ref={composerRef}
-                  className="max-h-60 min-h-[52px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm text-ink outline-none placeholder:text-ink-faint"
+                  className="max-h-60 min-h-[52px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm text-ink outline-hidden placeholder:text-ink-faint"
                   rows={2}
                   placeholder={hasProvider ? 'Message Kotrain…  (/ for prompts, @ to attach files)' : 'Add a model provider in Models first'}
                   value={draft}
@@ -1383,7 +1383,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                       <div className="card absolute bottom-full left-0 z-40 mb-2 w-72 p-1.5 shadow-lg" role="menu" aria-label="Skills">
                         <div className="flex items-center gap-1 px-1 pb-1">
                           <button
-                            className="rounded px-1 text-[11px] text-ink-faint hover:text-ink"
+                            className="rounded-sm px-1 text-[11px] text-ink-faint hover:text-ink"
                             onClick={() => setAttachMenuPage('root')}
                             aria-label="Back to attachments"
                           >
@@ -1620,7 +1620,7 @@ function ModelPicker({
           {showProvider && <span className="shrink-0 text-[10px] text-ink-faint">{p.label}</span>}
         </button>
         <button
-          className={`shrink-0 rounded p-1.5 ${fav ? 'text-accent' : 'text-ink-faint hover:text-ink'}`}
+          className={`shrink-0 rounded-sm p-1.5 ${fav ? 'text-accent' : 'text-ink-faint hover:text-ink'}`}
           title={fav ? 'Unstar' : 'Star (pin to the top of this list)'}
           aria-label={fav ? `Unstar ${m.name}` : `Star ${m.name}`}
           aria-pressed={fav}
@@ -1654,7 +1654,7 @@ function ModelPicker({
           <span className="font-medium text-accent">Choose a model</span>
           <span className="text-ink-soft"> · {hint}</span>
           <span
-            className="absolute -bottom-[5px] left-4 h-2 w-2 rotate-45 border-b border-r"
+            className="absolute bottom-[-5px] left-4 h-2 w-2 rotate-45 border-b border-r"
             style={{
               borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
               background: 'var(--surface)',

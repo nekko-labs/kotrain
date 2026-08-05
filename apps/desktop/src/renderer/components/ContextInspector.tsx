@@ -28,7 +28,7 @@ function InfoHint({ text }: { text: string }) {
         tabIndex={0}
         role="note"
         aria-label={text}
-        className="grid h-3.5 w-3.5 cursor-help place-items-center rounded-full border border-line text-[8px] font-bold text-ink-faint outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        className="grid h-3.5 w-3.5 cursor-help place-items-center rounded-full border border-line text-[8px] font-bold text-ink-faint outline-hidden focus-visible:ring-2 focus-visible:ring-(--ring)"
       >
         i
       </span>
@@ -485,7 +485,7 @@ function FolderAccordion({
             )
         )}
         <button
-          className="shrink-0 rounded p-0.5 text-ink-faint opacity-0 transition-opacity hover:text-[var(--danger)] focus-visible:opacity-100 group-hover:opacity-100"
+          className="shrink-0 rounded-sm p-0.5 text-ink-faint opacity-0 transition-opacity hover:text-(--danger) focus-visible:opacity-100 group-hover:opacity-100"
           title="Remove this folder"
           onClick={onRemove}
         >
@@ -493,7 +493,7 @@ function FolderAccordion({
         </button>
         <input
           type="checkbox"
-          className="shrink-0 accent-[var(--accent)]"
+          className="shrink-0 accent-(--accent)"
           checked={included}
           aria-label={included ? `Stop using ${name} in this chat` : `Use ${name} in this chat`}
           onChange={() => (included ? onExclude() : onInclude())}
@@ -613,7 +613,7 @@ function Row({
       </div>
       {onRemove && (
         <button
-          className="shrink-0 text-ink-faint opacity-0 hover:text-[var(--danger)] group-hover:opacity-100"
+          className="shrink-0 text-ink-faint opacity-0 hover:text-(--danger) group-hover:opacity-100"
           title="Remove"
           onClick={(e) => {
             e.stopPropagation();
@@ -626,7 +626,7 @@ function Row({
       {onToggle && (
         <input
           type="checkbox"
-          className="shrink-0 accent-[var(--accent)]"
+          className="shrink-0 accent-(--accent)"
           checked={included !== false}
           aria-label={included === false ? `Include ${title}` : `Exclude ${title}`}
           onClick={(e) => e.stopPropagation()}

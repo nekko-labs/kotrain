@@ -191,7 +191,7 @@ export function PromptAnalyzer({
                   <div key={id} className="rounded-lg border border-line p-2" style={{ background: 'var(--surface-2)' }}>
                     <div className="flex items-center gap-1.5">
                       <span
-                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium"
+                        className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium"
                         style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                       >
                         <FolderIcon className="h-3 w-3" />{baseName(entry.folder.path) || entry.folder.name}
@@ -225,7 +225,7 @@ export function PromptAnalyzer({
                 <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink-faint">
                   <span>Folders:</span>
                   {looseFolders.map((f, i) => (
-                    <span key={i} className="rounded px-1 py-0.5 font-mono text-[10px]" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{f}</span>
+                    <span key={i} className="rounded-sm px-1 py-0.5 font-mono text-[10px]" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{f}</span>
                   ))}
                 </div>
               )}
@@ -341,7 +341,7 @@ function Annotated({ text, findings, mentions }: { text: string; findings: Findi
     const slice = text.slice(mk.start, mk.end);
     if (mk.kind === 'mention') {
       segs.push(
-        <span key={key++} className="rounded px-0.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+        <span key={key++} className="rounded-sm px-0.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
           {slice}
         </span>,
       );
@@ -359,5 +359,5 @@ function Annotated({ text, findings, mentions }: { text: string; findings: Findi
     lastEnd = mk.end;
   }
   if (pos < text.length) segs.push(text.slice(pos));
-  return <span className="whitespace-pre-wrap break-words text-ink-soft">{segs}</span>;
+  return <span className="whitespace-pre-wrap wrap-break-word text-ink-soft">{segs}</span>;
 }

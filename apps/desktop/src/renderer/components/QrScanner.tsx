@@ -68,7 +68,7 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
       <p className="mt-4 text-center text-[13px] text-white/80">
         {error || 'Point at the QR code in Settings → Remote access on your computer.'}
       </p>
-      <button className="btn btn-outline mt-4 !text-white" style={{ borderColor: 'rgba(255,255,255,0.4)' }} onClick={onClose}>
+      <button className="btn btn-outline mt-4 text-white!" style={{ borderColor: 'rgba(255,255,255,0.4)' }} onClick={onClose}>
         Cancel
       </button>
     </Modal>

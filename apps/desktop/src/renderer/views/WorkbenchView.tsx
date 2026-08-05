@@ -251,7 +251,7 @@ export function WorkbenchView() {
         <span className="text-sm font-semibold">Workbench</span>
         <div className="relative" ref={newMenuRef}>
           <button
-            className={`rounded p-1.5 ${contextPanelOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
+            className={`rounded-sm p-1.5 ${contextPanelOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
             title={`${contextPanelOpen ? 'Hide' : 'Show'} the folders, files & context panel (${SHORTCUTS.contextPanel.label})`}
             aria-label={`${contextPanelOpen ? 'Hide' : 'Show'} the folders, files and context panel`}
             aria-pressed={contextPanelOpen}
@@ -458,7 +458,7 @@ function ChatTags({ session, workspaces }: { session: Session; workspaces: Works
       {chips.slice(0, 2).map((c, i) => (
         <span
           key={i}
-          className="max-w-[70px] shrink-0 truncate rounded px-1 py-px text-[10px] leading-[1.5]"
+          className="max-w-[70px] shrink-0 truncate rounded-sm px-1 py-px text-[10px] leading-normal"
           style={{ background: 'var(--surface-2)', color: 'var(--ink-faint)' }}
           title={c.project ? `Also references ${c.label}` : `Tag: ${c.label}`}
         >
@@ -562,8 +562,8 @@ function PaneGroupView({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(p.id); }
               }}
-              className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
-                isActiveTab ? 'bg-paper font-medium shadow-sm' : 'text-ink-soft hover:bg-paper/50'
+              className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] outline-hidden focus-visible:ring-2 focus-visible:ring-(--ring) ${
+                isActiveTab ? 'bg-paper font-medium shadow-xs' : 'text-ink-soft hover:bg-paper/50'
               }`}
               style={isActiveTab ? { background: 'var(--paper)' } : undefined}
             >
@@ -571,7 +571,7 @@ function PaneGroupView({
               <span className="max-w-[140px] truncate">{titleFor(p)}</span>
               {projectFor(p) && (
                 <span
-                  className="max-w-[90px] shrink-0 truncate rounded px-1 py-px text-[10px] leading-[1.5] text-ink-faint"
+                  className="max-w-[90px] shrink-0 truncate rounded-sm px-1 py-px text-[10px] leading-normal text-ink-faint"
                   style={{ background: 'var(--surface-2)' }}
                   title={`Project: ${projectFor(p)}`}
                 >
@@ -580,7 +580,7 @@ function PaneGroupView({
               )}
               {status && <StatusDot status={status} />}
               <button
-                className="ml-0.5 rounded p-0.5 text-ink-faint opacity-0 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
+                className="ml-0.5 rounded-sm p-0.5 text-ink-faint opacity-0 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
                 title="Close tab"
                 aria-label={`Close ${titleFor(p)}`}
                 onClick={(e) => { e.stopPropagation(); onClose(p.id); }}
@@ -591,10 +591,10 @@ function PaneGroupView({
           );
         })}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title={`New chat (${SHORTCUTS.newAgent.label})`} onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title={`New terminal (${SHORTCUTS.newTerminal.label})`} onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title={`New chat (${SHORTCUTS.newAgent.label})`} onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title={`New terminal (${SHORTCUTS.newTerminal.label})`} onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
           {canSplit && group.panes.length > 1 && active && (
-            <button className="rounded p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
+            <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
           )}
         </div>
       </div>

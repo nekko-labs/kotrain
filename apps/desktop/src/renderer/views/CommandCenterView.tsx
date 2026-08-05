@@ -397,7 +397,7 @@ function NowRow({
                 <span className="shrink-0 tabular-nums text-[10px] text-ink-faint">{i + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-ink-soft" title={q}>{q}</span>
                 <button
-                  className="shrink-0 rounded p-0.5 text-ink-faint hover:text-red-400"
+                  className="shrink-0 rounded-sm p-0.5 text-ink-faint hover:text-red-400"
                   title="Remove from queue"
                   onClick={async () => { await window.kotrain.dequeuePrompt(session.id, i); onRefresh(); }}
                 >
@@ -494,7 +494,7 @@ function AutomationsBoard({ tasks, running, now, onOpen }: { tasks: AutomationTa
                     ) : t.status === 'paused' ? (
                       <button className="btn btn-ghost px-2 py-0.5 text-[11.5px]" onClick={() => window.kotrain.updateTask(t.id, { status: 'active' })}>Resume</button>
                     ) : null}
-                    <button className="rounded p-1 text-ink-faint hover:text-red-400" title="Delete automation" onClick={() => window.kotrain.deleteTask(t.id)}><TrashIcon className="h-3.5 w-3.5" /></button>
+                    <button className="rounded-sm p-1 text-ink-faint hover:text-red-400" title="Delete automation" onClick={() => window.kotrain.deleteTask(t.id)}><TrashIcon className="h-3.5 w-3.5" /></button>
                   </span>
                 </div>
                 <div className="mt-0.5 flex items-baseline gap-2 pl-[34px] text-[11.5px] text-ink-faint">

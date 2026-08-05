@@ -378,7 +378,7 @@ function inline(s: string, ctx: Ctx): React.ReactNode {
       nodes.push(<s key={key++} className="text-ink-faint">{strike}</s>);
     } else if (code !== undefined) {
       nodes.push(
-        <code key={key++} className="rounded px-1 py-0.5 font-mono text-[13px]" style={{ background: 'var(--surface-2)' }}>
+        <code key={key++} className="rounded-sm px-1 py-0.5 font-mono text-[13px]" style={{ background: 'var(--surface-2)' }}>
           {code}
         </code>,
       );
@@ -419,7 +419,7 @@ function Ref({ href, basePath, children }: { href: string; basePath?: string; ch
   const target = resolveRef(basePath, href);
   return (
     <button
-      className="break-words underline"
+      className="wrap-break-word underline"
       style={{ color: 'var(--accent)' }}
       title={`Open ${target}`}
       onClick={() => window.kotrain.openPath(target)}
@@ -457,9 +457,26 @@ function ImageRef({ alt, src, basePath }: { alt: string; src: string; basePath?:
   );
 }
 
+/**
+ * Markdown is untrusted here - it arrives from model output, and from files and
+ * PR bodies the agent read. Every caller happens to pass an http(s) URL today,
+ * but the guard lives on the sink so a new caller can't turn a link target into
+ * `javascript:`/`data:` script execution inside the renderer.
+ */
+export function safeHref(href: string): string | null {
+  try {
+    const { protocol } = new URL(href, 'about:blank');
+    return protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:' ? href : null;
+  } catch {
+    return null;
+  }
+}
+
 function Link({ href, children }: { href: string; children: React.ReactNode }) {
+  const safe = safeHref(href);
+  if (!safe) return <span className="wrap-break-word text-ink-soft" title={href}>{children}</span>;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="break-words underline" style={{ color: 'var(--accent)' }}>
+    <a href={safe} target="_blank" rel="noreferrer" className="wrap-break-word underline" style={{ color: 'var(--accent)' }}>
       {children}
     </a>
   );

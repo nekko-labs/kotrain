@@ -29,14 +29,14 @@ export function GoalsView() {
 
   return (
     <div className="flex h-full min-h-0">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--line)]">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-(--line)">
         <div className="flex items-center justify-between px-3 py-2.5">
           <span className="text-[13px] font-semibold">Goals</span>
-          <button className="btn btn-primary !px-2.5 !py-1 text-[12px]" onClick={() => setCreating(true)}>+ New</button>
+          <button className="btn btn-primary px-2.5! py-1! text-[12px]" onClick={() => setCreating(true)}>+ New</button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {mine.length === 0 && (
-            <div className="px-2 py-4 text-[12px] text-[var(--ink-faint)]">
+            <div className="px-2 py-4 text-[12px] text-(--ink-faint)">
               No goals yet. Give the agent something to finish: it plans the work, executes the plan, and iterates until it's done.
             </div>
           )}
@@ -45,18 +45,18 @@ export function GoalsView() {
             return (
               <button
                 key={r.id}
-                className={`mb-1 w-full rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--surface-2)] ${selected?.id === r.id && !creating ? 'bg-[var(--surface-2)]' : ''}`}
+                className={`mb-1 w-full rounded-lg px-2.5 py-2 text-left transition hover:bg-(--surface-2) ${selected?.id === r.id && !creating ? 'bg-(--surface-2)' : ''}`}
                 onClick={() => { setSelectedId(r.id); setCreating(false); }}
               >
                 <div className="truncate text-[12.5px] font-medium">{r.name}</div>
                 <div className="mt-0.5 flex items-center gap-2">
                   <RunStatusChip run={r} />
-                  <span className="font-mono text-[10px] text-[var(--ink-faint)]">
+                  <span className="font-mono text-[10px] text-(--ink-faint)">
                     {p.total ? `${p.done + p.skipped}/${p.total}` : formatRuntime(runStats(r).runtimeMs)}
                   </span>
                 </div>
                 {p.total > 0 && (
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-(--surface-2)">
                     <div className="h-full rounded-full" style={{ width: `${Math.round(p.ratio * 100)}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent)))' }} />
                   </div>
                 )}
@@ -103,10 +103,10 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
             <RunStatusChip run={run} />
             <PhaseChip run={run} />
           </div>
-          <p className="mt-1 text-[12.5px] text-[var(--ink-soft)]">{run.goal}</p>
+          <p className="mt-1 text-[12.5px] text-(--ink-soft)">{run.goal}</p>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Working for</div>
+          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">Working for</div>
           <div className="text-2xl font-bold tabular-nums" style={{ color: run.status === 'running' ? 'var(--running)' : 'inherit' }}>
             {formatRuntime(s.runtimeMs)}
           </div>
@@ -115,29 +115,29 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
           {run.status !== 'completed' && (
             <span className="flex items-center gap-1.5">
               {run.status !== 'running' && (
-                <button className="btn btn-primary !py-1.5" onClick={() => void window.kotrain.startTrainingRun(run.id)}>
+                <button className="btn btn-primary py-1.5!" onClick={() => void window.kotrain.startTrainingRun(run.id)}>
                   {run.turns ? 'Resume' : 'Start'}
                 </button>
               )}
               {run.status === 'running' && (
-                <button className="btn btn-outline !py-1.5" onClick={() => void window.kotrain.pauseTrainingRun(run.id)}>Pause</button>
+                <button className="btn btn-outline py-1.5!" onClick={() => void window.kotrain.pauseTrainingRun(run.id)}>Pause</button>
               )}
               {(run.status === 'running' || run.status === 'paused') && (
-                <button className="btn btn-outline !py-1.5 !border-red-400/40 !text-red-400" onClick={() => void window.kotrain.stopTrainingRun(run.id)}>Stop</button>
+                <button className="btn btn-outline py-1.5! border-red-400/40! text-red-400!" onClick={() => void window.kotrain.stopTrainingRun(run.id)}>Stop</button>
               )}
             </span>
           )}
-          <span className={`flex items-center gap-1.5 ${run.status !== 'completed' ? 'border-l border-[var(--line)] pl-2' : ''}`}>
+          <span className={`flex items-center gap-1.5 ${run.status !== 'completed' ? 'border-l border-(--line) pl-2' : ''}`}>
             {run.sessionId && (
               <button
-                className="btn btn-ghost !py-1.5 text-[var(--ink-soft)]"
+                className="btn btn-ghost py-1.5! text-(--ink-soft)"
                 title="View the raw agent transcript for this mission"
                 onClick={() => onOpenChat(run.sessionId!)}
               >
                 Transcript
               </button>
             )}
-            <button className="btn btn-ghost !py-1.5 text-red-400" onClick={remove}>Delete</button>
+            <button className="btn btn-ghost py-1.5! text-red-400" onClick={remove}>Delete</button>
           </span>
         </span>
       </div>
@@ -152,9 +152,9 @@ function GoalDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (ses
         <div className="space-y-3">
           {p.current && (
             <div className="card border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] px-3.5 py-3">
-              <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--accent)]">Current step</div>
+              <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--accent)">Current step</div>
               <div className="mt-1 text-[12.5px] font-semibold">{p.current.title}</div>
-              {p.current.note && <div className="mt-1 text-[11.5px] leading-snug text-[var(--ink-soft)]">{p.current.note}</div>}
+              {p.current.note && <div className="mt-1 text-[11.5px] leading-snug text-(--ink-soft)">{p.current.note}</div>}
             </div>
           )}
           <ArtifactsCard run={run} />
@@ -187,16 +187,16 @@ function MissionMeta({ run }: { run: TrainingRun }) {
   ];
   return (
     <div className="card px-3.5 py-3">
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Mission control</div>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">Mission control</div>
       <div className="mt-2 space-y-1.5">
         {rows.map((r) => (
           <div key={r.k} className="flex items-baseline justify-between gap-3 text-[11.5px]">
-            <span className="text-[var(--ink-faint)]">{r.k}</span>
-            <span className="font-mono tabular-nums text-[var(--ink-soft)]">{r.v}</span>
+            <span className="text-(--ink-faint)">{r.k}</span>
+            <span className="font-mono tabular-nums text-(--ink-soft)">{r.v}</span>
           </div>
         ))}
       </div>
-      <div className="mt-2 text-[10.5px] leading-snug text-[var(--ink-faint)]">
+      <div className="mt-2 text-[10.5px] leading-snug text-(--ink-faint)">
         The agent stops itself if it stalls or hits a budget, so it can't loop forever. Resume grants a fresh turn budget.
       </div>
     </div>
@@ -209,7 +209,7 @@ function PhaseChip({ run }: { run: TrainingRun }) {
   const p = planProgress(run.plan);
   const label = !p.total ? 'planning' : run.status === 'completed' ? 'finished' : p.done + p.skipped >= p.total ? 'verifying' : 'executing';
   return (
-    <span className="rounded-full border border-[var(--line)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">
+    <span className="rounded-full border border-(--line) px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-(--ink-soft)">
       {label}
     </span>
   );
@@ -234,9 +234,9 @@ function GoalStatTiles({ run }: { run: TrainingRun }) {
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {tiles.map((t) => (
         <div key={t.label} className="card px-3 py-2.5">
-          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">{t.label}</div>
+          <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">{t.label}</div>
           <div className="mt-0.5 text-lg font-bold tabular-nums" style={t.color ? { color: t.color } : undefined}>{t.value}</div>
-          {t.sub && <div className="truncate text-[10px] text-[var(--ink-faint)]">{t.sub}</div>}
+          {t.sub && <div className="truncate text-[10px] text-(--ink-faint)">{t.sub}</div>}
         </div>
       ))}
     </div>
@@ -257,20 +257,20 @@ function PlanPanel({ run }: { run: TrainingRun }) {
   return (
     <div className="card px-3.5 py-3">
       <div className="flex items-center justify-between">
-        <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">The plan</div>
+        <div className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-(--ink-faint)">The plan</div>
         {p.total > 0 && (
-          <span className="font-mono text-[10.5px] tabular-nums text-[var(--ink-soft)]">{p.done + p.skipped}/{p.total}</span>
+          <span className="font-mono text-[10.5px] tabular-nums text-(--ink-soft)">{p.done + p.skipped}/{p.total}</span>
         )}
       </div>
       {steps.length === 0 ? (
-        <p className="mt-2 text-[12.5px] text-[var(--ink-faint)]">
+        <p className="mt-2 text-[12.5px] text-(--ink-faint)">
           {run.status === 'running'
             ? 'Planning… the first thing the agent does is map the work into concrete steps. They appear here as it writes them.'
             : 'Nothing yet. Start the goal and the agent begins by writing its execution plan, then works through it step by step.'}
         </p>
       ) : (
         <>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-(--surface-2)">
             <div
               className="h-full rounded-full transition-all"
               style={{ width: `${Math.round(p.ratio * 100)}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent)))' }}
@@ -285,11 +285,11 @@ function PlanPanel({ run }: { run: TrainingRun }) {
                     {g.glyph}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-[12.5px] leading-5 ${step.status === 'done' ? 'text-[var(--ink-soft)]' : step.status === 'skipped' ? 'text-[var(--ink-faint)] line-through' : ''}`}>
-                      <span className="mr-1.5 font-mono text-[10px] text-[var(--ink-faint)]">{i + 1}.</span>
+                    <div className={`text-[12.5px] leading-5 ${step.status === 'done' ? 'text-(--ink-soft)' : step.status === 'skipped' ? 'text-(--ink-faint) line-through' : ''}`}>
+                      <span className="mr-1.5 font-mono text-[10px] text-(--ink-faint)">{i + 1}.</span>
                       {step.title}
                     </div>
-                    {step.note && <div className="mt-0.5 text-[11px] leading-snug text-[var(--ink-faint)]">{step.note}</div>}
+                    {step.note && <div className="mt-0.5 text-[11px] leading-snug text-(--ink-faint)">{step.note}</div>}
                   </div>
                 </li>
               );
@@ -343,7 +343,7 @@ function NewGoalForm({
     <div className="mx-auto max-w-2xl space-y-4">
       <div>
         <h1 className="text-lg font-bold tracking-tight">New goal</h1>
-        <p className="mt-1 text-[12.5px] text-[var(--ink-soft)]">
+        <p className="mt-1 text-[12.5px] text-(--ink-soft)">
           Something to get finished, not a model to test. The agent maps the work into a plan, executes it step by step, and iterates until it's genuinely done.
         </p>
       </div>
@@ -360,14 +360,14 @@ function NewGoalForm({
               <span className="grid h-5 w-5 place-items-center rounded-full text-[10.5px] font-bold text-white" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2, var(--accent)))' }}>{s.n}</span>
               <span className="text-[12.5px] font-semibold">{s.t}</span>
             </div>
-            <p className="mt-1 text-[11px] leading-snug text-[var(--ink-faint)]">{s.d}</p>
+            <p className="mt-1 text-[11px] leading-snug text-(--ink-faint)">{s.d}</p>
           </div>
         ))}
       </div>
 
       <div className="card space-y-3.5 p-4">
         <div>
-          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">The goal</label>
+          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">The goal</label>
           <textarea
             className="input min-h-[64px] w-full resize-y text-[13px]"
             placeholder={'e.g. "Ship the CSV import end to end: parser, validation, tests, docs" or "Migrate the test suite to Vitest with everything green"'}
@@ -377,11 +377,11 @@ function NewGoalForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Name (optional)</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Name (optional)</label>
             <input className="input w-full" placeholder="CSV import push" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Workspace</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Workspace</label>
             <select className="input w-full" value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)}>
               {workspaces.map((w) => (
                 <option key={w.id} value={w.id}>{w.name ?? w.path}</option>
@@ -391,12 +391,12 @@ function NewGoalForm({
           </div>
         </div>
         <div>
-          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Agent model (optional)</label>
+          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Agent model (optional)</label>
           <RunModelPicker providerId={providerId} modelId={modelId} onChange={(n) => { setProviderId(n.providerId); setModelId(n.modelId); }} />
-          <p className="mt-1 text-[10.5px] text-[var(--ink-faint)]">The model that drives this goal for hours or days. Leave on App default unless this goal needs a stronger (or cheaper) one.</p>
+          <p className="mt-1 text-[10.5px] text-(--ink-faint)">The model that drives this goal for hours or days. Leave on App default unless this goal needs a stronger (or cheaper) one.</p>
         </div>
         <div>
-          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)]">Context & constraints (optional)</label>
+          <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-(--ink-faint)">Context & constraints (optional)</label>
           <textarea
             className="input min-h-[48px] w-full resize-y text-[12.5px]"
             placeholder={'Anything the plan should respect: "don\'t touch the public API", "deadline beats polish", "use the existing design tokens"'}
