@@ -374,7 +374,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
           <p className="text-[11px] text-ink-faint">Chats, settings, memory, and usage analytics.</p>
         </div>
         <button
-          className="btn py-1.5 text-[12px] !text-white"
+          className="btn py-1.5 text-[12px] text-white!"
           style={{ background: 'var(--danger)' }}
           disabled={busy}
           onClick={wipe}
@@ -476,7 +476,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
             Optional: <span className="font-medium text-ink-soft">KotrainMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
           </p>
           <button
-            className="btn btn-ghost ml-auto shrink-0 !px-2 !py-0.5 text-[11px] text-accent"
+            className="btn btn-ghost ml-auto shrink-0 px-2! py-0.5! text-[11px] text-accent"
             onClick={() => window.kotrain.openPath('https://github.com/nekko-labs/kotrain-mcp')}
           >
             Get KotrainMCP ↗
@@ -720,7 +720,7 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
       style={{ background: on ? 'var(--accent)' : 'var(--line)' }}
     >
       <span
-        className="inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+        className="inline-block h-5 w-5 rounded-full bg-white shadow-xs transition-transform"
         style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
       />
     </button>

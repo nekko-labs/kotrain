@@ -199,7 +199,7 @@ function patchLines(patch: string) {
     else if (line.startsWith('-')) { color = 'var(--danger)'; bg = 'color-mix(in srgb, var(--danger) 10%, transparent)'; }
     return (
       <div key={i} className="flex" style={{ background: bg }}>
-        <span className="whitespace-pre-wrap break-words px-3" style={{ color: color ?? 'var(--ink-soft)' }}>{line || ' '}</span>
+        <span className="whitespace-pre-wrap wrap-break-word px-3" style={{ color: color ?? 'var(--ink-soft)' }}>{line || ' '}</span>
       </div>
     );
   });
@@ -287,7 +287,7 @@ export function PrBadge({ prs, compact = false }: { prs: PrInfo[]; compact?: boo
     chips.push(
       <span
         key="open"
-        className="shrink-0 rounded px-1 py-px text-[9px] font-medium leading-[1.5]"
+        className="shrink-0 rounded-sm px-1 py-px text-[9px] font-medium leading-normal"
         style={ready ? { background: 'rgba(46,160,67,0.18)', color: '#3fb950' } : { background: 'var(--accent-soft)', color: 'var(--accent)' }}
         title={ready ? 'PR ready to merge' : `${open} open PR${open === 1 ? '' : 's'}`}
       >
@@ -297,7 +297,7 @@ export function PrBadge({ prs, compact = false }: { prs: PrInfo[]; compact?: boo
   }
   if (merged > 0 && (!compact || open === 0)) {
     chips.push(
-      <span key="merged" className="shrink-0 rounded px-1 py-px text-[9px] font-medium leading-[1.5]" style={{ background: 'rgba(147,51,234,0.18)', color: '#c084fc' }} title={`${merged} merged PR${merged === 1 ? '' : 's'}`}>
+      <span key="merged" className="shrink-0 rounded-sm px-1 py-px text-[9px] font-medium leading-normal" style={{ background: 'rgba(147,51,234,0.18)', color: '#c084fc' }} title={`${merged} merged PR${merged === 1 ? '' : 's'}`}>
         ✓ {merged}
       </span>,
     );

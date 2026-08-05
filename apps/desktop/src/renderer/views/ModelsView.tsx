@@ -161,7 +161,7 @@ function AddProvider({ onDone }: { onDone: () => void }) {
               <button
                 key={k}
                 onClick={() => pick(k)}
-                className={`chip ${kind === k ? '!text-white' : ''}`}
+                className={`chip ${kind === k ? 'text-white!' : ''}`}
                 style={kind === k ? { background: 'var(--accent)' } : undefined}
               >
                 {PROVIDER_DEFAULTS[k].label}
@@ -375,7 +375,7 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
               {canManage ? (
                 m.loaded ? (
                   <button
-                    className="chip chip-loaded !text-white"
+                    className="chip chip-loaded text-white!"
                     style={{ background: 'var(--success)' }}
                     disabled={busy === m.id}
                     onClick={() => setLoaded(m, false)}

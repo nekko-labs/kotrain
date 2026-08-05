@@ -218,14 +218,14 @@ function EmptyBoard({ onSketch, onPrompt, onLive }: { onSketch: () => void; onPr
         Two ways in. Both end as a working HTML prototype in your workspace that you (or an agent) can keep iterating on.
       </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <button className="card group p-5 text-left transition hover:border-[var(--accent)]" onClick={onSketch}>
+        <button className="card group p-5 text-left transition hover:border-(--accent)" onClick={onSketch}>
           <div className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: 'var(--accent-soft)' }}>✏️</div>
           <div className="mt-3 text-[14.5px] font-semibold">Draw it</div>
           <p className="mt-1 text-[12.5px] leading-snug text-ink-faint">
             Sketch boxes, arrows, and labels with a finger, mouse, or Apple Pencil. Your rough drawing becomes a real code prototype.
           </p>
         </button>
-        <button className="card group p-5 text-left transition hover:border-[var(--accent)]" onClick={onPrompt}>
+        <button className="card group p-5 text-left transition hover:border-(--accent)" onClick={onPrompt}>
           <div className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: 'var(--accent-soft)' }}>✨</div>
           <div className="mt-3 text-[14.5px] font-semibold">Describe it</div>
           <p className="mt-1 text-[12.5px] leading-snug text-ink-faint">
@@ -300,7 +300,7 @@ function PageCard({
         )}
         {updating && !concept && (
           <button
-            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-white shadow"
+            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-white shadow-sm"
             style={{ background: 'var(--accent)' }}
             onClick={(e) => { e.stopPropagation(); onUpdatingClick(); }}
             title="An agent is updating your app, open its chat"
@@ -466,18 +466,18 @@ function SketchStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenera
               title={`Pen ${c}`}
             />
           ))}
-          <span className="mx-1 h-5 w-px bg-[var(--line)]" />
+          <span className="mx-1 h-5 w-px bg-(--line)" />
           {SKETCH_SIZES.map((s) => (
             <button
               key={s}
-              className={`grid h-6 w-6 place-items-center rounded-full border ${size === s ? 'border-[var(--accent)]' : 'border-transparent'}`}
+              className={`grid h-6 w-6 place-items-center rounded-full border ${size === s ? 'border-(--accent)' : 'border-transparent'}`}
               onClick={() => setSize(s)}
               title={`Stroke ${s}px`}
             >
               <span className="rounded-full bg-current" style={{ width: s + 2, height: s + 2 }} />
             </button>
           ))}
-          <span className="mx-1 h-5 w-px bg-[var(--line)]" />
+          <span className="mx-1 h-5 w-px bg-(--line)" />
           <button className={`btn px-2 py-1 text-[12px] ${erasing ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setErasing((v) => !v)}>Eraser</button>
           <button className="btn btn-ghost px-2 py-1 text-[12px]" disabled={!strokeCount} onClick={undo}>Undo</button>
           <button className="btn btn-ghost px-2 py-1 text-[12px]" disabled={!strokeCount} onClick={clear}>Clear</button>
@@ -487,7 +487,7 @@ function SketchStudio({ onCancel, onGenerate }: { onCancel: () => void; onGenera
       <div ref={wrapRef} className="min-h-0 flex-1 p-3" style={{ background: 'var(--surface-2)' }}>
         <canvas
           ref={canvasRef}
-          className="h-full w-full rounded-xl shadow-sm"
+          className="h-full w-full rounded-xl shadow-xs"
           style={{ background: '#ffffff', touchAction: 'none', cursor: 'crosshair' }}
           onPointerDown={down}
           onPointerMove={move}
@@ -597,13 +597,13 @@ function PageSheet({
           <div className="truncate text-[10.5px] text-ink-faint">{concept ? (page.origin === 'sketch' ? 'concept · from a sketch' : 'concept · from a prompt') : page.url}</div>
         </div>
         {concept && onOpenFile && (
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open the prototype file" onClick={onOpenFile}><ExternalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Open the prototype file" onClick={onOpenFile}><ExternalIcon className="h-3.5 w-3.5" /></button>
         )}
         {!concept && (
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="Open in browser pane" onClick={onOpenBrowser}><ExternalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Open in browser pane" onClick={onOpenBrowser}><ExternalIcon className="h-3.5 w-3.5" /></button>
         )}
-        <button className="rounded p-1 text-ink-faint hover:text-red-400" title="Remove page" onClick={onRemove}><TrashIcon className="h-3.5 w-3.5" /></button>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-red-400" title="Remove page" onClick={onRemove}><TrashIcon className="h-3.5 w-3.5" /></button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="px-3 py-3">
@@ -624,7 +624,7 @@ function PageSheet({
                 {refining ? 'Refining…' : 'Refine design'}
               </button>
             </div>
-            <div className="my-3 h-px bg-[var(--line)]" />
+            <div className="my-3 h-px bg-(--line)" />
           </>
         )}
 

@@ -68,7 +68,7 @@ export function ScheduleTaskModal({
     >
       <div className="flex items-center justify-between">
         <h2 id={titleId} className="text-[15px] font-semibold">⚡ Automate this agent</h2>
-        <button className="rounded p-1 text-ink-faint hover:text-ink" onClick={onClose} aria-label="Close"><CloseIcon className="h-4 w-4" /></button>
+        <button className="rounded-sm p-1 text-ink-faint hover:text-ink" onClick={onClose} aria-label="Close"><CloseIcon className="h-4 w-4" /></button>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2">

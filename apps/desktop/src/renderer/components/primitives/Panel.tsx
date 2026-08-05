@@ -30,7 +30,7 @@ export function Section({
 export function PanelList({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   // `overflow-hidden` clips the rows to the card's radius, so a row's hover fill
   // can't square off the list's rounded top and bottom corners.
-  return <div className={`card divide-y divide-[var(--line)] overflow-hidden ${className}`}>{children}</div>;
+  return <div className={`card divide-y divide-(--line) overflow-hidden ${className}`}>{children}</div>;
 }
 
 /** The dashed "nothing here yet" hint used across the views. */

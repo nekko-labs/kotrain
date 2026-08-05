@@ -61,7 +61,7 @@ export function CommandPalette() {
     >
       <input
         ref={inputRef}
-        className="w-full border-b border-line bg-transparent px-4 py-3 text-[14px] outline-none"
+        className="w-full border-b border-line bg-transparent px-4 py-3 text-[14px] outline-hidden"
         placeholder="Type a command…"
         role="combobox"
         aria-expanded

@@ -324,7 +324,7 @@ export function FilePane({ path }: { path: string }) {
               {saving ? 'Saving…' : 'Save'}
             </button>
           )}
-          <button className="rounded p-1 text-ink-faint hover:text-ink" title="Reveal in OS"
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Reveal in OS"
             onClick={() => window.kotrain.openPath(path)}><ExternalIcon className="h-3.5 w-3.5" /></button>
         </span>
       </div>
@@ -373,7 +373,7 @@ export function FilePane({ path }: { path: string }) {
           ) : (
             <textarea
               ref={taRef}
-              className="h-full w-full resize-none whitespace-pre bg-transparent px-3 pt-3 font-mono outline-none"
+              className="h-full w-full resize-none whitespace-pre bg-transparent px-3 pt-3 font-mono outline-hidden"
               style={{ fontSize: '12.5px', lineHeight: `${LINE_H}px` }}
               spellCheck={false}
               wrap="off"
@@ -411,7 +411,7 @@ function IconAction({
 }) {
   return (
     <button
-      className="rounded p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
+      className="rounded-sm p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
       title={label}
       aria-label={label}
       disabled={disabled}
@@ -466,7 +466,7 @@ function CommentDock({
       <div className="mb-1.5 flex items-center gap-2 text-[12px]">
         <span className="font-semibold text-accent">Line {line}</span>
         <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-faint">{lineText.trim() || '(empty line)'}</code>
-        <button className="rounded p-0.5 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
+        <button className="rounded-sm p-0.5 text-ink-faint hover:text-ink" title="Close" onClick={onClose}><CloseIcon className="h-3.5 w-3.5" /></button>
       </div>
 
       {comments.map((c) => (
