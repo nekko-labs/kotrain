@@ -1254,7 +1254,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
                   )}
                 </div>
               )}
-              <div className="composer">
+              <div className={streaming ? 'composer composer-beam' : 'composer'}>
                 {/* Attachments ride inside the composer, at the top, separated by
                     a hairline. Floated above it they covered the instrument
                     strip. */}
