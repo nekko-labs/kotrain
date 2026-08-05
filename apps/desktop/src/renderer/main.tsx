@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import { ensureKotrain } from './web-client.js';
 import { CloudLogin, cloudAuthRequired } from './components/CloudLogin.js';
+import { UpdateProvider } from './components/UpdateBanner.js';
 import './styles.css';
 
 function registerServiceWorker() {
@@ -22,7 +23,9 @@ function startApp(root: ReturnType<typeof createRoot>) {
   registerServiceWorker();
   root.render(
     <React.StrictMode>
-      <App />
+      <UpdateProvider>
+        <App />
+      </UpdateProvider>
     </React.StrictMode>,
   );
 }

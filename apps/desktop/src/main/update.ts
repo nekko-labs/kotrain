@@ -22,13 +22,13 @@ function set(patch: Partial<UpdateInfo>): void {
 export function initUpdater(onEvent: (u: UpdateInfo) => void): void {
   emit = onEvent;
   autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('checking-for-update', () => set({ state: 'checking', message: undefined }));
-  autoUpdater.on('update-available', (i) => set({ state: 'available', version: i.version, message: undefined }));
-  autoUpdater.on('update-not-available', () => set({ state: 'none', message: undefined }));
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.on('checking-for-update', () => set({ state: 'checking', version: undefined, percent: undefined, message: undefined }));
+  autoUpdater.on('update-available', (i) => set({ state: 'available', version: i.version, percent: undefined, message: undefined }));
+  autoUpdater.on('update-not-available', () => set({ state: 'none', version: undefined, percent: undefined, message: undefined }));
   autoUpdater.on('error', (e) => set({ state: 'error', message: String((e as Error)?.message ?? e) }));
   autoUpdater.on('download-progress', (p) => set({ state: 'downloading', percent: Math.round(p.percent) }));
-  autoUpdater.on('update-downloaded', (i) => set({ state: 'downloaded', version: i.version }));
+  autoUpdater.on('update-downloaded', (i) => set({ state: 'downloaded', version: i.version, percent: 100, message: undefined }));
 }
 
 export function currentUpdate(): UpdateInfo {
@@ -63,7 +63,8 @@ export async function downloadUpdate(): Promise<UpdateInfo> {
 export function quitAndInstall(): void {
   try {
     autoUpdater.quitAndInstall();
-  } catch {
+  } catch (error) {
     /* not packaged / nothing downloaded */
+    throw error;
   }
 }

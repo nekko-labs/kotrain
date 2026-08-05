@@ -206,7 +206,7 @@ Extends `../../knowledgebase/principles/coding.md` (which these override).
 
 ## Now / In Progress
 
-- (nothing; T33 shipped as phone remote control, see Shipped)
+- (nothing; T123 is implemented and verified, see Shipped)
 
 ## Backlog / Planned
 
@@ -232,6 +232,9 @@ Extends `../../knowledgebase/principles/coding.md` (which these override).
 ## Shipped
 
 > Append as work lands; bug fixes folded into the feature they harden. Verified throughout against a live LM Studio gemma reasoning model (streaming reasoning, single + multi-step tool loops, index-grounded context).
+
+### Latest, inline app updates (2026-08-06)
+- [x] **T123**, **The title-bar version pill now owns the complete desktop update flow, matching Hypergate.** At rest it shows `vX.Y.Z` and swaps to **Check for updates** on hover or keyboard focus without changing width. Checks hold their spinner for at least 500 ms, then confirm `latest`, offer **Download & install**, **Download only**, and a version-specific **Skip**, show real Electron download percentages, stage **Install & restart**, show an indeterminate restarting state, report **Updated to vX.Y.Z** once after relaunch, and expose retry plus error details. One `UpdateProvider` feeds both the title bar and Settings, so two surfaces cannot disagree. The first-run network consent and web refresh fallback remain intact. `autoInstallOnAppQuit` is off, making Download only and Skip honest; only an explicit install action applies the staged package. Published GitHub releases remain the feed boundary, so drafts are never offered. Verified with full typecheck across eight workspaces, 144 core + 36 desktop + 33 cloud tests, production build, unpacked Windows packaging, packaged-DOM checks (`38px` draggable title bar, `28px` no-drag control), a real check, and dark/light captures including the completed-update pill. · [spec](SPEC.md#distribution--platforms) · Done: 2026-08-06
 
 ### Latest, one title bar instead of three (2026-08-06)
 - [x] **T122**, **The window's chrome is the app's, and the menu bar is gone.** (T-number to re-check at merge per the shared-checkout note.) Philip: *"let's remove the file/edit/etc toolbar. Let's also make the minimize/close/maximize buttons feel integrated on the same line and color as the background."* Three strips stacked above the UI — an OS title bar, a File/Edit/View/Window menu, then the app — and the window buttons sat in a grey frame that belonged to no theme the app has.

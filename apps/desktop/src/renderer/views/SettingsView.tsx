@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, KotrainMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
+import type { AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, KotrainMcpInfo, SandboxMode, ThemeMode } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Badge } from '../components/primitives/index.js';
+import { UpdateProgress, useUpdater } from '../components/UpdateBanner.js';
 import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
@@ -663,29 +664,24 @@ function GuardrailsSection({
 }
 
 function UpdatesSection({ settings, onToggle }: { settings: AppSettings; onToggle: (v: boolean) => void }) {
-  const [info, setInfo] = useState<AppInfo | null>(null);
-  const [status, setStatus] = useState<UpdateInfo | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  useEffect(() => { window.kotrain.getAppInfo().then(setInfo); }, []);
-
-  const check = async () => {
-    setChecking(true);
-    setStatus(await window.kotrain.checkForUpdates());
-    setChecking(false);
-  };
-
-  const statusText = !status
-    ? ''
-    : status.state === 'available'
-      ? `Update available: v${status.version ?? ''}`
-      : status.state === 'none'
-        ? "You're up to date."
-        : status.state === 'error'
-          ? status.message ?? 'Update check failed.'
-          : status.state === 'downloaded'
-            ? 'Update downloaded, restart to apply.'
-            : '';
+  const updater = useUpdater();
+  const { app: info, info: status, stage } = updater;
+  const isWeb = info?.edition === 'web';
+  const statusText = stage === 'available'
+    ? isWeb ? 'A newer build is ready.' : `Update available: v${status?.version ?? ''}`
+    : stage === 'downloaded'
+      ? `Ready to install v${status?.version ?? ''}.`
+      : stage === 'downloading'
+        ? `Downloading v${status?.version ?? ''}`
+        : stage === 'installing'
+          ? `Installing v${status?.version ?? ''} and restarting.`
+          : stage === 'installed'
+            ? `Updated to v${info?.version ?? ''}.`
+            : stage === 'failed'
+              ? updater.error ?? 'Update failed.'
+              : status?.state === 'none' && !status.message
+                ? "You're up to date."
+                : status?.message ?? '';
 
   return (
     <section className="card mt-5 p-5">
@@ -700,12 +696,36 @@ function UpdatesSection({ settings, onToggle }: { settings: AppSettings; onToggl
         </div>
         <Toggle on={!!settings.autoUpdate} onChange={onToggle} />
       </div>
-      <div className="mt-2 flex items-center gap-3">
-        <button className="btn btn-outline py-1.5 text-[12px]" onClick={check} disabled={checking}>
-          {checking ? 'Checking…' : 'Check now'}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button className="btn btn-outline py-1.5 text-[12px]" onClick={() => void updater.check(true)} disabled={stage === 'checking' || stage === 'downloading' || stage === 'installing'}>
+          {stage === 'checking' ? 'Checking…' : 'Check now'}
         </button>
-        {statusText && <span className="text-[12px] text-ink-faint">{statusText}</span>}
+        {stage === 'available' && (isWeb ? (
+          <button className="btn btn-primary py-1.5 text-[12px]" onClick={() => void updater.install()}>Refresh now</button>
+        ) : (
+          <>
+            <button className="btn btn-primary py-1.5 text-[12px]" onClick={() => void updater.downloadAndInstall()}>Download &amp; install</button>
+            <button className="btn btn-outline py-1.5 text-[12px]" onClick={() => void updater.downloadOnly()}>Download only</button>
+            <button className="btn btn-ghost py-1.5 text-[12px]" onClick={updater.skip}>Skip</button>
+          </>
+        ))}
+        {stage === 'downloaded' && (
+          <>
+            <button className="btn btn-primary py-1.5 text-[12px]" onClick={() => void updater.install()}>Install &amp; restart</button>
+            <button className="btn btn-ghost py-1.5 text-[12px]" onClick={updater.skip}>Skip</button>
+          </>
+        )}
+        {stage === 'failed' && <button className="btn btn-outline py-1.5 text-[12px]" onClick={() => void updater.retry()}>Retry</button>}
+        {statusText && <span className={`text-[12px] ${stage === 'failed' ? 'text-danger' : 'text-ink-faint'}`} role="status" aria-live="polite">{statusText}</span>}
       </div>
+      {(stage === 'downloading' || stage === 'installing') && (
+        <div className="mt-3 flex max-w-md items-center gap-3">
+          <UpdateProgress percent={status?.percent} installing={stage === 'installing'} />
+          <span className="min-w-10 text-right text-[11px] tabular-nums text-ink-faint">
+            {stage === 'downloading' ? `${status?.percent ?? 0}%` : 'restarting'}
+          </span>
+        </div>
+      )}
     </section>
   );
 }
