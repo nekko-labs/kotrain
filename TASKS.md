@@ -1,6 +1,6 @@
 ---
 status: active
-last-updated: 2026-07-11
+last-updated: 2026-08-06
 owner:
 ---
 
@@ -109,7 +109,7 @@ The workbench is a Zustand pane model (`store.ts`: `groups: WbGroup[]`, each a c
 
 ## Design System & UI/UX
 
-**UI map (renderer).** Left rail (icon nav, expands over the content on hover to show labels): **Command Center** (dashboard), **Chat** → the **Workbench**, **Skills**, **Training**, **Goals**, **Design** (the design studio + snapshot board), **Models** (model server UI), **Connectors**, **Memory**, **Settings**. (The dedicated **Projects** view was removed 2026-07-18; folders are added from a chat's + menu / Context Inspector, and the index still powers `@` mentions + context.) **Mascot**: Kotrain, a hand-drawn astronaut cat (glass helmet with ginger-tipped ear pods, cream suit, ginger tail) that peeks from the window edge, waves, and works in zero-g while the model is thinking (drift → orbit → comet-batting cycle; see T114).
+**UI map (renderer).** Left rail (icon nav, expands over the content on hover to show labels; its right divider is visible only while expanded): **Command Center** (dashboard), **Chat** → the **Workbench**, **Skills**, **Training**, **Goals**, **Design** (the design studio + snapshot board), **Models** (model server UI), **Connectors**, **Memory**, **Settings**. (The dedicated **Projects** view was removed 2026-07-18; folders are added from a chat's + menu / Context Inspector, and the index still powers `@` mentions + context.) **Mascot**: Aphelion, a right-facing hand-drawn astronaut cat whose glass helmet, cream suit, irregular ink, and ginger accents carry through every pose. A renderer-local state machine maps agent work, user activity, active pauses, and AFK/visibility to bug-watching, wake-and-spin, stretching, lying, and sleeping poses (see T124).
 
 **Workbench (the Chat surface).** A Warp/Devin-style multi-pane shell driven by a Zustand pane model (`groups: WbGroup[]`, each a tab-stack of `WbPane`s shown side by side; `MAX_GROUPS = 3`). Left sidebar groups work by project (workspace bucket + a "No project" bucket), listing chats and terminals; sub-agent sessions (`parentSessionId`) nest recursively under their parent. Center is a tab bar + split columns. Components: `WorkbenchView` (orchestrator + sidebar + tab strips), `ChatPane` (self-contained conversation, per-pane provider/model, streaming, inline Context Inspector; refactored out of the old monolithic `ChatView`), `TerminalPane` (Warp block terminal), `FilePane` (markdown preview / mono editor), `BrowserPane` (`<webview>` + URL bar), `DiffPane` (session change review). Terminals are an in-memory host service (`packages/host/terminal.ts`): one persistent shell process per terminal, per-command marker echo delimits blocks + carries the exit code (`$?`-aware on PowerShell), output streamed over a `terminalEvent` bus channel. Sub-agents: `spawn_agent` builtin tool handled in `host/chat.ts` (creates a child session, runs a nested `sendChat`, returns its last assistant message; depth-capped).
 
@@ -206,7 +206,7 @@ Extends `../../knowledgebase/principles/coding.md` (which these override).
 
 ## Now / In Progress
 
-- (nothing; T123 is implemented and verified, see Shipped)
+- (nothing; T124 is implemented and verified, see Shipped)
 
 ## Backlog / Planned
 
@@ -232,6 +232,9 @@ Extends `../../knowledgebase/principles/coding.md` (which these override).
 ## Shipped
 
 > Append as work lands; bug fixes folded into the feature they harden. Verified throughout against a live LM Studio gemma reasoning model (streaming reasoning, single + multi-step tool loops, index-grounded context).
+
+### Latest, Aphelion activity animations (2026-08-06)
+- [x] **T124**, **Aphelion now behaves like one right-facing cat instead of a standing body under a separate head.** The helmet's glass, cream fill, ginger accents, irregular ink, and facial detail now carry through filled, outlined bodies, tails, legs, and paws across five activity-linked poses. Launch and return from AFK wake Aphelion into a stand-and-spin; ordinary idle lies down with quiet breathing; active pauses stretch; agent work watches a tiny bug at the workbench edge with both front paws braced against it; 60 seconds without keyboard, pointer, or touch activity falls asleep, as does a hidden document. Visibility and reduced-motion preferences pause or collapse nonessential loops, while dynamic labels and Enter/Space keep the mascot operable. The collapsed nav rail has no right divider; its 1px edge appears only with the expanded hover or keyboard-focus state. Verified with 213 tests (144 core, 36 desktop, 33 cloud), typecheck across eight workspaces, production build, deterministic pose checks at 4/13/61 seconds, measured rail rest/hover/focus states (`64px/0`, `200px/1`, `200px/1`), dark and light before/after snapshots, and an 8-second motion capture. The Impeccable detector reported only five pre-existing warnings outside this change. · [spec](SPEC.md#vision) · Done: 2026-08-06
 
 ### Latest, inline app updates (2026-08-06)
 - [x] **T123**, **The title-bar version pill now owns the complete desktop update flow, matching Hypergate.** At rest it shows `vX.Y.Z` and swaps to **Check for updates** on hover or keyboard focus without changing width. Checks hold their spinner for at least 500 ms, then confirm `latest`, offer **Download & install**, **Download only**, and a version-specific **Skip**, show real Electron download percentages, stage **Install & restart**, show an indeterminate restarting state, report **Updated to vX.Y.Z** once after relaunch, and expose retry plus error details. One `UpdateProvider` feeds both the title bar and Settings, so two surfaces cannot disagree. The first-run network consent and web refresh fallback remain intact. `autoInstallOnAppQuit` is off, making Download only and Skip honest; only an explicit install action applies the staged package. Published GitHub releases remain the feed boundary, so drafts are never offered. Verified with full typecheck across eight workspaces, 144 core + 36 desktop + 33 cloud tests, production build, unpacked Windows packaging, packaged-DOM checks (`38px` draggable title bar, `28px` no-drag control), a real check, and dark/light captures including the completed-update pill. · [spec](SPEC.md#distribution--platforms) · Done: 2026-08-06

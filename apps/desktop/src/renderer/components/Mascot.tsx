@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 export type MascotMood = 'idle' | 'waving' | 'thinking';
 
-/** Thinking moves: a gentle drift followed by a front-paw comet bat. */
-type SpaceMove = 'drift' | 'bat';
+/** Activity poses map the app's state to one legible piece of cat behavior. */
+type MascotPose = 'lying' | 'waking' | 'stretching' | 'bug' | 'sleeping';
 
 /**
  * Shared hand-drawn palette for the quadruped astronaut cat. Ink and face are
@@ -22,23 +22,108 @@ const APHELION = {
   violet: '#8b7bff',
 };
 
-const MOVE_SEQUENCE: { move: SpaceMove; ms: number }[] = [
-  { move: 'drift', ms: 4000 },
-  { move: 'bat', ms: 4800 },
-];
+const AFK_MS = 60_000;
+const STRETCH_MS = 12_000;
+const POSE_LABELS: Record<MascotPose, string> = {
+  lying: 'Aphelion is resting',
+  waking: 'Aphelion is getting up',
+  stretching: 'Aphelion is stretching',
+  bug: 'Aphelion spotted a bug',
+  sleeping: 'Aphelion is sleeping',
+};
 
-/** Cycle through Aphelion's gentle drift and front-paw comet batting while active. */
-function useSpaceMove(active: boolean): SpaceMove {
-  const [i, setI] = useState(0);
+/** Coordinate agent activity, user activity, and AFK time without involving the app store. */
+function useMascotPose(mood: MascotMood, enabled: boolean): [MascotPose, () => void] {
+  const [pose, setPose] = useState<MascotPose>(mood === 'thinking' ? 'bug' : 'waking');
+  const moodRef = useRef(mood);
+  const afkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { moodRef.current = mood; }, [mood]);
+
+  const armAfk = useCallback(() => {
+    if (afkTimer.current) clearTimeout(afkTimer.current);
+    if (!enabled || document.hidden) return;
+    afkTimer.current = setTimeout(() => {
+      if (moodRef.current !== 'thinking') setPose('sleeping');
+    }, AFK_MS);
+  }, [enabled]);
+
+  const wake = useCallback(() => {
+    if (!enabled || document.hidden || moodRef.current === 'thinking') return;
+    setPose('waking');
+    armAfk();
+  }, [armAfk, enabled]);
+
   useEffect(() => {
-    if (!active) return;
-    const t = setTimeout(() => setI((n) => (n + 1) % MOVE_SEQUENCE.length), MOVE_SEQUENCE[i].ms);
-    return () => clearTimeout(t);
-  }, [active, i]);
+    if (!enabled) return;
+    if (document.hidden) setPose('sleeping');
+    else if (mood === 'thinking') setPose('bug');
+    else if (mood === 'waving') setPose('waking');
+    else setPose((current) => current === 'bug' ? 'stretching' : current === 'sleeping' ? current : 'lying');
+    if (mood !== 'thinking') armAfk();
+  }, [armAfk, enabled, mood]);
+
   useEffect(() => {
-    if (!active) setI(0);
-  }, [active]);
-  return MOVE_SEQUENCE[i].move;
+    if (!enabled || (pose !== 'waking' && pose !== 'stretching')) return;
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      if (!document.hidden && moodRef.current !== 'thinking') setPose('lying');
+    }, pose === 'waking' ? 1500 : 1900);
+    return () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    };
+  }, [enabled, pose]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let lastPointerMove = 0;
+    const signalActivity = (event?: Event) => {
+      if (event?.type === 'pointermove') {
+        const now = Date.now();
+        if (now - lastPointerMove < 1000) return;
+        lastPointerMove = now;
+      }
+      setPose((current) => current === 'sleeping' && moodRef.current !== 'thinking' ? 'waking' : current);
+      armAfk();
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (afkTimer.current) clearTimeout(afkTimer.current);
+        setPose('sleeping');
+      } else if (moodRef.current === 'thinking') {
+        setPose('bug');
+      } else {
+        signalActivity();
+      }
+    };
+    window.addEventListener('keydown', signalActivity);
+    window.addEventListener('pointerdown', signalActivity);
+    window.addEventListener('pointermove', signalActivity, { passive: true });
+    window.addEventListener('touchstart', signalActivity, { passive: true });
+    document.addEventListener('visibilitychange', onVisibility);
+    armAfk();
+    return () => {
+      window.removeEventListener('keydown', signalActivity);
+      window.removeEventListener('pointerdown', signalActivity);
+      window.removeEventListener('pointermove', signalActivity);
+      window.removeEventListener('touchstart', signalActivity);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (afkTimer.current) clearTimeout(afkTimer.current);
+    };
+  }, [armAfk, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const interval = setInterval(() => {
+      if (!document.hidden && moodRef.current !== 'thinking') {
+        setPose((current) => current === 'lying' ? 'stretching' : current);
+      }
+    }, STRETCH_MS);
+    return () => clearInterval(interval);
+  }, [enabled]);
+
+  return [pose, wake];
 }
 
 /** A wobbly four-point sparkle made from two crossed pencil strokes. */
@@ -56,7 +141,7 @@ function Sparkle({ x, y, s, color, className }: { x: number; y: number; s: numbe
   );
 }
 
-function CatHelmet({ C, compact = false }: { C: typeof APHELION; compact?: boolean }) {
+function CatHelmet({ C, compact = false, expression = 'awake' }: { C: typeof APHELION; compact?: boolean; expression?: 'awake' | 'curious' | 'sleeping' }) {
   if (compact) {
     return (
       <>
@@ -95,9 +180,18 @@ function CatHelmet({ C, compact = false }: { C: typeof APHELION; compact?: boole
       <path d="M 20.5 16.7 L 20.5 8.8 L 28.1 14.3 Z M 35.1 14.3 L 42.7 8.8 L 42.7 16.7 Z" fill={C.ginger} stroke={C.ink} strokeWidth={0.8} strokeLinejoin="round" />
       {/* Cream face and hand-drawn features remain visible through the glass. */}
       <ellipse cx={31.6} cy={30.2} rx={11.1} ry={11.7} fill={C.suit} stroke={C.ink} strokeWidth={0.6} />
-      <circle cx={26.4} cy={29.2} r={1.85} fill={C.face} />
-      <circle cx={36.8} cy={29.2} r={1.85} fill={C.face} />
-      <path d="M 29.3 33.7 q 1.15 1.35 2.3 0 q 1.15 1.35 2.3 0" stroke={C.face} strokeWidth={1.15} strokeLinecap="round" />
+      {expression === 'sleeping' ? (
+        <>
+          <path d="M 24.4 29.6 q 2 1.7 4 0 M 34.8 29.6 q 2 1.7 4 0" stroke={C.face} strokeWidth={1.25} strokeLinecap="round" />
+          <path d="M 30 34.2 q 1.6 -0.8 3.2 0" stroke={C.face} strokeWidth={1.05} strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <circle cx={expression === 'curious' ? 27.2 : 26.4} cy={29.2} r={1.85} fill={C.face} />
+          <circle cx={expression === 'curious' ? 37.6 : 36.8} cy={29.2} r={1.85} fill={C.face} />
+          <path d="M 29.3 33.7 q 1.15 1.35 2.3 0 q 1.15 1.35 2.3 0" stroke={C.face} strokeWidth={1.15} strokeLinecap="round" />
+        </>
+      )}
       <circle cx={23.8} cy={33.8} r={1.3} fill={C.blush} opacity={0.65} />
       <circle cx={39.4} cy={33.8} r={1.3} fill={C.blush} opacity={0.65} />
       <path d="M 19.3 31.1 q 2.2 0.6 3.8 0.4 M 19.5 34.2 q 2.1 -0.2 3.6 -0.7 M 43.9 31.1 q -2.2 0.6 -3.8 0.4 M 43.7 34.2 q -2.1 -0.2 -3.6 -0.7" stroke={C.face} strokeWidth={0.95} strokeLinecap="round" opacity={0.48} />
@@ -155,17 +249,84 @@ function SuitLeg({ C, d, boot }: { C: typeof APHELION; d: string; boot: { cx: nu
   );
 }
 
+function RestPose({ sleeping = false }: { sleeping?: boolean }) {
+  const C = APHELION;
+  return (
+    <g className={sleeping ? 'aphelion-sleep' : 'aphelion-breathe'}>
+      <path d="M 31 63 C 22 62 14 57 15 50 C 16 44 22 41 29 44 L 28 48 C 24 46 19 47 19 51 C 19 55 25 58 32 58 Z" fill={C.ginger} stroke={C.ink} strokeWidth={1.45} strokeLinejoin="round" />
+      <path d="M 26 50 C 32 42 45 40 60 44 C 70 46 78 53 78 61 C 78 70 67 75 51 74 C 36 75 24 70 23 62 C 22 58 23 53 26 50 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.65} strokeLinejoin="round" />
+      <path d="M 30 51 C 42 47 57 48 70 54" stroke={C.suitShade} strokeWidth={2} strokeLinecap="round" />
+      <path d="M 40 66 Q 49 72 59 67 L 62 71 Q 50 78 38 71 Z" fill={C.suitShade} stroke={C.ink} strokeWidth={1.35} strokeLinejoin="round" />
+      <ellipse cx={61} cy={70.5} rx={4.2} ry={2.4} fill={C.suitShade} stroke={C.ink} strokeWidth={1.15} />
+      <g transform="translate(52 22) scale(.9)">
+        <CatHelmet C={C} expression={sleeping ? 'sleeping' : 'awake'} />
+      </g>
+      <path d="M 73 62 Q 80 66 87 63" stroke={C.suitShade} strokeWidth={3.1} strokeLinecap="round" />
+      {sleeping && (
+        <g className="aphelion-zs" fill={C.glint} fontFamily="Inter, system-ui, sans-serif" fontWeight="700">
+          <text x="94" y="43" fontSize="8">z</text>
+          <text x="102" y="32" fontSize="10">z</text>
+        </g>
+      )}
+    </g>
+  );
+}
+
+function StretchPose() {
+  const C = APHELION;
+  return (
+    <g className="aphelion-stretch">
+      <path d="M 31 59 C 21 59 14 52 16 43 C 18 35 15 32 11 33 L 10 29 C 18 27 23 35 20 44 C 18 50 24 54 31 54 Z" fill={C.ginger} stroke={C.ink} strokeWidth={1.45} strokeLinejoin="round" />
+      <path d="M 27 48 C 30 37 41 33 51 38 C 60 42 63 53 70 61 C 64 68 50 70 38 67 C 28 65 23 58 27 48 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.65} strokeLinejoin="round" />
+      <path d="M 32 44 Q 44 39 55 47" stroke={C.suitShade} strokeWidth={2} strokeLinecap="round" />
+      <g transform="translate(56 34) scale(.78)">
+        <CatHelmet C={C} />
+      </g>
+      <path d="M 69 63 C 77 70 85 75 94 77 L 94 82 C 82 80 73 75 66 69 Z" fill={C.suitShade} stroke={C.ink} strokeWidth={1.4} strokeLinejoin="round" />
+      <ellipse cx={95} cy={80} rx={4.2} ry={2.5} fill={C.suitShade} stroke={C.ink} strokeWidth={1.2} />
+      <path d="M 64 62 C 70 71 77 77 85 79 L 84 84 C 74 81 67 75 61 68 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.4} strokeLinejoin="round" />
+      <ellipse cx={86} cy={82} rx={4.2} ry={2.5} fill={C.suit} stroke={C.ink} strokeWidth={1.2} />
+    </g>
+  );
+}
+
+function BugPose() {
+  const C = APHELION;
+  return (
+    <g className="aphelion-bug-watch">
+      <path d="M 44 72 C 32 74 22 68 23 59 C 24 52 20 50 17 52 L 15 48 C 22 44 29 50 27 59 C 26 65 35 68 43 67 Z" fill={C.ginger} stroke={C.ink} strokeWidth={1.45} strokeLinejoin="round" />
+      <path d="M 43 43 C 50 38 63 39 72 45 C 78 51 78 65 72 72 C 64 78 49 77 42 70 C 37 62 37 49 43 43 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.65} strokeLinejoin="round" />
+      <path d="M 45 48 Q 58 43 70 50" stroke={C.suitShade} strokeWidth={2} strokeLinecap="round" />
+      <path d="M 44 66 Q 50 70 52 84 L 46 85 Q 44 75 40 70 Z" fill={C.suitShade} stroke={C.ink} strokeWidth={1.35} strokeLinejoin="round" />
+      <ellipse cx={49} cy={86} rx={4.2} ry={2.5} fill={C.suitShade} stroke={C.ink} strokeWidth={1.2} />
+      <path d="M 65 66 Q 71 71 72 84 L 66 85 Q 65 76 61 70 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.35} strokeLinejoin="round" />
+      <ellipse cx={69} cy={86} rx={4.2} ry={2.5} fill={C.suit} stroke={C.ink} strokeWidth={1.2} />
+      <g transform="translate(55 5) scale(.84)">
+        <CatHelmet C={C} expression="curious" />
+      </g>
+      <path d="M 68 46 Q 84 43 100 31 L 103 36 Q 87 50 71 52 Z" fill={C.suit} stroke={C.ink} strokeWidth={1.4} strokeLinejoin="round" />
+      <ellipse cx={101} cy={34} rx={4.1} ry={2.6} fill={C.suit} stroke={C.ink} strokeWidth={1.2} />
+      <path d="M 70 55 Q 87 57 101 47 L 104 52 Q 88 64 71 61 Z" fill={C.suitShade} stroke={C.ink} strokeWidth={1.4} strokeLinejoin="round" />
+      <ellipse cx={102} cy={50} rx={4.1} ry={2.6} fill={C.suitShade} stroke={C.ink} strokeWidth={1.2} />
+      <g className="aphelion-bug">
+        <circle cx={106} cy={24} r={2.4} fill={C.face} />
+        <path d="M 103 21 L 100 18 M 108 21 L 111 18 M 103 26 L 100 29 M 108 26 L 111 29" stroke={C.face} strokeWidth={1} strokeLinecap="round" />
+        <path d="M 103 23 Q 98 21 97 17 M 108 23 Q 112 20 113 17" stroke={C.violet} strokeWidth={1} strokeLinecap="round" />
+      </g>
+    </g>
+  );
+}
+
 /**
- * Aphelion, a hand-drawn astronaut cat resting on four little boots at the
- * bottom of the left nav rail. Idle greetings raise a front paw; thinking
- * cycles through a gentle drift and a front-paw bat at a passing comet.
+ * Aphelion, a hand-drawn astronaut cat living at the bottom of the left rail.
+ * User and agent activity select a right-facing wake, rest, stretch, bug-watch,
+ * or sleep pose while preserving the helmet's illustration language.
  */
 export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }) {
   const [peek, setPeek] = useState(false);
   const [hovering, setHovering] = useState(false);
-  const [reacting, setReacting] = useState(false);
+  const [pose, wake] = useMascotPose(mood, enabled);
   const thinking = mood === 'thinking';
-  const move = useSpaceMove(thinking);
   useEffect(() => {
     if (!enabled) return;
     const t = setTimeout(() => setPeek(true), 400);
@@ -174,49 +335,46 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
 
   if (!enabled) return null;
   const C = APHELION;
-  const drifting = thinking && move === 'drift';
-  const batting = thinking && move === 'bat';
-  const active = thinking || hovering || reacting;
-  const reactionAnim = reacting
-    ? 'aphelion-hop'
-    : hovering && !thinking
-      ? 'aphelion-hover-wiggle'
-      : '';
-  const bodyAnim = drifting ? 'aphelion-drift' : 'aphelion-float';
-  const liftedFrontPaw = mood === 'waving' || batting;
+  const batting = false;
+  const reacting = false;
+  const liftedFrontPaw = false;
 
   return (
     <div
-      className={`pointer-events-none fixed bottom-4 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'aphelion-peek' : ''}`}
+      className={`pointer-events-none fixed bottom-2 left-0 z-40 flex w-16 select-none items-end justify-center ${peek ? 'aphelion-peek' : ''}`}
     >
       <div
-        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${active ? 'aphelion-lean-right' : 'aphelion-lean'}`}
-        onMouseEnter={() => setHovering(true)}
+        className={`pointer-events-none md:pointer-events-auto md:cursor-pointer ${hovering ? 'aphelion-attentive' : ''} ${typeof document !== 'undefined' && document.hidden ? 'aphelion-paused' : ''}`}
+        data-mascot-pose={pose}
+        onMouseEnter={() => { setHovering(true); wake(); }}
         onMouseLeave={() => setHovering(false)}
-        onClick={() => setReacting(true)}
-        title={thinking ? 'Aphelion is working…' : reacting ? 'Boost!' : 'Aphelion'}
+        onClick={wake}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wake(); } }}
+        title={POSE_LABELS[pose]}
         role="button"
-        aria-label="Aphelion mascot"
+        tabIndex={0}
+        aria-label={POSE_LABELS[pose]}
       >
-        <div
-          className={reactionAnim}
-          onAnimationEnd={(e) => {
-            if (e.target === e.currentTarget) setReacting(false);
-          }}
-        >
+        <div className={pose === 'waking' ? 'aphelion-wake' : ''}>
           <svg
-            viewBox="-8 0 104 88"
-            width="78"
-            height="66"
+            viewBox="0 0 114 92"
+            width="108"
+            height="87"
             fill="none"
           >
-            <Sparkle x={5} y={20} s={2.2} color={C.star} className={thinking ? 'aphelion-twinkle' : 'aphelion-twinkle-slow'} />
-            <Sparkle x={94} y={25} s={1.8} color={C.violet} className="aphelion-twinkle-slow" />
-            <Sparkle x={8} y={68} s={1.6} color={C.glint} className={thinking ? 'aphelion-twinkle' : 'aphelion-twinkle-slow'} />
-            <g
-              className={bodyAnim}
-              style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-            >
+            <Sparkle x={7} y={18} s={2.2} color={C.star} className={thinking ? 'aphelion-twinkle' : 'aphelion-twinkle-slow'} />
+            <Sparkle x={109} y={41} s={1.8} color={C.violet} className="aphelion-twinkle-slow" />
+            <Sparkle x={10} y={78} s={1.6} color={C.glint} className={thinking ? 'aphelion-twinkle' : 'aphelion-twinkle-slow'} />
+            {pose === 'lying' && <RestPose />}
+            {pose === 'sleeping' && <RestPose sleeping />}
+            {pose === 'stretching' && <StretchPose />}
+            {pose === 'bug' && <BugPose />}
+            {pose === 'waking' && (
+              <g transform="translate(105 0) scale(-1 1)">
+                <g
+                  className="aphelion-stand"
+                  style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                >
               {/* Ginger tail rises behind the rounded haunches, clear of every boot. */}
               <path d="M 73 57 C 84 58 91 52 91 42 C 91 35 87 31 82 32" stroke={C.ink} strokeWidth={5.8} strokeLinecap="round" fill="none" />
               <path d="M 73 57 C 84 58 91 52 91 42 C 91 35 87 31 82 32" stroke={C.ginger} strokeWidth={3.6} strokeLinecap="round" fill="none" />
@@ -277,7 +435,9 @@ export function Mascot({ mood, enabled }: { mood: MascotMood; enabled: boolean }
                   <path d="M 40 84 q 1.4 1.6 3 0 M 65 84 q 1.4 1.6 3 0 M 72 84 q 1.4 1.6 3.4 0" stroke={C.glint} strokeWidth={1.5} strokeLinecap="round" />
                 </g>
               )}
-            </g>
+                </g>
+              </g>
+            )}
 
             {/* The comet approaches the raised paw from the front/top during batting. */}
             {batting && (
