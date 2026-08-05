@@ -147,7 +147,7 @@ export function App() {
             reveal each destination's label. Hidden on phones (hover is useless on
             touch), where the bottom tab bar below takes over. */}
         <nav className="relative z-40 hidden w-16 shrink-0 md:block">
-          <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden border-r border-line bg-paper px-2.5 py-4">
+          <div className="rail absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden bg-paper px-2.5 py-4">
             {/* Wordmark only, no logo mark: the cat now lives on the Agent tab.
                 In the desktop shell the title bar carries it instead, so it isn't
                 shown twice and the rail starts on its first destination. */}
