@@ -183,10 +183,12 @@ export function WorkbenchView() {
 
   const titleFor = (pane: WbPane): string => paneTitle(pane, sessions, terminals);
 
-  // Project buckets: each workspace + an "unassigned" bucket.
+  // Project buckets: a "General" bucket for project-less chats (kept at the top,
+  // hidden when empty), then one bucket per workspace. New chats auto-file under
+  // the project they're about; a general chat stays in General.
   const buckets: Array<{ ws?: WorkspaceFolder; key: string; name: string }> = [
+    { key: '__none', name: 'General' },
     ...(settings?.workspaces ?? []).map((w) => ({ ws: w, key: w.id, name: w.name })),
-    { key: '__none', name: 'No project' },
   ];
   const topChats = (key: string) =>
     sessions

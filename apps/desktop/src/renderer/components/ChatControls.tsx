@@ -1,7 +1,154 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { ChatMode, Session } from '@kotrain/shared';
+import type { ChatMode, McpServerStatus, Session } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { WrenchIcon, PlaneIcon, MaskIcon } from '../icons.js';
+import { WrenchIcon, PlaneIcon, MaskIcon, PlugIcon, PlusIcon } from '../icons.js';
+
+/** Where we point people for hardened, local-first MCP server management. */
+const HYPERGATE_URL = 'https://hypergate.app';
+
+/**
+ * MCP servers menu, parked just right of Tools in the execution row. Lists every
+ * configured MCP server with a live status dot, its name, and an enable/disable
+ * toggle; offers "Add MCP server" (jumps to Settings) and recommends Hypergate
+ * for managing servers securely. Server enablement is global (in settings), so
+ * turning one on offers its tools to every chat.
+ */
+function McpMenu() {
+  const settings = useStore((s) => s.settings);
+  const servers = settings?.mcpServers ?? [];
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<McpServerStatus[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  // Probe live connection status the first time the menu opens (getMcpStatus can
+  // spawn/dial servers, so we don't do it on every render).
+  useEffect(() => {
+    if (!open || status !== null || servers.length === 0) return;
+    setChecking(true);
+    window.kotrain.getMcpStatus()
+      .then(setStatus)
+      .catch(() => setStatus([]))
+      .finally(() => setChecking(false));
+  }, [open, status, servers.length]);
+
+  const enabledCount = servers.filter((s) => s.enabled).length;
+  const statusOf = (id: string) => status?.find((s) => s.id === id);
+
+  const toggle = async (id: string) => {
+    const next = servers.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s));
+    await window.kotrain.updateSettings({ mcpServers: next });
+    await useStore.getState().refreshSettings();
+    // Config changed: re-probe so the dots reflect the new enablement.
+    setStatus(null);
+  };
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        className="ctl-menu whitespace-nowrap"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="MCP servers whose tools are offered to your chats"
+      >
+        <PlugIcon className="h-3 w-3 text-ink-faint" />
+        <span className="ctl-menu-label">MCP</span>
+        <span className="tabular-nums">{enabledCount}/{servers.length}</span>
+        <span className="ctl-caret">▾</span>
+      </button>
+      {open && (
+        <div className="card absolute bottom-8 left-0 z-40 w-72 p-1.5 shadow-lg" role="menu">
+          {servers.length === 0 && (
+            <p className="px-2.5 py-2 text-[11px] text-ink-faint">
+              No MCP servers yet. Add one to extend every chat with its tools.
+            </p>
+          )}
+          {servers.length > 0 && (
+            <div className="max-h-64 overflow-y-auto">
+              {servers.map((s) => {
+                const st = statusOf(s.id);
+                const dot = !s.enabled
+                  ? 'var(--ink-faint)'
+                  : st
+                    ? (st.connected ? 'var(--success)' : 'var(--danger)')
+                    : 'var(--warning)';
+                const sub = !s.enabled
+                  ? (s.url != null ? 'http · off' : 'stdio · off')
+                  : st
+                    ? (st.connected ? `${s.url != null ? 'http' : 'stdio'} · ${st.tools.length} tools` : (st.error ? `offline · ${st.error}` : 'offline'))
+                    : (checking ? 'checking…' : (s.url != null ? 'http' : 'stdio'));
+                return (
+                  <button
+                    key={s.id}
+                    role="menuitemcheckbox"
+                    aria-checked={s.enabled}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
+                    onClick={() => toggle(s.id)}
+                    title={s.enabled ? 'Enabled — click to disable' : 'Disabled — click to enable'}
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12.5px]">{s.name}</span>
+                      <span className="block truncate text-[10.5px] text-ink-faint">{sub}</span>
+                    </span>
+                    {/* Enable/disable switch */}
+                    <span
+                      className="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors"
+                      style={{ background: s.enabled ? 'var(--accent)' : 'color-mix(in srgb, var(--ink-faint) 40%, transparent)' }}
+                      aria-hidden="true"
+                    >
+                      <span
+                        className="absolute h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
+                        style={{ transform: s.enabled ? 'translateX(14px)' : 'translateX(2px)' }}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-1 border-t border-line pt-1">
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[12px] text-accent hover:bg-surface-2"
+              onClick={() => { setOpen(false); useStore.getState().setView('settings'); }}
+            >
+              <PlusIcon className="h-3.5 w-3.5" /> Add MCP server
+            </button>
+            <button
+              role="menuitem"
+              className="flex w-full items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] text-ink-faint hover:bg-surface-2"
+              onClick={() => window.kotrain.openPath(HYPERGATE_URL)}
+              title="Hypergate: local-first, secure MCP server management"
+            >
+              <ShieldSmall />
+              <span>Manage servers securely with <span className="font-medium text-ink-soft">Hypergate</span> ↗</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A tiny shield glyph for the Hypergate recommendation row. */
+function ShieldSmall() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-accent">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
 
 const MODE_LABEL: Record<ChatMode, string> = { ask: 'Ask', guardrails: 'Guardrails', yolo: 'YOLO' };
 const MODE_DESC: Record<ChatMode, string> = {
@@ -158,6 +305,9 @@ export function ChatControls({
           </div>
         )}
       </div>
+
+      {/* MCP servers, right of Tools: their tools are what the agent can reach. */}
+      <McpMenu />
 
       {/* The privacy switches sit apart from the execution controls: pushed to
           the right edge of the row, behind a hairline. */}

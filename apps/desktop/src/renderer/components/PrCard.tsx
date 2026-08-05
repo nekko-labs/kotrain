@@ -105,85 +105,95 @@ export function PrCard({ url, info, sessionId }: { url: string; info?: PrInfo; s
   const check = info ? CHECK_META[info.checks] : CHECK_META.none;
   return (
     <div className="fade-in my-2 overflow-hidden rounded-xl border border-line" style={{ background: 'var(--surface-2)' }}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 pt-3">
-        <span className={`shrink-0 text-[13px] ${closed ? 'text-red-400' : 'text-green-400'}`}>⑂</span>
-        <button className="font-mono text-[12px] font-medium hover:underline" onClick={() => openExternally(url)} title="Open on GitHub">
-          {label}
-        </button>
-        <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-          style={{ background: closed ? '#8a5cd0' : info?.isDraft ? 'var(--neutral)' : '#2ea043' }}
-        >
-          {closed ? 'closed' : info?.isDraft ? 'draft' : 'open'}
-        </span>
-        {info && (info.additions > 0 || info.deletions > 0) && (
-          <span className="shrink-0 text-[11px]">
-            <span className="text-green-500">+{info.additions}</span> <span className="text-red-400">-{info.deletions}</span>
-          </span>
-        )}
-        {check.dot && (
-          <span className="shrink-0 text-[11px]" style={{ color: check.color }} title={check.label}>{check.dot} {check.label}</span>
-        )}
-        {info?.reviewDecision === 'APPROVED' && <span className="shrink-0 text-[11px] text-green-400" title="Approved">✓ approved</span>}
-      </div>
-      {info?.title && <div className="truncate px-4 pt-1 text-[13px]">{info.title}</div>}
-      {info?.headRefName && (
-        <div className="px-4 pt-0.5 font-mono text-[10.5px] text-ink-faint">{info.headRefName} → {info.baseRefName ?? 'main'}</div>
-      )}
+      {/* Info on the left, actions parked on the right so the card stays slim. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={`shrink-0 text-[13px] ${closed ? 'text-red-400' : 'text-green-400'}`}>⑂</span>
+            <button className="font-mono text-[12px] font-medium hover:underline" onClick={() => openExternally(url)} title="Open on GitHub">
+              {label}
+            </button>
+            <span
+              className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+              style={{ background: closed ? '#8a5cd0' : info?.isDraft ? 'var(--neutral)' : '#2ea043' }}
+            >
+              {closed ? 'closed' : info?.isDraft ? 'draft' : 'open'}
+            </span>
+            {info && (info.additions > 0 || info.deletions > 0) && (
+              <span className="shrink-0 text-[11px]">
+                <span className="text-green-500">+{info.additions}</span> <span className="text-red-400">-{info.deletions}</span>
+              </span>
+            )}
+            {check.dot && (
+              <span className="shrink-0 text-[11px]" style={{ color: check.color }} title={check.label}>{check.dot} {check.label}</span>
+            )}
+            {info?.reviewDecision === 'APPROVED' && <span className="shrink-0 text-[11px] text-green-400" title="Approved">✓ approved</span>}
+          </div>
+          {info?.title && <div className="truncate pt-1 text-[13px]">{info.title}</div>}
+          {info?.headRefName && (
+            <div className="truncate pt-0.5 font-mono text-[10.5px] text-ink-faint">{info.headRefName} → {info.baseRefName ?? 'main'}</div>
+          )}
+        </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3 pt-2.5">
-        {!closed && (
-          <>
+        {/* Modern action cluster, right-aligned. */}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {!closed && (
             <button
-              className="rounded-lg px-3 py-1 text-[12px] font-medium text-white transition enabled:hover:brightness-110 disabled:opacity-50"
-              style={{ background: '#2ea043' }}
+              className="inline-flex h-7 items-center rounded-lg px-2.5 text-[12px] font-semibold text-white shadow-sm transition enabled:hover:brightness-110 disabled:opacity-50"
+              style={{ background: 'linear-gradient(180deg, #34c759 0%, #2ea043 100%)' }}
               onClick={() => act('approve')}
               disabled={!!busy}
               title="Approve this PR (with auto-merge on, this lands it once checks pass)"
             >
-              {cta('approve', '✓ Approve')}
+              {cta('approve', 'Approve')}
             </button>
+          )}
+          {!closed && (
             <button
-              className="rounded-lg border px-3 py-1 text-[12px] font-medium transition hover:bg-red-500/10 disabled:opacity-50"
-              style={{ borderColor: 'color-mix(in srgb, var(--danger) 35%, transparent)', color: 'color-mix(in srgb, var(--danger) 85%, transparent)' }}
+              className="inline-flex h-7 items-center rounded-lg px-2.5 text-[12px] font-medium transition enabled:hover:bg-red-500/10 disabled:opacity-50"
+              style={{ color: 'color-mix(in srgb, var(--danger) 85%, transparent)' }}
               onClick={() => act('close')}
               disabled={!!busy}
               title="Close this PR without merging"
             >
               {cta('close', 'Decline')}
             </button>
-          </>
-        )}
-        {closed && (
+          )}
+          {closed && (
+            <button
+              className="inline-flex h-7 items-center rounded-lg border border-line px-2.5 text-[12px] font-medium transition hover:bg-surface disabled:opacity-50"
+              onClick={() => act('reopen')}
+              disabled={!!busy}
+            >
+              {cta('reopen', 'Reopen')}
+            </button>
+          )}
           <button
-            className="rounded-lg border border-line px-3 py-1 text-[12px] font-medium hover:bg-surface disabled:opacity-50"
-            onClick={() => act('reopen')}
-            disabled={!!busy}
+            className="inline-flex h-7 items-center rounded-lg border border-line px-2.5 text-[12px] font-medium transition hover:bg-surface"
+            onClick={() => openPrPane(url)}
+            title="Review the diff in a side pane"
           >
-            {cta('reopen', 'Reopen')}
+            Review
           </button>
-        )}
-        <button
-          className="rounded-lg px-3 py-1 text-[12px] font-medium text-white transition hover:brightness-110"
-          style={{ background: '#3b82f6' }}
-          onClick={() => openPrPane(url)}
-          title="Review the diff in a side pane"
-        >
-          Review
-        </button>
-        {!closed && (
+          {!closed && (
+            <button
+              className="inline-flex h-7 items-center rounded-lg px-2.5 text-[12px] font-medium text-violet-300 transition hover:bg-violet-500/10 hover:text-violet-200 disabled:opacity-50"
+              onClick={() => act('merge')}
+              disabled={!!busy}
+              title="Merge this PR now (merge commit)"
+            >
+              {cta('merge', 'Merge')}
+            </button>
+          )}
           <button
-            className="rounded-lg px-2.5 py-1 text-[12px] font-medium text-violet-300 hover:text-violet-200 disabled:opacity-50"
-            onClick={() => act('merge')}
-            disabled={!!busy}
-            title="Merge this PR now (merge commit)"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-ink-faint transition hover:bg-surface hover:text-ink"
+            onClick={() => openExternally(url)}
+            title="Open on GitHub"
+            aria-label="Open on GitHub"
           >
-            {cta('merge', 'Merge')}
+            ↗
           </button>
-        )}
-        <button className="ml-auto text-[11px] text-ink-faint hover:text-ink" onClick={() => openExternally(url)}>
-          Open on GitHub ↗
-        </button>
+        </div>
       </div>
     </div>
   );
