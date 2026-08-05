@@ -1,5 +1,9 @@
 appId: dev.nekkolabs.kotrain
 productName: Kotrain
+# electron-builder 26 derives this from the npm package name (@kotrain/desktop →
+# "@kotraindesktop") and then rejects the @ as unsafe; pin it to what older
+# versions defaulted to (the product name), so nothing else moves.
+executableName: Kotrain
 copyright: Copyright © 2026 Nekko Labs
 afterPack: scripts/after-pack.cjs
 directories:
