@@ -413,6 +413,240 @@
   color: var(--ink-soft);
 }
 
+.titlebar-updater {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 28px;
+  margin-left: 10px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-update-offer {
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.update-pill {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font: inherit;
+}
+
+.update-version {
+  min-width: 112px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.update-version:hover,
+.update-version:focus-visible {
+  border-color: color-mix(in srgb, var(--ink-faint) 65%, var(--line));
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.update-check-label {
+  display: none;
+}
+
+.update-version:hover .update-version-value,
+.update-version:focus-visible .update-version-value {
+  display: none;
+}
+
+.update-version:hover .update-check-label,
+.update-version:focus-visible .update-check-label {
+  display: inline;
+}
+
+.update-latest {
+  opacity: 0.68;
+}
+
+.update-busy {
+  color: var(--ink-soft);
+}
+
+.update-progress-pill {
+  min-width: 250px;
+}
+
+.update-spinner {
+  flex: none;
+  animation: update-spin 850ms linear infinite;
+}
+
+.update-progress {
+  display: block;
+  flex: 1;
+  min-width: 64px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.update-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-grad);
+  transform-origin: left;
+  transition: transform 0.25s var(--ease-out);
+}
+
+.update-progress-indeterminate .update-progress-fill {
+  width: 38%;
+  animation: update-slide 1.15s ease-in-out infinite;
+}
+
+.update-percent {
+  min-width: 34px;
+  text-align: right;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-done {
+  cursor: pointer;
+  border-color: color-mix(in srgb, var(--success) 34%, transparent);
+  background: color-mix(in srgb, var(--success) 13%, var(--surface));
+  color: var(--success);
+  font-weight: 600;
+}
+
+.update-failed {
+  border-color: color-mix(in srgb, var(--danger) 34%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.update-offer-label {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px 0 2px;
+  border-radius: 7px;
+  color: var(--ink-soft);
+  font-weight: 550;
+}
+
+.update-offer-label b {
+  color: var(--ink);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-arrow {
+  display: inline-grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--brand-grad);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.title-update-action {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, filter 0.12s ease;
+}
+
+.title-update-action:hover {
+  border-color: color-mix(in srgb, var(--ink-faint) 55%, var(--line));
+  color: var(--ink);
+}
+
+.title-update-primary {
+  border-color: transparent;
+  background: var(--brand-grad);
+  color: #fff;
+}
+
+.title-update-primary:hover {
+  color: #fff;
+  filter: brightness(1.06) saturate(1.05);
+}
+
+.title-update-secondary {
+  border-color: transparent;
+  background: transparent;
+}
+
+.titlebar-updater button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.update-error-detail {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 80;
+  width: max-content;
+  max-width: 360px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line));
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-md);
+  line-height: 1.45;
+  white-space: normal;
+  user-select: text;
+}
+
+@keyframes update-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes update-slide {
+  0% { transform: translateX(-105%); }
+  100% { transform: translateX(275%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-spinner {
+    animation-duration: 2.4s;
+  }
+  .update-progress-indeterminate .update-progress-fill {
+    width: 100%;
+    opacity: 0.55;
+    animation: none;
+  }
+}
+
 @utility nav-item {
   @apply relative flex h-11 w-full items-center rounded-xl text-ink-faint;
   transition:

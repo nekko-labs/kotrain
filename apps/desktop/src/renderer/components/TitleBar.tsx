@@ -1,4 +1,5 @@
 import { hasAppChrome, isMacChrome } from '../chrome.js';
+import { UpdateControl } from './UpdateBanner.js';
 
 /**
  * The window's title bar, drawn by the app.
@@ -19,6 +20,7 @@ export function TitleBar() {
   return (
     <div className={`titlebar ${isMacChrome ? 'titlebar-mac' : ''}`}>
       <span className="titlebar-word">Kotrain</span>
+      <UpdateControl />
     </div>
   );
 }
