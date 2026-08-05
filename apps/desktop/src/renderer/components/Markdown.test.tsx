@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Markdown } from './Markdown.js';
+import { Markdown, safeHref } from './Markdown.js';
 
 const html = (text: string) => renderToStaticMarkup(<Markdown text={text} />);
 
@@ -66,6 +66,25 @@ describe('Markdown', () => {
 
   it('auto-links a bare url', () => {
     expect(html('see https://kotrain.com now')).toContain('href="https://kotrain.com"');
+  });
+
+  it('never renders a link to a script-bearing scheme', () => {
+    for (const href of ['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'vbscript:msgbox(1)']) {
+      const out = html(`see ${href} and [click](${href})`);
+      expect(out).not.toContain('<a ');
+      expect(out).not.toContain('href=');
+    }
+  });
+
+  it('passes only web schemes through the link-target guard', () => {
+    expect(safeHref('https://kotrain.com')).toBe('https://kotrain.com');
+    expect(safeHref('http://kotrain.com')).toBe('http://kotrain.com');
+    expect(safeHref('mailto:hi@kotrain.com')).toBe('mailto:hi@kotrain.com');
+    expect(safeHref('JavaScript:alert(1)')).toBeNull();
+    expect(safeHref('data:text/html,<script>alert(1)</script>')).toBeNull();
+    expect(safeHref('file:///etc/passwd')).toBeNull();
+    expect(safeHref('/relative/path')).toBeNull();
+    expect(safeHref('not a url')).toBeNull();
   });
 
   it('leaves snake_case and arithmetic alone', () => {
