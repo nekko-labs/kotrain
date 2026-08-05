@@ -121,6 +121,52 @@
   }
 }
 
+/* Border beam: while the agent works, a violet→cyan beam laps the composer's
+   border and a faint wash drifts across the surface (the border-beam pattern,
+   in brand colors). Where @property can't animate the angle the ring degrades
+   to a static gradient border, which still reads as "busy". */
+@utility composer-beam {
+  position: relative;
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    border-radius: 1rem; /* track the composer's rounded-2xl corners */
+  }
+  &::before {
+    inset: -1px;
+    padding: 1.5px;
+    background: conic-gradient(
+      from var(--beam-angle),
+      transparent 0% 58%,
+      var(--accent-2) 74%,
+      var(--accent) 88%,
+      color-mix(in srgb, var(--accent) 55%, #f0abfc) 95%,
+      transparent 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: beam-lap 3.2s linear infinite;
+  }
+  &::after {
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      var(--accent-soft) 42%,
+      color-mix(in srgb, var(--accent-2) 10%, transparent) 55%,
+      transparent 75%
+    );
+    background-size: 250% 100%;
+    animation: beam-wash 3.2s linear infinite;
+    opacity: 0.8;
+  }
+}
+
 @utility chip {
   @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
   background: var(--surface-2);
@@ -768,4 +814,31 @@
   border-left: 2px solid var(--accent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+/* The border-beam angle has to be a registered property to interpolate; the
+   wash animates background-position instead so it needs no registration. */
+@property --beam-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes beam-lap {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+@keyframes beam-wash {
+  from {
+    background-position: 125% 0;
+  }
+  to {
+    background-position: -125% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-beam::before,
+  .composer-beam::after {
+    animation: none;
+  }
 }

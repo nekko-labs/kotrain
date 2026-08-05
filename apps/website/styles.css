@@ -415,4 +415,44 @@ footer a:hover { color: var(--ink); }
   .reveal { opacity: 1; transform: none; transition: none; }
   .mascot .swing, .scroll-hint { animation: none; }
   .dl-menu { animation: none; }
+  .dl-pick::after, .window-mock::before { animation: none; }
 }
+
+/* ---- border beam ----
+   A violet→cyan beam lapping a border, in brand colors. Two homes: the hero
+   window mock (slow, quiet: the app is alive) and the download pill (brighter,
+   with a faster lap on hover). The angle is a registered property so the
+   conic gradient can rotate; without @property support it degrades to a
+   static gradient ring. */
+@property --beam-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes beam-lap { to { --beam-angle: 360deg; } }
+.window-mock { position: relative; }
+.dl-pick::after,
+.window-mock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0% 58%,
+    var(--accent-2) 74%,
+    var(--accent) 88%,
+    rgba(240, 171, 252, 0.85) 95%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: beam-lap 6s linear infinite;
+}
+.dl-pick::after {
+  inset: -2.5px;
+  padding: 2px;
+  animation-duration: 3.6s;
+}
+.dl-pick:hover::after { animation-duration: 1.8s; }
+/* the open menu is busy enough; park the beam behind it */
+.dl-pick.open::after { display: none; }
