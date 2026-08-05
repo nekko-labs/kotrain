@@ -6,8 +6,10 @@ import {
   getApproach,
   isBetterScore,
   layoutMaze,
+  planProgress,
   runStats,
   type ExperimentNode,
+  type PlanStep,
   type TrainingRun,
 } from '@kotrain/shared';
 
@@ -129,5 +131,45 @@ describe('training helpers', () => {
     expect(formatRuntime(5 * 60_000)).toBe('5m');
     expect(formatRuntime(15 * 3_600_000)).toBe('15h');
     expect(formatRuntime(50 * 3_600_000)).toBe('2d 2h');
+  });
+});
+
+describe('plan helpers (goal runs)', () => {
+  const step = (partial: Partial<PlanStep> & { id: string }): PlanStep => ({
+    title: partial.id,
+    status: 'pending',
+    createdAt: 0,
+    updatedAt: 0,
+    ...partial,
+  });
+
+  it('planProgress handles the no-plan case', () => {
+    expect(planProgress(undefined)).toEqual({ total: 0, done: 0, skipped: 0, current: undefined, ratio: 0 });
+    expect(planProgress([])).toEqual({ total: 0, done: 0, skipped: 0, current: undefined, ratio: 0 });
+  });
+
+  it('planProgress counts done + skipped toward completion', () => {
+    const p = planProgress([
+      step({ id: 's1', status: 'done' }),
+      step({ id: 's2', status: 'skipped' }),
+      step({ id: 's3', status: 'active' }),
+      step({ id: 's4' }),
+    ]);
+    expect(p.total).toBe(4);
+    expect(p.done).toBe(1);
+    expect(p.skipped).toBe(1);
+    expect(p.ratio).toBe(0.5);
+  });
+
+  it('planProgress picks the active step as current, else the first pending', () => {
+    expect(planProgress([step({ id: 's1', status: 'done' }), step({ id: 's2', status: 'active' }), step({ id: 's3' })]).current?.id).toBe('s2');
+    expect(planProgress([step({ id: 's1', status: 'done' }), step({ id: 's2' }), step({ id: 's3' })]).current?.id).toBe('s2');
+    expect(planProgress([step({ id: 's1', status: 'done' }), step({ id: 's2', status: 'skipped' })]).current).toBeUndefined();
+  });
+
+  it('a fully worked plan reports ratio 1', () => {
+    const p = planProgress([step({ id: 's1', status: 'done' }), step({ id: 's2', status: 'done' })]);
+    expect(p.ratio).toBe(1);
+    expect(p.current).toBeUndefined();
   });
 });

@@ -3,12 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kotrain — train your models, run your agents, own your machine</title>
+    <title>Kotrain: train your models, run your agents, own your machine</title>
     <meta
       name="description"
       content="Kotrain is an open-source, local-first AI coding & cowork app. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider. kotrain.com"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="canonical" href="https://kotrain.com/" />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <meta name="theme-color" content="#01050b" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kotrain" />
+    <meta property="og:url" content="https://kotrain.com/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Kotrain: train your models, run your agents, own your machine" />
+    <meta
+      property="og:description"
+      content="Open-source, local-first AI chat, cowork, and coding in one calm window. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider."
+    />
+    <meta property="og:image" content="https://kotrain.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Kotrain: train your models, run your agents, own your machine" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kotrain: train your models, run your agents, own your machine" />
+    <meta
+      name="twitter:description"
+      content="Open-source, local-first AI chat, cowork, and coding in one calm window. First-class local model support (Ollama, LM Studio, vLLM) plus every cloud provider."
+    />
+    <meta name="twitter:image" content="https://kotrain.com/og.png" />
+    <link rel="stylesheet" href="styles.css?v=2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Non-blocking webfont load: the system stack renders immediately; Inter
@@ -19,6 +45,66 @@
       media="print"
       onload="this.media='all'"
     />
+    <!-- Structured data: so search and answer engines describe Kotrain accurately -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://nekkolabs.com/#organization",
+            "name": "Nekko Labs",
+            "url": "https://nekkolabs.com/"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://kotrain.com/#website",
+            "url": "https://kotrain.com/",
+            "name": "Kotrain",
+            "description": "Open-source, local-first AI chat, cowork, and coding in one calm window, with first-class local model support.",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://nekkolabs.com/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://kotrain.com/#app",
+            "name": "Kotrain",
+            "url": "https://kotrain.com/",
+            "applicationCategory": "DeveloperApplication",
+            "applicationSubCategory": "AI coding and cowork assistant",
+            "operatingSystem": "macOS, Windows, Linux",
+            "description": "Kotrain unifies AI chat, cowork, and coding in one window. Point it at Ollama, LM Studio, or vLLM in one click, or use any cloud provider. Ships a context-provenance inspector, guardrails, a sandbox, multi-folder code indexing, memory management, and connectors.",
+            "license": "https://opensource.org/licenses/MIT",
+            "isAccessibleForFree": true,
+            "downloadUrl": "https://github.com/nekko-labs/kotrain/releases/latest",
+            "codeRepository": "https://github.com/nekko-labs/kotrain",
+            "featureList": [
+              "First-class local models: one-click Ollama, LM Studio, and vLLM, plus every major cloud provider",
+              "Unified chat, cowork, and code in a single window",
+              "Context inspector showing the provenance and token cost of everything the model was shown",
+              "Multi-folder code index for grounded retrieval, with file viewer, diffs, and inline editing",
+              "Guidelines (AGENTS.md/CLAUDE.md) and per-project markdown memory, individually switchable",
+              "Living spec, plan, and task files built from the conversation",
+              "Offline prompt analyzer with an A to F score and click-to-fill suggestions",
+              "Sub-agents and swarms: scoped subtasks run in fresh child sessions",
+              "Skills with visualized workflows, plus a skills marketplace",
+              "MCP in both directions (client and server) and connectors for Linear, Slack, Discord, Gmail, and Drive",
+              "Long-running goal loops with a bounded context window, turn and time budgets, and stall detection",
+              "Guardrails by default: risky commands need approval, under an editable allow/ask/deny policy",
+              "Sandboxed tool execution out of the box, with optional Docker isolation",
+              "Changes panel with line diffs and keep or revert at line, file, or all",
+              "Editions: desktop, self-hosted web, Docker, and end-to-end-encrypted phone remote control"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "publisher": { "@id": "https://nekkolabs.com/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <!-- drifting starfield, the whole page floats over it -->
@@ -26,10 +112,10 @@
     <div class="nebula" aria-hidden="true"></div>
 
     <header class="nav">
-      <a class="brand" href="#top"><span class="brand-mark">🐾</span> KOTRAIN</a>
+      <a class="brand" href="#top"><img class="brand-mark" src="/favicon.svg" alt="" width="22" height="22" /> KOTRAIN</a>
       <nav class="nav-links">
-        <a href="#features">Features</a>
         <a href="#local">Local models</a>
+        <a href="#features">The harness</a>
         <a href="#editions">Editions</a>
         <a href="#download">Download</a>
         <a href="https://github.com/nekko-labs/kotrain" target="_blank" rel="noopener">GitHub</a>
@@ -52,39 +138,79 @@
           <em>see and touch</em> your codebases do the work.
         </p>
         <div class="cta-row reveal">
-          <a class="btn btn-primary" href="#download">Download for free</a>
-          <a class="btn btn-glass" href="https://github.com/nekko-labs/kotrain" target="_blank" rel="noopener">Star on GitHub</a>
+          <!-- the same smart download button as the download section: one click
+               takes the build for this machine, the caret opens every other one -->
+          <div class="dl-pick" data-dl-pick>
+            <a class="dl-main" data-dl-main href="https://github.com/nekko-labs/kotrain/releases/latest">
+              <span class="dl-main-t" data-dl-title>Download Kotrain</span>
+              <small class="dl-main-v" data-dl-ver></small>
+            </a>
+            <button
+              class="dl-caret"
+              id="heroDlCaret"
+              data-dl-caret
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="heroDlMenu"
+              aria-label="Choose a different platform or format"
+            >
+              <svg viewBox="0 0 12 8" width="12" aria-hidden="true"><path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="dl-menu glass" id="heroDlMenu" data-dl-menu role="menu" aria-labelledby="heroDlCaret" hidden></div>
+          </div>
+          <a class="btn btn-ghost" href="https://github.com/nekko-labs/kotrain" target="_blank" rel="noopener">
+            View GitHub repo <span class="arr" aria-hidden="true">↗</span>
+          </a>
         </div>
         <p class="micro reveal">No telemetry · no account · your code never leaves your machine unless you say so</p>
 
-        <!-- kendo Nekko trains at the bottom of the hero -->
-        <div class="mascot" title="Nekko is training">
-          <svg viewBox="0 -12 36 52" width="92" shape-rendering="crispEdges">
-            <g fill="#f6a45c">
-              <rect x="6" y="2" width="4" height="4"/><rect x="18" y="2" width="4" height="4"/>
-              <rect x="5" y="5" width="18" height="13"/>
+        <!-- astronaut Aphelion drifts at the bottom of the hero -->
+        <div class="mascot" title="Aphelion is in orbit">
+          <svg viewBox="-6 -8 76 104" width="118" fill="none">
+            <g class="m-float">
+              <!-- ear pods, ginger-tipped -->
+              <path d="M 20.6 13.4 Q 19 5.4 23.9 3.7 Q 27.8 5.6 27.4 10.2" fill="#f5efdf" stroke="#454e73" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M 43.4 13.4 Q 45 5.4 40.1 3.7 Q 36.2 5.6 36.6 10.2" fill="#f5efdf" stroke="#454e73" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M 22.4 9.6 Q 22.4 6.4 23.9 5.8 Q 25.5 6.8 25.3 9.2" fill="#f0a35e" opacity="0.9"/>
+              <path d="M 41.6 9.6 Q 41.6 6.4 40.1 5.8 Q 38.5 6.8 38.7 9.2" fill="#f0a35e" opacity="0.9"/>
+              <!-- helmet -->
+              <path d="M 32 8.6 C 41.4 8.2 48.8 15.4 48.6 24.8 C 48.4 34.4 41.2 41.6 32.2 41.7 C 22.8 41.8 15.4 34.6 15.5 25.2 C 15.6 15.8 22.6 9 32 8.6 Z" fill="rgba(125,205,235,0.14)" stroke="#454e73" stroke-width="1.6" stroke-linejoin="round"/>
+              <circle cx="32" cy="26.2" r="11.6" fill="#f5efdf"/>
+              <circle cx="26.6" cy="25.6" r="1.9" fill="#2d3348"/>
+              <circle cx="37.4" cy="25.6" r="1.9" fill="#2d3348"/>
+              <path d="M 29.7 29.9 q 1.15 1.35 2.3 0 q 1.15 1.35 2.3 0" stroke="#2d3348" stroke-width="1.15" stroke-linecap="round"/>
+              <circle cx="23.7" cy="29.8" r="1.4" fill="#f2a6a0" opacity="0.55"/>
+              <circle cx="40.3" cy="29.8" r="1.4" fill="#f2a6a0" opacity="0.55"/>
+              <path d="M 18.7 27.4 q 2.2 0.6 3.9 0.4 M 19 30.6 q 2.1 -0.2 3.7 -0.7" stroke="#2d3348" stroke-width="0.95" stroke-linecap="round" opacity="0.38"/>
+              <path d="M 45.3 27.4 q -2.2 0.6 -3.9 0.4 M 45 30.6 q -2.1 -0.2 -3.7 -0.7" stroke="#2d3348" stroke-width="0.95" stroke-linecap="round" opacity="0.38"/>
+              <path d="M 20.4 16.2 Q 23.6 10.9 29.4 9.9" stroke="#d8eefb" stroke-width="1.7" stroke-linecap="round" opacity="0.85"/>
+              <!-- collar + suit -->
+              <ellipse cx="32" cy="42.8" rx="8.8" ry="2.7" fill="#e6dcc4" stroke="#454e73" stroke-width="1.3"/>
+              <path d="M 24.2 43.8 C 22.3 47.2 21.3 52.2 21.5 57.8 C 21.7 63.2 22.9 67.6 24.6 70 L 39.6 70 C 41.3 67.4 42.4 63 42.5 57.6 C 42.6 52.2 41.7 47.2 39.8 43.8 Z" fill="#f5efdf" stroke="#454e73" stroke-width="1.6" stroke-linejoin="round"/>
+              <rect x="27.2" y="48.6" width="9.6" height="7.6" rx="2" fill="#fbf7ec" stroke="#454e73" stroke-width="1.15"/>
+              <path d="M32 49.9 L32.75 51.6 L34.45 52.35 L32.75 53.1 L32 54.8 L31.25 53.1 L29.55 52.35 L31.25 51.6 Z" fill="#8b7bff"/>
+              <path d="M 22.2 61.9 C 26 63 38 63 41.8 61.9" stroke="#8b7bff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+              <!-- ginger tail -->
+              <path d="M 41.8 66.4 C 48 68.2 52 65.4 52.7 60 C 53.2 56.6 51.2 54.2 48.7 54.5" stroke="#454e73" stroke-width="5.2" stroke-linecap="round"/>
+              <path d="M 41.8 66.4 C 48 68.2 52 65.4 52.7 60 C 53.2 56.6 51.2 54.2 48.7 54.5" stroke="#f0a35e" stroke-width="3.2" stroke-linecap="round"/>
+              <!-- arms + paws -->
+              <path d="M 24 48.6 C 20 50.2 16.6 53.2 15 56.8 M 40 48.6 C 44 50.2 47.4 53.2 49 56.8" stroke="#454e73" stroke-width="6.6" stroke-linecap="round"/>
+              <path d="M 24 48.6 C 20 50.2 16.6 53.2 15 56.8 M 40 48.6 C 44 50.2 47.4 53.2 49 56.8" stroke="#f5efdf" stroke-width="4.4" stroke-linecap="round"/>
+              <circle cx="14.4" cy="57.6" r="3.5" fill="#f5efdf" stroke="#454e73" stroke-width="1.4"/>
+              <circle cx="49.6" cy="57.6" r="3.5" fill="#f5efdf" stroke="#454e73" stroke-width="1.4"/>
+              <!-- legs + boots -->
+              <path d="M 27.4 70 C 27.2 73.4 27.2 75.4 27.4 77.6 M 36.6 70 C 36.8 73.4 36.8 75.4 36.6 77.6" stroke="#454e73" stroke-width="5.6" stroke-linecap="round"/>
+              <path d="M 27.4 70 C 27.2 73.4 27.2 75.4 27.4 77.6 M 36.6 70 C 36.8 73.4 36.8 75.4 36.6 77.6" stroke="#f5efdf" stroke-width="3.6" stroke-linecap="round"/>
+              <ellipse cx="27.4" cy="79.4" rx="3.4" ry="2.5" fill="#e6dcc4" stroke="#454e73" stroke-width="1.3"/>
+              <ellipse cx="36.6" cy="79.4" rx="3.4" ry="2.5" fill="#e6dcc4" stroke="#454e73" stroke-width="1.3"/>
             </g>
-            <g fill="#d97b38"><rect x="5" y="5" width="18" height="2"/><rect x="21" y="28" width="6" height="3"/><rect x="9" y="31" width="4" height="3"/><rect x="15" y="31" width="4" height="3"/></g>
-            <!-- hachimaki -->
-            <g fill="#e04848"><rect x="5" y="7" width="18" height="2"/><rect x="25" y="12" width="2" height="2"/></g>
-            <g fill="#b53535"><rect x="23" y="7" width="2" height="2"/><rect x="24" y="9" width="2" height="3"/></g>
-            <!-- face -->
-            <g fill="#2a2018"><rect x="9" y="10" width="2" height="2"/><rect x="17" y="10" width="2" height="2"/></g>
-            <g fill="#ff8f8f"><rect x="7" y="12" width="2" height="2"/><rect x="19" y="12" width="2" height="2"/></g>
-            <g fill="#ffe2c0"><rect x="13" y="12" width="2" height="2"/></g>
-            <!-- gi + belt + hakama -->
-            <g fill="#33518f"><rect x="7" y="18" width="14" height="9"/></g>
-            <g fill="#ffe2c0"><rect x="12" y="18" width="2" height="3"/><rect x="14" y="18" width="2" height="3"/><rect x="13" y="20" width="2" height="3"/></g>
-            <g fill="#e8d9b0"><rect x="7" y="25" width="14" height="2"/></g>
-            <g fill="#26407a"><rect x="7" y="27" width="14" height="5"/></g>
-            <!-- bokken swing -->
-            <g class="swing">
-              <rect x="12" y="14" width="3" height="6" fill="#33518f"/>
-              <rect x="17" y="14" width="3" height="6" fill="#33518f"/>
-              <rect x="13" y="11" width="6" height="3" fill="#f6a45c"/>
-              <rect x="15" y="-8" width="2" height="19" fill="#a06a3a"/>
-              <rect x="15" y="-8" width="2" height="3" fill="#7c5028"/>
-              <rect x="13" y="9" width="6" height="2" fill="#7c5028"/>
+            <!-- a spark lapping Aphelion on a tilted ring -->
+            <g transform="rotate(-14 32 48)">
+              <g transform="translate(32 48) scale(1 0.34)">
+                <circle cx="0" cy="0" r="30" stroke="#d8eefb" stroke-width="1.6" stroke-dasharray="3 5" opacity="0.4"/>
+                <g class="m-orbit"><circle cx="30" cy="0" r="3.1" fill="#ffd66e"/></g>
+              </g>
             </g>
           </svg>
         </div>
@@ -116,29 +242,15 @@
       </section>
 
       <!-- ===== chapters ===== -->
-      <section id="features" class="chapter">
-        <p class="eyebrow reveal">01 · THE SURFACE</p>
-        <h2 class="reveal">Everything in one calm window</h2>
-        <div class="grid reveal">
-          <div class="card glass"><div class="fi">💬</div><h3>Unified chat / cowork / code</h3><p>No mode switching. Ask a question or hand off a task, same window, same thread.</p></div>
-          <div class="card glass"><div class="fi">🔍</div><h3>Context inspector</h3><p>See exactly what enters the prompt, files, guidelines, memory, with live token counts. Toggle and pin anything.</p></div>
-          <div class="card glass"><div class="fi">🛡</div><h3>Guardrails by default</h3><p>Risky commands (rm -rf, force push, curl|sh) prompt before running. Fully configurable: allow, ask, or deny.</p></div>
-          <div class="card glass"><div class="fi">📦</div><h3>Sandbox out of the box</h3><p>File access jailed to your folders. Optional Docker isolation for shell commands.</p></div>
-          <div class="card glass"><div class="fi">🗂</div><h3>Multi-folder index</h3><p>Add multiple roots. Kotrain indexes files and symbols and searches across them instantly.</p></div>
-          <div class="card glass"><div class="fi">🧠</div><h3>Memory management</h3><p>Global and per-project memory, stored as plain markdown you can read and edit.</p></div>
-          <div class="card glass"><div class="fi">🔌</div><h3>Connectors</h3><p>Linear, Slack, Discord, Gmail, and Google Drive, pull real context into the conversation.</p></div>
-          <div class="card glass"><div class="fi">🥋</div><h3>A mascot who trains</h3><p>Nekko peeks in wearing kendo gear: punches, kicks, and bokken swings while the model thinks.</p></div>
-        </div>
-      </section>
-
       <section id="local" class="chapter">
-        <p class="eyebrow reveal">02 · THE HEADLINE FEATURE</p>
+        <p class="eyebrow reveal">01 · THE HEADLINE FEATURE</p>
         <h2 class="reveal">Local models, finally first-class</h2>
         <p class="chapter-lede reveal">Most tools bolt local models on as an afterthought. Kotrain is built around them.</p>
         <div class="split reveal">
           <ul class="check">
             <li>Auto-discover a running Ollama, LM Studio, or vLLM on localhost</li>
             <li>Pull, load, and unload Ollama models from the app</li>
+            <li>See what's resident in memory, and stop a server without leaving the app</li>
             <li>Manage servers remotely and watch token usage over time</li>
             <li>Bring cloud keys too, Anthropic, OpenAI, OpenRouter, any OpenAI-compatible endpoint</li>
           </ul>
@@ -148,6 +260,109 @@
             <div class="sc glass"><b>vLLM</b><span class="dim">○&nbsp;not running</span><code>localhost:8000</code></div>
           </div>
         </div>
+      </section>
+
+      <!-- ===== the harness: a spec-sheet manifest, deliberately not cards ===== -->
+      <section id="features" class="chapter">
+        <p class="eyebrow reveal">02 · THE HARNESS</p>
+        <h2 class="reveal">The harness is the other half of the model</h2>
+        <p class="chapter-lede reveal">
+          Frontier labs ship raw capability. Almost everything else you feel as "this model is good
+          in my codebase" is harness: what it gets shown, what it can reach, and what happens when
+          it's wrong. Kotrain hands you all three, in one window that runs chat, cowork, and code.
+        </p>
+
+        <div class="manifest reveal">
+          <section class="mf-group">
+            <div class="mf-head">
+              <span class="mf-num">01</span>
+              <h3>What it sees</h3>
+              <p>A short context window stops being the bottleneck once you decide exactly what goes in it.</p>
+            </div>
+            <ol class="mf-rows">
+              <li>
+                <b>Context Inspector</b>
+                <span>Every file, guideline, memory entry, and index snippet entering the next prompt, with per-source token counts, a window-headroom bar, and a toggle or pin on each. Your unsent draft is counted as you type it.</span>
+              </li>
+              <li>
+                <b>Grounded retrieval</b>
+                <span>A multi-folder index (file tree, code outline, search) so a large repo arrives as the relevant slice instead of a wall of text, across every folder you wire into the chat.</span>
+              </li>
+              <li>
+                <b>Guidelines and memory</b>
+                <span><code>AGENTS.md</code> / <code>CLAUDE.md</code> plus a markdown memory store, global and per project, with every entry individually switchable.</span>
+              </li>
+              <li>
+                <b>A living spec</b>
+                <span>Build <code>SPEC.md</code> (and a plan and task list) out of the conversation, then feed it back as context, so intent survives a window that can't hold the whole chat.</span>
+              </li>
+              <li>
+                <b>Prompt analyzer</b>
+                <span>An offline, zero-latency read of your draft: parts detected, weak spots underlined, an A to F score, click-to-fill chips for whatever's missing, and a recommended model tier.</span>
+              </li>
+            </ol>
+          </section>
+
+          <section class="mf-group">
+            <div class="mf-head">
+              <span class="mf-num">02</span>
+              <h3>What it can reach</h3>
+              <p>Capability the weights don't have to carry themselves.</p>
+            </div>
+            <ol class="mf-rows">
+              <li>
+                <b>Sub-agents and swarms</b>
+                <span>The agent delegates a scoped subtask to a fresh child session with its own clean context. Solo, balanced, or full swarm, with depth limits, and the whole tree visible live. The cheapest way past a small window is not filling it.</span>
+              </li>
+              <li>
+                <b>Skills</b>
+                <span>Procedures, not prompt snippets: research, plan, review, security-review, test, commit, PR, each rendered as a real workflow graph, plus a marketplace and one-click install.</span>
+              </li>
+              <li>
+                <b>MCP, both directions</b>
+                <span>Connect stdio or streamable-HTTP MCP servers and their tools merge into the agent loop, toggleable per chat. Kotrain is also an MCP <em>server</em>, so other agents can drive it.</span>
+              </li>
+              <li>
+                <b>Connectors</b>
+                <span>Linear, Slack, Discord, Gmail, and Drive, folded into context as snippets instead of pasted by hand.</span>
+              </li>
+              <li>
+                <b>Goal loops that terminate</b>
+                <span>Hand over a finish-this goal: it plans first, re-injects the plan every iteration, runs on a bounded window, and stops on a turn or time budget. A stall detector asks you for a hint instead of spiraling.</span>
+              </li>
+            </ol>
+          </section>
+
+          <section class="mf-group">
+            <div class="mf-head">
+              <span class="mf-num">03</span>
+              <h3>When it's wrong</h3>
+              <p>Smaller models slip more often. The fix is making a slip cheap, not pretending it won't happen.</p>
+            </div>
+            <ol class="mf-rows">
+              <li>
+                <b>Guardrails</b>
+                <span>A risky-command classifier (destructive filesystem writes, force push, <code>curl | sh</code>, privilege escalation) behind an allow / ask / deny policy you can edit. Ask, Guardrails, or YOLO, per chat.</span>
+              </li>
+              <li>
+                <b>Sandbox</b>
+                <span>File access jailed to the folders you wired in, with optional Docker isolation for shell commands.</span>
+              </li>
+              <li>
+                <b>Diff review</b>
+                <span>Every agent edit lands in a Changes panel as a line diff. Keep or revert at line, file, or all, without leaving the window.</span>
+              </li>
+              <li>
+                <b>Recovery, built in</b>
+                <span>An empty reply mid-loop is retried with a nudge and then surfaced rather than silently swallowed, and "Reset here" rewinds the chat to any earlier message and runs again from there.</span>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+        <p class="micro center reveal mf-foot">
+          And while all of that runs, Aphelion drifts in zero-g, laps its own orbit, and bats at a passing comet.
+        </p>
       </section>
 
       <section id="why" class="chapter">
@@ -183,29 +398,58 @@
       <section id="download" class="chapter download">
         <p class="eyebrow reveal">05 · TOUCHDOWN</p>
         <h2 class="reveal">Download Kotrain</h2>
-        <p class="chapter-lede reveal">Free and open source. Pick your platform, builds are published on GitHub Releases.</p>
-        <div class="dl-row reveal">
-          <a class="dl glass" href="https://github.com/nekko-labs/kotrain/releases/latest" data-os="win">
-            <div class="dl-os">Windows</div><div class="dl-sub">.msi or .exe installer</div>
-          </a>
-          <a class="dl glass" href="https://github.com/nekko-labs/kotrain/releases/latest" data-os="mac">
-            <div class="dl-os">macOS</div><div class="dl-sub">.dmg · Apple Silicon &amp; Intel</div>
-          </a>
-          <a class="dl glass" href="https://github.com/nekko-labs/kotrain/releases/latest" data-os="linux">
-            <div class="dl-os">Linux</div><div class="dl-sub">AppImage · .deb</div>
-          </a>
+        <p class="chapter-lede reveal">Free and open source. We picked the build for your machine, change it if we guessed wrong.</p>
+
+        <!-- smart download: primary button = detected OS/arch, caret = every other build -->
+        <div class="dl-cta reveal">
+          <div class="dl-pick" data-dl-pick>
+            <a class="dl-main" data-dl-main href="https://github.com/nekko-labs/kotrain/releases/latest">
+              <span class="dl-main-t" data-dl-title>Download Kotrain</span>
+              <small class="dl-main-v" data-dl-ver></small>
+            </a>
+            <button
+              class="dl-caret"
+              id="dlCaret"
+              data-dl-caret
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="dlMenu"
+              aria-label="Choose a different platform or format"
+            >
+              <svg viewBox="0 0 12 8" width="12" aria-hidden="true"><path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="dl-menu glass" id="dlMenu" data-dl-menu role="menu" aria-labelledby="dlCaret" hidden></div>
+          </div>
+          <p class="micro dl-note" id="dlNote">All builds live on GitHub Releases.</p>
+
+          <!-- terminal people: the same build, in their shell's syntax, one copy away -->
+          <div class="dl-term" id="dlTerm" hidden>
+            <span class="dl-term-or">or paste this into <b id="dlTermShell">your terminal</b></span>
+            <div class="dl-term-row glass">
+              <code class="dl-term-cmd" id="dlCmd"></code>
+              <button class="dl-copy" id="dlCopy" type="button" aria-label="Copy command to clipboard">
+                <svg viewBox="0 0 16 16" width="13" aria-hidden="true">
+                  <rect x="5.2" y="1.8" width="9" height="10.4" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M10.8 14.2H3.7A1.9 1.9 0 0 1 1.8 12.3V4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span class="dl-copy-t">Copy</span>
+              </button>
+            </div>
+          </div>
         </div>
+
         <p class="micro center reveal">Or build from source: <code>git clone</code> · <code>npm install</code> · <code>npm run dev</code></p>
         <p class="micro center reveal">macOS says it's "damaged"? It's just unsigned, run <code>xattr -cr "/Applications/Kotrain.app"</code> once, then open. <a href="https://github.com/nekko-labs/kotrain#macos-kotrain-is-damaged-and-cant-be-opened-">Details</a></p>
       </section>
     </main>
 
     <footer>
-      <span>🐾 KOTRAIN</span>
+      <span class="footer-brand"><img class="brand-mark" src="/favicon.svg" alt="" width="18" height="18" /> KOTRAIN</span>
       <span class="micro">kotrain.com · MIT licensed · made for people who run their own models</span>
       <a href="https://github.com/nekko-labs/kotrain" target="_blank" rel="noopener">github.com/nekko-labs/kotrain</a>
     </footer>
 
-    <script src="site.js"></script>
+    <script src="site.js?v=2"></script>
   </body>
 </html>

@@ -10,6 +10,9 @@ export async function deriveKey(secret: string, salt: string): Promise<CryptoKey
   const enc = new TextEncoder();
   const base = await crypto.subtle.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
+    // PROTOCOL CONSTANT, do not rebrand: every paired device derived its key
+    // with this exact salt prefix (it predates the Kotrain and Kotrain names).
+    // Changing it breaks E2E decryption for every existing pairing.
     { name: 'PBKDF2', salt: enc.encode(`nekko-relay:${salt}`), iterations: 100_000, hash: 'SHA-256' },
     base,
     { name: 'AES-GCM', length: 256 },

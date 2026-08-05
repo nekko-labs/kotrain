@@ -38,6 +38,13 @@ export class OpenAICompatProvider implements Provider {
   }
 
   async listModels(): Promise<ModelInfo[]> {
+    // LM Studio's native REST API (/api/v0/models) reports per-model load state,
+    // which the OpenAI-compatible /v1/models route does not. Prefer it for LM
+    // Studio so the Models page can show what's loaded; fall back to /v1/models.
+    if (this.config.kind === 'lmstudio') {
+      const lm = await this.lmStudioModels().catch(() => null);
+      if (lm) return lm;
+    }
     const res = await fetch(`${this.base()}/models`, { headers: this.headers() });
     if (!res.ok) throw new Error(`listModels ${res.status}`);
     const json = (await res.json()) as { data?: Array<{ id: string; context_length?: number }> };
@@ -46,6 +53,25 @@ export class OpenAICompatProvider implements Provider {
       providerId: this.config.id,
       name: m.id,
       contextLength: m.context_length,
+      // vLLM serves exactly the model(s) it was launched with — always resident.
+      ...(this.config.kind === 'vllm' ? { loaded: true } : {}),
+    }));
+  }
+
+  /** LM Studio native model list with load state (`/api/v0/models`). */
+  private async lmStudioModels(): Promise<ModelInfo[]> {
+    const root = this.base().replace(/\/v1$/, '');
+    const res = await fetch(`${root}/api/v0/models`, { headers: this.headers() });
+    if (!res.ok) throw new Error(`lmstudio models ${res.status}`);
+    const json = (await res.json()) as {
+      data?: Array<{ id: string; state?: string; loaded_context_length?: number; max_context_length?: number }>;
+    };
+    return (json.data ?? []).map((m) => ({
+      id: m.id,
+      providerId: this.config.id,
+      name: m.id,
+      contextLength: m.loaded_context_length ?? m.max_context_length,
+      loaded: m.state === 'loaded',
     }));
   }
 
@@ -61,6 +87,11 @@ export class OpenAICompatProvider implements Provider {
   }
 
   async *chat(req: ChatRequest): AsyncIterable<ProviderChunk> {
+    // Reasoning toggle: local servers (LM Studio / vLLM / generic) accept
+    // `chat_template_kwargs.enable_thinking` (Qwen3 and friends). Only sent to
+    // local kinds — cloud endpoints reject unknown body fields.
+    const localKind =
+      this.config.kind === 'lmstudio' || this.config.kind === 'vllm' || this.config.kind === 'openai-compat';
     const body = {
       model: req.model,
       stream: true,
@@ -68,6 +99,7 @@ export class OpenAICompatProvider implements Provider {
       temperature: req.temperature ?? 0.7,
       messages: this.toOpenAIMessages(req),
       tools: req.tools?.map(toOpenAITool),
+      ...(req.think !== undefined && localKind ? { chat_template_kwargs: { enable_thinking: req.think } } : {}),
     };
 
     let res: Response;

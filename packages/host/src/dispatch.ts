@@ -27,6 +27,10 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.modelPull]: ([id, m]) => host.pullModel(id, m),
     [C.modelLoad]: ([id, m]) => host.loadModel(id, m),
     [C.modelUnload]: ([id, m]) => host.unloadModel(id, m),
+    [C.lmsProbe]: ([id]) => host.lmsAvailable(id),
+    [C.serverStop]: ([id]) => host.stopServer(id),
+    [C.gpuStats]: () => host.getGpuStats(),
+    [C.systemStats]: () => host.getSystemStats(),
 
     [C.sessionsList]: () => host.listSessions(),
     [C.sessionCreate]: ([wid]) => host.createSession(wid),
@@ -90,6 +94,10 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.changeAccept]: ([sid, p]) => host.acceptChange(sid, p),
     [C.changeAcceptAll]: ([sid]) => host.acceptAllChanges(sid),
 
+    [C.prSessionList]: ([sid]) => host.listSessionPrs(sid),
+    [C.prDiff]: ([url]) => host.getPrDiff(url),
+    [C.prAction]: ([url, action]) => host.prAction(url, action),
+
     [C.commentsList]: ([p]) => host.listComments(p),
     [C.commentAdd]: ([p, line, lineText, comment]) => host.addComment(p, line, lineText, comment),
     [C.commentResolve]: ([p, id]) => host.resolveComment(p, id),
@@ -100,13 +108,14 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.designRemovePage]: ([wid, pid]) => host.removeDesignPage(wid, pid),
     [C.designAddNote]: ([wid, pid, text]) => host.addDesignNote(wid, pid, text),
     [C.designResolveNote]: ([wid, pid, nid]) => host.resolveDesignNote(wid, pid, nid),
+    [C.designGenerate]: ([wid, input]) => host.generateDesign(wid, input),
 
     [C.skillsInstalled]: () => host.listInstalledSkills(),
     [C.skillsTargets]: () => host.skillTargets(),
     [C.skillInstall]: ([id, target, payload]) => host.installSkill(id, target, payload),
     [C.skillUninstall]: ([id, target]) => host.uninstallSkill(id, target),
-    [C.dojoCatalog]: ([refresh]) => host.dojoCatalog(refresh),
-    [C.dojoSkillMd]: ([slug]) => host.dojoSkillMd(slug),
+    [C.vaizerCatalog]: ([refresh]) => host.vaizerCatalog(refresh),
+    [C.vaizerSkillMd]: ([slug]) => host.vaizerSkillMd(slug),
 
     [C.tasksList]: () => host.listTasks(),
     [C.taskCreate]: ([task]) => host.createTask(task),
@@ -134,10 +143,15 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.remoteEnable]: ([relayUrl]) => host.enableRemote(relayUrl),
     [C.remoteDisable]: () => host.disableRemote(),
     [C.remoteStatus]: () => host.remoteStatus(),
+    [C.remotePair]: () => host.startRemotePairing(),
+    [C.remoteDevices]: () => host.listRemoteDevices(),
+    [C.remoteRevoke]: ([deviceId]) => host.revokeRemoteDevice(deviceId),
+    [C.remoteRename]: ([deviceId, name]) => host.renameRemoteDevice(deviceId, name),
+    [C.remoteRotate]: () => host.rotateRemoteSecret(),
 
     [C.appInfo]: () => host.appInfo(),
     [C.mcpStatus]: () => host.mcpStatus(),
-    [C.mcpNekko]: () => host.detectNekkoMcp(),
+    [C.mcpKotrain]: () => host.detectKotrainMcp(),
   };
 
   return (channel, args) => {

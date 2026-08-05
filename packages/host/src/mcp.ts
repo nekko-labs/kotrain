@@ -1,11 +1,11 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { ToolSpec } from '@kotrain/core';
-import type { McpServerConfig, McpServerStatus, NekkoMcpInfo, ToolResult, ToolCall } from '@kotrain/shared';
+import type { McpServerConfig, McpServerStatus, KotrainMcpInfo, ToolResult, ToolCall } from '@kotrain/shared';
 
 /**
  * Minimal MCP client, hand-rolled so we add no dependency. Two transports:
  *   • stdio — JSON-RPC 2.0 over newline-delimited stdio of a spawned process.
- *   • streamable HTTP — JSON-RPC POSTed to a URL (e.g. a NekkoMCP gateway),
+ *   • streamable HTTP — JSON-RPC POSTed to a URL (e.g. a KotrainMCP gateway),
  *     used when the config carries `url`; handles JSON and SSE-framed replies
  *     and echoes the server's `mcp-session-id` for stateful servers.
  * One McpServer wraps one server: handshake, list tools, call tools.
@@ -215,17 +215,17 @@ export async function callMcpTool(call: ToolCall): Promise<ToolResult> {
 }
 
 /**
- * Probe for a local NekkoMCP daemon (github.com/nekko-labs/nekko-mcp) — the
+ * Probe for a local KotrainMCP daemon (github.com/nekko-labs/kotrain-mcp) — the
  * companion MCP server runtime/manager. Host-side so it works in every edition
  * (the browser can't always reach another localhost port).
  */
-export async function detectNekkoMcp(
-  base: string = process.env.NEKKO_MCP_URL ?? 'http://localhost:7777',
-): Promise<NekkoMcpInfo | null> {
+export async function detectKotrainMcp(
+  base: string = process.env.KOTRAIN_MCP_URL ?? 'http://localhost:7777',
+): Promise<KotrainMcpInfo | null> {
   try {
     const ctl = AbortSignal.timeout(1500);
     const health = (await (await fetch(`${base}/health`, { signal: ctl })).json()) as { service?: string; version?: string; servers?: number };
-    if (health?.service !== 'nekko-mcpd') return null;
+    if (health?.service !== 'kotrain-mcpd') return null;
     const gw = (await (await fetch(`${base}/api/gateway`, { signal: ctl })).json()) as { url: string; token?: string; uiUrl?: string };
     return { url: gw.url, token: gw.token, uiUrl: gw.uiUrl, servers: health.servers ?? 0, version: health.version ?? '?' };
   } catch {

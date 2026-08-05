@@ -31,9 +31,24 @@ describe('cloud server (HTTP)', () => {
     expect(res.json()).toEqual({ cloud: true, billing: false }); // no Stripe keys in this suite
   });
 
-  it('rejects unauthenticated NekkoApi calls', async () => {
+  it('rejects unauthenticated KotrainApi calls', async () => {
     const res = await app.inject({ method: 'POST', url: '/api/settings:get', payload: { args: [] } });
     expect(res.statusCode).toBe(401);
+  });
+
+  it('authorizes relay enrollment for authenticated accounts only', async () => {
+    const denied = await app.inject({ method: 'POST', url: '/api/relay/authorize' });
+    expect(denied.statusCode).toBe(401);
+    expect(denied.json().ok).toBe(false);
+
+    const { token } = await signup('relay@example.com');
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/relay/authorize',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ ok: true, plan: 'free', maxDevices: 1 });
   });
 
   it('signup → authed dispatch reaches the per-account host', async () => {

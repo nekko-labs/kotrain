@@ -1,24 +1,37 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { AgentEvent, ExperimentNode, NewTrainingRun, TrainingRun } from '@kotrain/shared';
-import { RUN_DONE_TOKEN, bestExperiment, getApproach, isBetterScore, runStats } from '@kotrain/shared';
+import type { AgentEvent, ArtifactKind, ExperimentNode, NewTrainingRun, PlanStep, RunArtifact, TrainingRun } from '@kotrain/shared';
+import { RUN_DONE_TOKEN, RUN_MAX_TURNS_DEFAULT, bestExperiment, isBetterScore, planProgress, runStats, runOutputDir } from '@kotrain/shared';
 import { dataDir, getSettings } from './store.js';
 import { getSession, saveSession, createSession, deleteSession } from './sessions.js';
 import { sendChat } from './chat.js';
 
 /**
  * Training/goal runs: one engine drives both the Training tab (train a model
- * for a purpose, full expert levers) and the Goals tab (long-running goal
- * solving with an approach preset). A run owns a dedicated chat session; each
- * "turn" the agent plans + executes experiments with the normal tool loop and
- * registers them via the report_experiment tool (handled here). Hints the user
- * adds mid-run are folded into the next turn. State persists to training.json
- * so runs survive restarts (running runs resume on boot).
+ * for a purpose, full expert levers) and the Goals tab (plan-first long-running
+ * goal solving: the agent writes an execution plan, then executes and iterates
+ * on it until the goal is finished). A run owns a dedicated chat session; each
+ * "turn" the agent works with the normal tool loop, registering experiments via
+ * report_experiment and maintaining the goal plan via update_plan (both handled
+ * here). Hints the user adds mid-run are folded into the next turn. State
+ * persists to training.json so runs survive restarts (running runs resume on
+ * boot).
  */
 
 const TURN_DELAY_MS = 4_000;
 const MAX_LOG = 400;
+/** Only the last N turn-groups are replayed to the model each turn; the run's
+ *  brief re-injects the plan/tree, so old turns aren't needed and the loop
+ *  never sends an ever-growing transcript (the "goal is just a huge chat" bug). */
+const RUN_HISTORY_TURNS = 4;
+/** Pause a run after this many consecutive turns with no measurable progress
+ *  AND a repeating output (the "thousands of iterations, going nowhere" case). */
+const STALL_LIMIT = 8;
+/** Fail a run after this many consecutive turns that error out. */
+const ERROR_LIMIT = 5;
+/** Default safety backstop on total turns; resuming past it grants another leg. */
+const DEFAULT_MAX_TURNS = RUN_MAX_TURNS_DEFAULT;
 
 let trainingSender: ((e: AgentEvent) => void) | null = null;
 let notify: ((runs: TrainingRun[]) => void) | null = null;
@@ -96,6 +109,7 @@ export function createTrainingRun(input: NewTrainingRun): TrainingRun {
     sessionId: session.id,
     workspaceId: input.workspaceId,
     experiments: [],
+    artifacts: [],
     hints: [],
     log: [{ at: now, kind: 'info', text: 'Run created.' }],
     createdAt: now,
@@ -137,6 +151,14 @@ export function startTrainingRun(id: string): TrainingRun[] {
     if (!r.endedAt && r.turns === 0) log(r, 'info', 'Run started.');
     else log(r, 'info', 'Run resumed.');
     r.endedAt = undefined;
+    // A fresh leg: clear the stall/error counters so a resume actually retries,
+    // and grant another turn budget if we're already at/over the backstop.
+    r.stallTurns = 0;
+    r.errorTurns = 0;
+    const cap = r.config?.maxTurns ?? DEFAULT_MAX_TURNS;
+    if ((r.turns ?? 0) >= cap) {
+      r.config = { ...(r.config ?? {}), maxTurns: (r.turns ?? 0) + DEFAULT_MAX_TURNS };
+    }
   });
   if (run) void tickRun(id);
   return listTrainingRuns();
@@ -147,7 +169,7 @@ export function pauseTrainingRun(id: string): TrainingRun[] {
     if (r.status !== 'running') return;
     stopClock(r);
     r.status = 'paused';
-    log(r, 'info', 'Run paused. The current turn finishes, then the agent stops.');
+    log(r, 'info', 'Run paused. The current iteration finishes, then the agent stops.');
   });
   return listTrainingRuns();
 }
@@ -169,6 +191,8 @@ export function addTrainingHint(id: string, text: string): TrainingRun[] {
     persistRun(id, (r) => {
       r.hints.push({ id: randomUUID(), text: trimmed, at: Date.now() });
       log(r, 'hint', `Hint queued: ${trimmed.slice(0, 120)}`);
+      // A new steer is fresh input; let a stalled run try again on it.
+      r.stallTurns = 0;
     });
   }
   return listTrainingRuns();
@@ -236,6 +260,126 @@ export function reportExperiment(sessionId: string, input: Record<string, unknow
   return reply;
 }
 
+/**
+ * Handle a report_artifact tool call from a run's agent session (routed here by
+ * chat.ts). Upserts the artifact by path so the dashboard can show what the run
+ * built, where it lives, and how to use it. Logs a milestone the first time an
+ * artifact is registered.
+ */
+export function reportArtifact(sessionId: string, input: Record<string, unknown>): string {
+  const runs = load();
+  const run = runs.find((r) => r.sessionId === sessionId);
+  if (!run) return 'No active run is linked to this session; the artifact was not recorded.';
+
+  const path = typeof input.path === 'string' ? input.path.trim() : '';
+  if (!path) return 'Pass the artifact path (relative to the workspace).';
+  const title = typeof input.title === 'string' && input.title.trim() ? input.title.trim().slice(0, 120) : path.split(/[\\/]/).pop() ?? path;
+  const validKinds: ArtifactKind[] = ['model', 'agents-md', 'skill', 'spec', 'dataset', 'code', 'report', 'other'];
+  const kind = validKinds.includes(input.kind as ArtifactKind) ? (input.kind as ArtifactKind) : 'other';
+  const note = typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 300) : undefined;
+
+  const now = Date.now();
+  if (!run.artifacts) run.artifacts = [];
+  let art = run.artifacts.find((a) => a.path === path);
+  const isNew = !art;
+  if (!art) {
+    art = { id: `art_${run.artifacts.length + 1}`, kind, title, path, createdAt: now, updatedAt: now };
+    run.artifacts.push(art);
+  }
+  art.kind = kind;
+  art.title = title;
+  if (note !== undefined) art.note = note;
+  art.updatedAt = now;
+
+  if (isNew) log(run, 'milestone', `Artifact ready: ${title} (${path})`);
+  run.updatedAt = now;
+  save(runs);
+  return `Recorded artifact "${title}" at ${path}. It now shows on the run's Artifacts card.`;
+}
+
+/**
+ * Handle an update_plan tool call from a run's agent session (routed here by
+ * chat.ts). Replaces or upserts plan steps, logs milestones as steps complete,
+ * and echoes the plan back so the agent knows each step's id.
+ */
+export function updateRunPlan(sessionId: string, input: Record<string, unknown>): string {
+  const runs = load();
+  const run = runs.find((r) => r.sessionId === sessionId);
+  if (!run) return 'No active run is linked to this session; the plan was not recorded.';
+
+  const raw = Array.isArray(input.steps) ? (input.steps as Array<Record<string, unknown>>) : [];
+  if (!raw.length) return 'Pass at least one step.';
+  const valid: PlanStep['status'][] = ['pending', 'active', 'done', 'skipped'];
+  const now = Date.now();
+  const hadPlan = (run.plan ?? []).length > 0;
+  const replace = input.replace === true || !hadPlan;
+  const next: PlanStep[] = replace ? [] : [...(run.plan ?? [])];
+
+  const freshId = () => {
+    let n = next.length + 1;
+    while (next.some((s) => s.id === `step_${n}`)) n++;
+    return `step_${n}`;
+  };
+  for (const r of raw) {
+    const title = String(r.title ?? '').trim().slice(0, 160);
+    const id = typeof r.id === 'string' && r.id.trim() ? r.id.trim() : '';
+    const status = typeof r.status === 'string' && valid.includes(r.status as PlanStep['status'])
+      ? (r.status as PlanStep['status'])
+      : undefined;
+    const note = typeof r.note === 'string' && r.note.trim() ? r.note.trim().slice(0, 240) : undefined;
+    let step = id ? next.find((s) => s.id === id) : undefined;
+    if (!step && !replace && title) step = next.find((s) => s.title.toLowerCase() === title.toLowerCase());
+    if (step) {
+      const was = step.status;
+      if (title) step.title = title;
+      if (status) step.status = status;
+      if (note) step.note = note;
+      step.updatedAt = now;
+      if (status === 'done' && was !== 'done') log(run, 'milestone', `Plan step done: ${step.title}${note ? ` (${note})` : ''}`);
+      else if (status === 'skipped' && was !== 'skipped') log(run, 'info', `Plan step skipped: ${step.title}${note ? ` (${note})` : ''}`);
+    } else if (title) {
+      next.push({ id: id || freshId(), title, status: status ?? 'pending', note, createdAt: now, updatedAt: now });
+    }
+  }
+  if (!next.length) return 'The plan cannot be empty; pass the full step list.';
+
+  run.plan = next;
+  if (replace) log(run, hadPlan ? 'info' : 'milestone', hadPlan ? `Plan revised: ${next.length} steps.` : `Plan created: ${next.length} steps.`);
+  run.updatedAt = now;
+  save(runs);
+
+  const p = planProgress(next);
+  const lines = next.map((s, i) => `${i + 1}. [${s.status}] ${s.id}: ${s.title}`);
+  return `Plan saved (${p.done}/${p.total} done${p.skipped ? `, ${p.skipped} skipped` : ''}):\n${lines.join('\n')}`;
+}
+
+/**
+ * A fingerprint of the run's measurable progress: plan completion + a signature
+ * of each step's status, and the experiment count + a signature of each node's
+ * status/score. When this is identical two turns running, the turn advanced
+ * nothing real (no step completed/revised, no experiment added or changed).
+ */
+function progressSignature(run: TrainingRun): string {
+  const p = planProgress(run.plan);
+  const planSig = (run.plan ?? []).map((s) => `${s.id}:${s.status}`).join(',');
+  const expSig = run.experiments.map((e) => `${e.id}:${e.status}:${e.score ?? ''}`).join(',');
+  return `${p.done + p.skipped}/${p.total}|${planSig}|${run.experiments.length}|${expSig}`;
+}
+
+/** Cheap fingerprint of a turn's final answer, to catch verbatim repetition. */
+function outputSignature(text: string): string {
+  const norm = text.replace(RUN_DONE_TOKEN, '').replace(/\s+/g, ' ').trim();
+  return `${norm.length}:${norm.slice(0, 240)}`;
+}
+
+/** Compact plan summary the goal agent sees each turn. */
+function planBrief(run: TrainingRun): string {
+  if (!run.plan?.length) return 'No plan yet. Build one with update_plan (replace=true) before doing any execution work.';
+  const p = planProgress(run.plan);
+  const lines = run.plan.map((s, i) => `${i + 1}. [${s.status}] ${s.title}${s.note ? ` (${s.note})` : ''}`);
+  return `Plan, ${p.done}/${p.total} done${p.skipped ? ` (${p.skipped} skipped)` : ''}:\n${lines.join('\n')}`;
+}
+
 /** Compact tree summary the agent sees each turn (title, lineage, score). */
 function treeBrief(run: TrainingRun): string {
   if (run.experiments.length === 0) return 'No experiments recorded yet.';
@@ -276,22 +420,36 @@ function turnPrompt(run: TrainingRun, hints: string[]): string {
       const h = cfg.harness ?? {};
       const artifacts = [h.agentsMd && 'an AGENTS.md agent file describing how an agent should use the model', h.skill && 'a SKILL.md skill wrapping common usage', h.spec && 'a SPEC.md describing the model, its data, metrics, and intended use'].filter(Boolean);
       if (artifacts.length) parts.push(`HARNESS: when the run completes, also produce ${artifacts.join('; ')} in the output folder, tailored to the purpose.`);
+      parts.push(
+        `RULES: (1) Work in small, measurable experiments. Call report_experiment when an attempt STARTS (status "running") and when it ENDS (succeeded/failed/repaired, with score when measurable), using parent_id to show what you branched from and "approach" to name the idea family. (2) If something breaks, fix it and mark the experiment "repaired" rather than silently retrying. (3) Keep every artifact in the "${runOutputDir(run)}" folder in the workspace, and the moment one exists on disk call report_artifact for it (kind "model" for the trained model itself, plus each harness file you produce) so the user can see what was built. (4) Between turns you lose nothing: this chat keeps your context. (5) When the purpose is fulfilled (model trained, artifacts written AND registered via report_artifact)${cfg.maxExperiments ? `, or you have exhausted ~${cfg.maxExperiments} experiments` : ''}${cfg.timeBudgetMin ? `, or the ~${cfg.timeBudgetMin} minute budget` : ''}, summarize the outcome and end your reply with ${RUN_DONE_TOKEN}.`,
+      );
+      if (cfg.extra) parts.push(`EXPERT NOTES: ${cfg.extra}`);
+      parts.push(`Start now: profile the task, form a short plan, and run your first experiments.`);
     } else {
       parts.push(
-        `You are Kotrain's goal-solver agent. You own a long-running goal and work it in iterations until it is genuinely met, working hands-on in the workspace with your tools.`,
+        `You are Kotrain's goal agent. You own a long-running goal and drive it to FINISHED, working hands-on in the workspace with your tools. You work in three phases: PLAN first, then EXECUTE, then ITERATE until it is genuinely done.`,
         `GOAL: ${run.goal}`,
+        `PHASE 1, PLAN FIRST: investigate the goal and the workspace, then call update_plan (replace=true) with an ordered list of 4-12 concrete, independently verifiable steps that take the goal to finished. Do this before any execution work.`,
+        `PHASE 2, EXECUTE: work the plan step by step. Mark the step you start "active"; mark it "done" the moment it is verifiably complete, with a one-line note of the outcome. Never claim a step is done without having verified it.`,
+        `PHASE 3, ITERATE: when reality disagrees with the plan (a step fails, new work surfaces, the approach is wrong), revise the plan via update_plan (upsert steps, or replace=true to rewrite it) and keep executing. Repeat until every step is done or skipped AND the goal itself is verifiably met.`,
+        `RULES: (1) The plan is the contract; keep step statuses current via update_plan every turn. (2) When an attempt is worth measuring, you may also record it with report_experiment. (3) If something breaks, fix it; note blockers on the affected step. (4) Keep new artifacts in a "${runOutputDir(run)}" folder in the workspace unless the goal is about existing files, and call report_artifact for each concrete deliverable you produce so it shows on the dashboard. (5) Between turns you lose nothing: this chat keeps your context. (6) End your reply with ${RUN_DONE_TOKEN} only when the goal is genuinely finished and verified, never merely planned${cfg.timeBudgetMin ? `, or when the ~${cfg.timeBudgetMin} minute budget is exhausted` : ''}.`,
       );
-      const approach = getApproach(run.approachId);
-      if (approach?.hint) parts.push(`APPROACH: ${approach.label} — ${approach.hint}`);
+      if (cfg.extra) parts.push(`CONTEXT & CONSTRAINTS FROM THE USER: ${cfg.extra}`);
+      parts.push(`Start now: study the goal, then write the plan with update_plan before executing anything.`);
     }
-    parts.push(
-      `RULES: (1) Work in small, measurable experiments. Call report_experiment when an attempt STARTS (status "running") and when it ENDS (succeeded/failed/repaired, with score when measurable), using parent_id to show what you branched from and "approach" to name the idea family. (2) If something breaks, fix it and mark the experiment "repaired" rather than silently retrying. (3) Keep artifacts in a "${run.kind === 'training' ? 'kotrain-training' : 'kotrain-goal'}/${run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8)}" folder in the workspace. (4) Between turns you lose nothing: this chat keeps your context. (5) When the ${run.kind === 'training' ? 'purpose is fulfilled (model trained + artifacts written)' : 'goal is fully met'}${cfg.maxExperiments ? `, or you have exhausted ~${cfg.maxExperiments} experiments` : ''}${cfg.timeBudgetMin ? `, or the ~${cfg.timeBudgetMin} minute budget` : ''}, summarize the outcome and end your reply with ${RUN_DONE_TOKEN}.`,
-    );
-    if (cfg.extra) parts.push(`EXPERT NOTES: ${cfg.extra}`);
-    parts.push(`Start now: profile the task, form a short plan, and run your first experiments.`);
+  } else if (run.kind === 'goal') {
+    // Self-contained each turn: only the last few turns are replayed to the
+    // model, so restate the goal + constraints rather than relying on turn 0.
+    parts.push(`Continue working toward this goal until it is verifiably finished.`, `GOAL: ${run.goal}`);
+    if (cfg.extra) parts.push(`CONSTRAINTS: ${cfg.extra}`);
+    parts.push(planBrief(run));
+    if (run.experiments.length) parts.push(`Experiment tree:\n${treeBrief(run)}`);
+    parts.push(`Do the next concrete work now (don't just re-plan): mark the step you start "active" via update_plan, and "done" with a one-line note once you have VERIFIED it. Revise the plan only when reality demands it. End your reply with ${RUN_DONE_TOKEN} only when every step is done or skipped and the goal is verifiably met, never merely planned.`);
   } else {
-    parts.push(`Continue the run. Current experiment tree:\n${treeBrief(run)}`);
-    parts.push(`Push the leader further: iterate on what works, branch new idea families when progress stalls, repair failures. Keep calling report_experiment. End with ${RUN_DONE_TOKEN} only when the ${run.kind === 'training' ? 'purpose' : 'goal'} is genuinely met or budgets are exhausted.`);
+    parts.push(`Continue the run toward its purpose until met.`, `PURPOSE: ${run.goal}`);
+    if (cfg.extra) parts.push(`CONSTRAINTS: ${cfg.extra}`);
+    parts.push(`Current experiment tree:\n${treeBrief(run)}`);
+    parts.push(`Push the leader further: iterate on what works, branch new idea families when progress stalls, repair failures. Keep calling report_experiment. End with ${RUN_DONE_TOKEN} only when the purpose is genuinely met or budgets are exhausted.`);
   }
 
   if (hints.length) {
@@ -319,6 +477,29 @@ async function tickRun(id: string): Promise<void> {
     return;
   }
 
+  // Pre-turn safety guards, so a run can never spin forever. These stop the
+  // loop (status flips away from 'running', so it won't re-arm below).
+  const budgetMin = run.config?.timeBudgetMin;
+  if (budgetMin && runStats(run).runtimeMs >= budgetMin * 60_000) {
+    persistRun(id, (r) => {
+      stopClock(r);
+      r.status = 'stopped';
+      r.endedAt = Date.now();
+      log(r, 'info', `Stopped: reached the ~${budgetMin} minute time budget after ${r.turns ?? 0} turns. Resume to keep going, or raise the budget.`);
+    });
+    return;
+  }
+  const turnCap = run.config?.maxTurns ?? DEFAULT_MAX_TURNS;
+  if ((run.turns ?? 0) >= turnCap) {
+    persistRun(id, (r) => {
+      stopClock(r);
+      r.status = 'stopped';
+      r.endedAt = Date.now();
+      log(r, 'error', `Stopped at the ${turnCap}-turn safety cap. It hasn't finished on its own, so it may be stuck. Add a hint to redirect it, then Resume (which grants a fresh turn budget).`);
+    });
+    return;
+  }
+
   // Consume pending hints into this turn.
   const hints: string[] = [];
   persistRun(id, (r) => {
@@ -339,27 +520,58 @@ async function tickRun(id: string): Promise<void> {
     r.turns = (r.turns ?? 0) + 1;
   });
   try {
-    await sendChat({ sessionId: session.id, providerId, modelId, text: prompt }, (e) => trainingSender?.(e));
+    // Only the last few turns are replayed to the model (the brief re-injects
+    // the plan/tree), so the loop never grows into an unbounded transcript.
+    await sendChat(
+      { sessionId: session.id, providerId, modelId, text: prompt, maxHistoryTurns: RUN_HISTORY_TURNS },
+      (e) => trainingSender?.(e),
+    );
     const done = getSession(session.id);
     const last = [...(done?.messages ?? [])].reverse().find((m) => m.role === 'assistant' && m.content.trim());
     const finished = !!last?.content.includes(RUN_DONE_TOKEN);
     persistRun(id, (r) => {
-      if (finished && r.status === 'running') {
+      r.errorTurns = 0;
+      if (finished) {
+        if (r.status === 'running') {
+          stopClock(r);
+          r.status = 'completed';
+          r.endedAt = Date.now();
+          log(r, 'milestone', `Run completed: ${last!.content.replace(RUN_DONE_TOKEN, '').trim().slice(0, 200)}`);
+        }
+        return;
+      }
+      // Stall detection: a turn that advanced nothing measurable AND repeated
+      // the previous answer (and wasn't given a fresh hint) counts toward a
+      // stall; enough in a row and we pause and ask the user to steer.
+      const progressKey = progressSignature(r);
+      const outputSig = outputSignature(last?.content ?? '');
+      const stalled = hints.length === 0 && r.lastProgressKey === progressKey && r.lastOutputSig === outputSig;
+      r.lastProgressKey = progressKey;
+      r.lastOutputSig = outputSig;
+      r.stallTurns = stalled ? (r.stallTurns ?? 0) + 1 : 0;
+      if ((r.stallTurns ?? 0) >= STALL_LIMIT && r.status === 'running') {
         stopClock(r);
-        r.status = 'completed';
-        r.endedAt = Date.now();
-        log(r, 'milestone', `Run completed: ${last!.content.replace(RUN_DONE_TOKEN, '').trim().slice(0, 200)}`);
+        r.status = 'paused';
+        r.stallTurns = 0;
+        log(r, 'error', `Paused after ${STALL_LIMIT} turns with no measurable progress (no plan step completed or revised, and the agent kept repeating itself). Add a hint to redirect it, then Resume.`);
       }
     });
   } catch (e) {
     persistRun(id, (r) => {
-      log(r, 'error', `Turn failed: ${(e as Error).message}`);
+      r.errorTurns = (r.errorTurns ?? 0) + 1;
+      log(r, 'error', `Iteration failed: ${(e as Error).message}`);
+      if ((r.errorTurns ?? 0) >= ERROR_LIMIT && r.status === 'running') {
+        stopClock(r);
+        r.status = 'failed';
+        r.endedAt = Date.now();
+        log(r, 'error', `Stopped after ${ERROR_LIMIT} failed turns in a row. Check the model/provider, then Resume.`);
+      }
     });
   } finally {
     inFlight.delete(id);
   }
 
-  // Re-arm while still running (pause/stop flips status mid-turn).
+  // Re-arm while still running (pause/stop/complete/fail flips status mid-turn).
   const after = load().find((r) => r.id === id);
   if (after?.status === 'running') {
     const t = setTimeout(() => void tickRun(id), TURN_DELAY_MS);

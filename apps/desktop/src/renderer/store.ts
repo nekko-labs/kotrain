@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef } from '@kotrain/shared';
+import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo } from '@kotrain/shared';
 import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
 
@@ -19,13 +19,13 @@ export interface Toast {
   message: string;
 }
 
-/** A single workbench tab, a chat, terminal, file, browser, or diff view. */
+/** A single workbench tab, a chat, terminal, file, browser, diff, or PR view. */
 export interface WbPane {
   id: string;
-  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff';
+  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff' | 'pr';
   /**
-   * What the pane points at: sessionId (chat), terminalId (terminal), absolute
-   * file path (file/diff), or URL (browser).
+   * What the pane points at: sessionId (chat/diff), terminalId (terminal),
+   * absolute file path (file), URL (browser), or PR URL (pr).
    */
   refId: string;
 }
@@ -37,38 +37,10 @@ export interface WbGroup {
   activeId: string | null;
 }
 
-export type FilesPaneSide = 'left' | 'right';
-
 const MAX_GROUPS = 3;
-const FILES_PANE_STORAGE_KEY = 'kotrain.filesPane';
 let paneSeq = 0;
 const newPaneId = () => `pane_${(++paneSeq).toString(36)}`;
 const newGroupId = () => `grp_${(++paneSeq).toString(36)}`;
-
-function readFilesPaneState(): { open: boolean; side: FilesPaneSide; width: number } {
-  const fallback = { open: false, side: 'left' as FilesPaneSide, width: 256 };
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(FILES_PANE_STORAGE_KEY) ?? 'null');
-    if (!parsed || typeof parsed !== 'object') return fallback;
-    return {
-      open: parsed.open === true,
-      side: parsed.side === 'right' ? 'right' : 'left',
-      width: typeof parsed.width === 'number' ? Math.min(480, Math.max(200, parsed.width)) : fallback.width,
-    };
-  } catch {
-    return fallback;
-  }
-}
-
-function persistFilesPaneState(state: { open: boolean; side: FilesPaneSide; width: number }) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(FILES_PANE_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Persistence is best-effort in restricted/browser transports.
-  }
-}
 
 interface UiState {
   settings: AppSettings | null;
@@ -85,16 +57,28 @@ interface UiState {
   paletteOpen: boolean;
   activeWorkspaceId: string | null;
 
+  /**
+   * Where the chat's full monitoring section sits on screen (null when it isn't
+   * mounted). The floating monitor chip reads this so it can fly into the
+   * section instead of covering it.
+   */
+  monitorDockRect: { x: number; y: number; w: number; h: number } | null;
+  setMonitorDockRect: (r: { x: number; y: number; w: number; h: number } | null) => void;
+
   // Workbench: tabbed, splittable panes (chats + terminals) and live terminals.
   terminals: TerminalInfo[];
   groups: WbGroup[];
   activeGroupId: string | null;
-  filesPaneOpen: boolean;
-  filesPaneSide: FilesPaneSide;
-  filesPaneWidth: number;
 
   /** Pending message to hand a chat's composer (set by editor comments / design notes). */
   composerInbox: ComposerInbox | null;
+
+  /** Live PR state per chat (PRs referenced in its transcript), for cards + badges. */
+  prsBySession: Record<string, PrInfo[]>;
+  /** Fetch a chat's PRs (gh/API, host-cached) and stash them for cards + badges. */
+  refreshSessionPrs: (sessionId: string) => Promise<void>;
+  /** Open a PR's diff in a workbench pane. */
+  openPrPane: (url: string) => void;
 
   /** Marketplace installs (all targets) + the Kotrain ones as runnable skills. */
   installedSkills: InstalledSkillRecord[];
@@ -104,6 +88,15 @@ interface UiState {
   /** The skill armed in each chat's composer (highlighted pill, runs on send). */
   activeSkillBySession: Record<string, SkillDef | null>;
   setActiveSkill: (sessionId: string, skill: SkillDef | null) => void;
+
+  /**
+   * What's typed but unsent in each chat's composer. The pane owns the text;
+   * this mirror exists so the Context Inspector on the right can count the
+   * draft's tokens while you type (the host's context bundle only knows about
+   * sent messages).
+   */
+  draftBySession: Record<string, string>;
+  setSessionDraft: (sessionId: string, text: string) => void;
 
   setActiveWorkspace: (id: string | null) => void;
   pushToast: (kind: Toast['kind'], message: string) => void;
@@ -135,10 +128,6 @@ interface UiState {
   setActivePane: (groupId: string, paneId: string) => void;
   focusGroup: (groupId: string) => void;
   splitRight: (groupId: string, paneId: string) => void;
-  toggleFilesPane: () => void;
-  setFilesPaneOpen: (open: boolean) => void;
-  setFilesPaneSide: (side: FilesPaneSide) => void;
-  setFilesPaneWidth: (width: number) => void;
 
   // Sidebar drag-and-drop: persist project order and per-project item order.
   reorderWorkspaces: (orderedIds: string[]) => Promise<void>;
@@ -170,7 +159,7 @@ function addPane(groups: WbGroup[], activeGroupId: string | null, pane: WbPane):
 
 export const useStore = create<UiState>((set, get) => ({
   settings: null,
-  view: 'chat',
+  view: 'command',
   sessions: [],
   activeSessionId: null,
   providers: [],
@@ -186,14 +175,7 @@ export const useStore = create<UiState>((set, get) => ({
   terminals: [],
   groups: [],
   activeGroupId: null,
-  ...(() => {
-    const files = readFilesPaneState();
-    return {
-      filesPaneOpen: files.open,
-      filesPaneSide: files.side,
-      filesPaneWidth: files.width,
-    };
-  })(),
+  prsBySession: {},
   composerInbox: null,
 
   setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
@@ -204,8 +186,17 @@ export const useStore = create<UiState>((set, get) => ({
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setPaletteOpen: (open) => set({ paletteOpen: open }),
+  monitorDockRect: null,
+  setMonitorDockRect: (r) =>
+    set((s) => {
+      const p = s.monitorDockRect;
+      // The dock reports on every resize; skip no-op writes so the chip's warp
+      // transform isn't recomputed for nothing.
+      if (p === r || (p && r && p.x === r.x && p.y === r.y && p.w === r.w && p.h === r.h)) return s;
+      return { monitorDockRect: r };
+    }),
   newChat: async () => {
-    const s = await window.nekko.createSession(get().activeWorkspaceId ?? undefined);
+    const s = await window.kotrain.createSession(get().activeWorkspaceId ?? undefined);
     await get().refreshSessions();
     set({ activeSessionId: s.id, view: 'chat' });
     get().openChatPane(s.id);
@@ -214,7 +205,7 @@ export const useStore = create<UiState>((set, get) => ({
   setView: (v) => set({ view: v }),
 
   refreshSettings: async () => {
-    const settings = await window.nekko.getSettings();
+    const settings = await window.kotrain.getSettings();
     set({ settings });
     get().applyTheme();
     if (!get().activeProviderId && settings.defaultProviderId) {
@@ -226,7 +217,7 @@ export const useStore = create<UiState>((set, get) => ({
   },
 
   refreshSessions: async () => {
-    const sessions = await window.nekko.listSessions();
+    const sessions = await window.kotrain.listSessions();
     set({ sessions });
     if (!get().activeSessionId && sessions[0]) set({ activeSessionId: sessions[0].id });
   },
@@ -235,10 +226,10 @@ export const useStore = create<UiState>((set, get) => ({
   installedSkillDefs: [],
   refreshSkills: async () => {
     try {
-      const installedSkills = await window.nekko.listInstalledSkills();
+      const installedSkills = await window.kotrain.listInstalledSkills();
       const installedSkillDefs = installedSkills
         .filter((r) => r.target === 'kotrain')
-        // Dojo (non-catalog) installs carry their own snapshot on the record.
+        // Vaizer (non-catalog) installs carry their own snapshot on the record.
         .map((r) => r.skill ?? getMarketSkill(r.skillId))
         .filter((m): m is NonNullable<typeof m> => !!m)
         .map(marketToSkillDef);
@@ -252,10 +243,16 @@ export const useStore = create<UiState>((set, get) => ({
   setActiveSkill: (sessionId, skill) =>
     set((s) => ({ activeSkillBySession: { ...s.activeSkillBySession, [sessionId]: skill } })),
 
+  draftBySession: {},
+  setSessionDraft: (sessionId, text) =>
+    set((s) => (s.draftBySession[sessionId] === text
+      ? s
+      : { draftBySession: { ...s.draftBySession, [sessionId]: text } })),
+
   setActiveSession: (id) => set({ activeSessionId: id }),
 
   refreshProviders: async () => {
-    const providers = await window.nekko.listProviders();
+    const providers = await window.kotrain.listProviders();
     set({ providers });
     const active = get().activeProviderId ?? providers[0]?.id ?? null;
     if (active) {
@@ -269,16 +266,22 @@ export const useStore = create<UiState>((set, get) => ({
 
   selectProvider: async (id) => {
     set({ activeProviderId: id, models: [] });
-    const models = await window.nekko.listModels(id);
+    const models = await window.kotrain.listModels(id);
     set({ models });
-    if (models[0] && !models.some((m) => m.id === get().activeModelId)) set({ activeModelId: models[0].id });
+    // Keep the current model if this provider serves it, otherwise leave it
+    // unset: a chat then asks which model to use instead of inheriting a guess.
+    // Picking the provider's first model (as this used to) is worse than asking,
+    // because a local server lists more than chat models - LM Studio's first
+    // entry is often `whisper-large-v3`, which can't answer a chat turn at all.
+    if (!models.some((m) => m.id === get().activeModelId)) set({ activeModelId: null });
     // Remember as the default for new chats and next launch.
-    window.nekko.updateSettings({ defaultProviderId: id, defaultModelId: get().activeModelId ?? undefined });
+    const activeModelId = get().activeModelId;
+    window.kotrain.updateSettings({ defaultProviderId: id, ...(activeModelId ? { defaultModelId: activeModelId } : {}) });
   },
 
   selectModel: (id) => {
     set({ activeModelId: id });
-    window.nekko.updateSettings({ defaultProviderId: get().activeProviderId ?? undefined, defaultModelId: id });
+    window.kotrain.updateSettings({ defaultProviderId: get().activeProviderId ?? undefined, defaultModelId: id });
   },
 
   toggleContextPanel: () => set((s) => ({ contextPanelOpen: !s.contextPanelOpen })),
@@ -298,7 +301,7 @@ export const useStore = create<UiState>((set, get) => ({
 
   refreshTerminals: async () => {
     try {
-      set({ terminals: await window.nekko.listTerminals() });
+      set({ terminals: await window.kotrain.listTerminals() });
     } catch {
       /* terminals unsupported on this transport */
     }
@@ -306,7 +309,7 @@ export const useStore = create<UiState>((set, get) => ({
 
   newTerminal: async (workspaceId, shell) => {
     const wid = workspaceId ?? get().activeWorkspaceId ?? undefined;
-    const t = await window.nekko.createTerminal({ workspaceId: wid, shell });
+    const t = await window.kotrain.createTerminal({ workspaceId: wid, shell });
     await get().refreshTerminals();
     set({ view: 'chat' });
     get().openTerminalPane(t.id);
@@ -371,7 +374,7 @@ export const useStore = create<UiState>((set, get) => ({
     // Target the active chat; create one if there isn't a usable session.
     let sid = get().activeSessionId;
     if (!sid || !get().sessions.some((s) => s.id === sid)) {
-      const s = await window.nekko.createSession(get().activeWorkspaceId ?? undefined);
+      const s = await window.kotrain.createSession(get().activeWorkspaceId ?? undefined);
       await get().refreshSessions();
       sid = s.id;
       set({ activeSessionId: sid });
@@ -379,6 +382,28 @@ export const useStore = create<UiState>((set, get) => ({
     set({ view: 'chat' });
     get().openChatPane(sid);
     set({ composerInbox: { sessionId: sid, text, run } });
+  },
+
+  refreshSessionPrs: async (sessionId) => {
+    try {
+      const prs = await window.kotrain.listSessionPrs(sessionId);
+      set((s) => ({ prsBySession: { ...s.prsBySession, [sessionId]: prs } }));
+    } catch {
+      /* older host without PR channels, or gh/API unavailable */
+    }
+  },
+
+  openPrPane: (url) => {
+    set((s) => {
+      const hit = locatePane(s.groups, 'pr', url);
+      if (hit) {
+        return {
+          activeGroupId: hit.groupId,
+          groups: s.groups.map((g) => (g.id === hit.groupId ? { ...g, activeId: hit.paneId } : g)),
+        };
+      }
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'pr', refId: url }), view: 'chat' as View };
+    });
   },
 
   openDiffPane: (sessionId) => {
@@ -441,55 +466,25 @@ export const useStore = create<UiState>((set, get) => ({
     });
   },
 
-  toggleFilesPane: () => {
-    set((s) => {
-      const open = !s.filesPaneOpen;
-      persistFilesPaneState({ open, side: s.filesPaneSide, width: s.filesPaneWidth });
-      return { filesPaneOpen: open };
-    });
-  },
-
-  setFilesPaneOpen: (open) => {
-    set((s) => {
-      persistFilesPaneState({ open, side: s.filesPaneSide, width: s.filesPaneWidth });
-      return { filesPaneOpen: open };
-    });
-  },
-
-  setFilesPaneSide: (side) => {
-    set((s) => {
-      persistFilesPaneState({ open: s.filesPaneOpen, side, width: s.filesPaneWidth });
-      return { filesPaneSide: side };
-    });
-  },
-
-  setFilesPaneWidth: (width) => {
-    const next = Math.min(480, Math.max(200, Math.round(width)));
-    set((s) => {
-      persistFilesPaneState({ open: s.filesPaneOpen, side: s.filesPaneSide, width: next });
-      return { filesPaneWidth: next };
-    });
-  },
-
   reorderWorkspaces: async (orderedIds) => {
     const s = get().settings;
     if (!s) return;
     const byId = new Map(s.workspaces.map((w) => [w.id, w]));
     const workspaces = orderedIds.map((id) => byId.get(id)).filter((w): w is NonNullable<typeof w> => !!w);
     if (workspaces.length !== s.workspaces.length) return; // guard against a lost entry
-    await window.nekko.updateSettings({ workspaces });
+    await window.kotrain.updateSettings({ workspaces });
     await get().refreshSettings();
   },
 
   layoutChats: async (targetWorkspaceId, orderedIds, moveId) => {
-    if (moveId) await window.nekko.setSessionWorkspace(moveId, targetWorkspaceId);
-    await Promise.all(orderedIds.map((id, i) => window.nekko.setSessionOptions(id, { order: i })));
+    if (moveId) await window.kotrain.setSessionWorkspace(moveId, targetWorkspaceId);
+    await Promise.all(orderedIds.map((id, i) => window.kotrain.setSessionOptions(id, { order: i })));
     await get().refreshSessions();
   },
 
   layoutTerminals: async (targetWorkspaceId, orderedIds, moveId) => {
-    if (moveId) await window.nekko.updateTerminal(moveId, { workspaceId: targetWorkspaceId ?? null });
-    await Promise.all(orderedIds.map((id, i) => window.nekko.updateTerminal(id, { order: i })));
+    if (moveId) await window.kotrain.updateTerminal(moveId, { workspaceId: targetWorkspaceId ?? null });
+    await Promise.all(orderedIds.map((id, i) => window.kotrain.updateTerminal(id, { order: i })));
     await get().refreshTerminals();
   },
 }));

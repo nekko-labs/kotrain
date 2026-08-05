@@ -1,0 +1,186 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { buildRelay } from './server.js';
+import type { PushSender } from './push.js';
+
+/** Live-socket protocol tests: real Fastify WS server + Node's global WebSocket. */
+
+const openSockets: WebSocket[] = [];
+const apps: { close(): Promise<void> }[] = [];
+const httpServers: Server[] = [];
+
+afterEach(async () => {
+  for (const ws of openSockets.splice(0)) {
+    try {
+      ws.close();
+    } catch {
+      /* already closed */
+    }
+  }
+  for (const app of apps.splice(0)) await app.close();
+  for (const s of httpServers.splice(0)) await new Promise((r) => s.close(r));
+});
+
+async function startRelay(opts: Parameters<typeof buildRelay>[0] = {}) {
+  const { app, rooms } = buildRelay(opts);
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  apps.push(app as any);
+  const port = (app.server.address() as AddressInfo).port;
+  return { url: `ws://127.0.0.1:${port}`, rooms };
+}
+
+interface Sock {
+  ws: WebSocket;
+  next(): Promise<any>;
+  send(obj: unknown): void;
+  closed: Promise<{ code: number; reason: string }>;
+}
+
+function connect(url: string, params: Record<string, string>): Promise<Sock> {
+  const q = new URLSearchParams(params).toString();
+  const ws = new WebSocket(`${url}/relay?${q}`);
+  openSockets.push(ws);
+  const queue: any[] = [];
+  const waiters: ((v: any) => void)[] = [];
+  ws.addEventListener('message', (ev: any) => {
+    const v = JSON.parse(typeof ev.data === 'string' ? ev.data : ev.data.toString());
+    const w = waiters.shift();
+    w ? w(v) : queue.push(v);
+  });
+  const closed = new Promise<{ code: number; reason: string }>((res) => {
+    ws.addEventListener('close', (ev: any) => res({ code: ev.code, reason: String(ev.reason || '') }));
+  });
+  const sock: Sock = {
+    ws,
+    closed,
+    send: (obj) => ws.send(typeof obj === 'string' ? obj : JSON.stringify(obj)),
+    next: () =>
+      queue.length
+        ? Promise.resolve(queue.shift())
+        : new Promise((res, rej) => {
+            waiters.push(res);
+            setTimeout(() => rej(new Error('timed out waiting for frame')), 4000);
+          }),
+  };
+  return new Promise((res, rej) => {
+    ws.addEventListener('open', () => res(sock));
+    ws.addEventListener('close', () => res(sock)); // rejected connections resolve too; assert via `closed`
+    ws.addEventListener('error', () => {
+      /* close follows */
+    });
+    setTimeout(() => rej(new Error('connect timeout')), 4000);
+  });
+}
+
+describe('relay v2 routing', () => {
+  it('tags clients with cids, forwards to the agent, and unicasts back', async () => {
+    const { url } = await startRelay();
+    const agent = await connect(url, { room: 'r1', role: 'agent', key: 'k' });
+    const a = await connect(url, { room: 'r1', role: 'client', key: 'k' });
+    const b = await connect(url, { room: 'r1', role: 'client', key: 'k' });
+
+    expect(await a.next()).toEqual({ type: 'agent-online' });
+    expect(await b.next()).toEqual({ type: 'agent-online' });
+    const openA = await agent.next();
+    const openB = await agent.next();
+    expect(openA.type).toBe('client-open');
+    expect(openB.type).toBe('client-open');
+    expect(openA.cid).not.toBe(openB.cid);
+
+    a.send({ enc: 'ciphertext-from-a' });
+    const fromA = await agent.next();
+    expect(fromA).toEqual({ type: 'c', cid: openA.cid, data: JSON.stringify({ enc: 'ciphertext-from-a' }) });
+
+    // Unicast to A only; B must not see it.
+    agent.send({ type: 'd', cid: openA.cid, data: JSON.stringify({ enc: 'reply-for-a' }) });
+    expect(await a.next()).toEqual({ enc: 'reply-for-a' });
+    b.send({ enc: 'ping' }); // fence: b's next frame proves nothing arrived before it
+    await agent.next();
+    agent.send({ type: 'd', cid: openB.cid, data: JSON.stringify({ enc: 'reply-for-b' }) });
+    expect(await b.next()).toEqual({ enc: 'reply-for-b' });
+  });
+
+  it('rejects clients with a wrong key and unpaired rooms', async () => {
+    const { url } = await startRelay();
+    const noAgent = await connect(url, { room: 'empty', role: 'client', key: 'k' });
+    expect((await noAgent.closed).code).toBe(1008);
+
+    await connect(url, { room: 'r2', role: 'agent', key: 'right' });
+    const bad = await connect(url, { room: 'r2', role: 'client', key: 'wrong' });
+    expect((await bad.closed).code).toBe(1008);
+  });
+
+  it('kicks a client on the agent’s request', async () => {
+    const { url } = await startRelay();
+    const agent = await connect(url, { room: 'r3', role: 'agent', key: 'k' });
+    const c = await connect(url, { room: 'r3', role: 'client', key: 'k' });
+    await c.next(); // agent-online
+    const { cid } = await agent.next();
+    agent.send({ type: 'kick', cid });
+    const closed = await c.closed;
+    expect(closed.code).toBe(4001);
+    expect(await agent.next()).toEqual({ type: 'client-close', cid });
+  });
+
+  it('caps clients per room', async () => {
+    const { url } = await startRelay({ limits: { maxClientsPerRoom: 1 } });
+    await connect(url, { room: 'r4', role: 'agent', key: 'k' });
+    await connect(url, { room: 'r4', role: 'client', key: 'k' });
+    const second = await connect(url, { room: 'r4', role: 'client', key: 'k' });
+    expect((await second.closed).code).toBe(1013);
+  });
+
+  it('stores push tokens per device, pushes when offline, and removes on revoke', async () => {
+    const sent: string[] = [];
+    const pushSender: PushSender = { enabled: true, send: async (token) => void sent.push(token) };
+    const { url, rooms } = await startRelay({ pushSender });
+    const agent = await connect(url, { room: 'r5', role: 'agent', key: 'k' });
+    const c = await connect(url, { room: 'r5', role: 'client', key: 'k' });
+    await c.next();
+    await agent.next();
+    c.send({ type: 'register-push', token: 'tok-1', platform: 'ios', deviceId: 'dev-1' });
+    // Re-register replaces, not duplicates.
+    c.send({ type: 'register-push', token: 'tok-2', platform: 'ios', deviceId: 'dev-1' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(rooms.get('r5')!.pushTokens.get('dev-1')!.token).toBe('tok-2');
+
+    // Clients connected → notify does not push.
+    agent.send({ type: 'notify', title: 't', body: 'b' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sent).toEqual([]);
+
+    c.ws.close();
+    await agent.next(); // client-close
+    agent.send({ type: 'notify', title: 't', body: 'b' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sent).toEqual(['tok-2']);
+
+    agent.send({ type: 'push-remove', deviceId: 'dev-1' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(rooms.get('r5')!.pushTokens.size).toBe(0);
+  });
+
+  it('gates agent enrollment behind the authz URL when configured', async () => {
+    // Mock cloud authorizer: accepts only "good-token".
+    const authz = createServer((req, res) => {
+      const ok = req.headers.authorization === 'Bearer good-token';
+      res.writeHead(ok ? 200 : 401, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok }));
+    });
+    httpServers.push(authz);
+    await new Promise<void>((r) => authz.listen(0, '127.0.0.1', r));
+    const authzUrl = `http://127.0.0.1:${(authz.address() as AddressInfo).port}/authorize`;
+
+    const { url } = await startRelay({ authzUrl });
+    const denied = await connect(url, { room: 'r6', role: 'agent', key: 'k' });
+    expect((await denied.closed).code).toBe(4003);
+    const deniedBad = await connect(url, { room: 'r6', role: 'agent', key: 'k', access: 'bad' });
+    expect((await deniedBad.closed).code).toBe(4003);
+
+    const agent = await connect(url, { room: 'r6', role: 'agent', key: 'k', access: 'good-token' });
+    const c = await connect(url, { room: 'r6', role: 'client', key: 'k' });
+    expect(await c.next()).toEqual({ type: 'agent-online' });
+    expect((await agent.next()).type).toBe('client-open');
+  });
+});

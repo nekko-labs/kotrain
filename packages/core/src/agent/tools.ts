@@ -124,3 +124,64 @@ export const REPORT_EXPERIMENT_TOOL: ToolSpec = {
     required: ['title', 'status'],
   },
 };
+
+/**
+ * Extra tool offered only to sessions driven by a training/goal run: goal runs
+ * are plan-first, so the agent maintains its execution plan here (build it
+ * before working, keep step statuses current, revise it when reality
+ * disagrees). Drives the plan checklist on the Goals dashboard. Executed in
+ * the host.
+ */
+export const UPDATE_PLAN_TOOL: ToolSpec = {
+  name: 'update_plan',
+  description:
+    'Create or update this run\'s execution plan. Call it with replace=true and the full ordered step list to write the initial plan (do this BEFORE any execution work) or to re-plan. Without replace, steps are upserted by id: mark the step you are working "active", mark it "done" the moment it is verifiably complete (add a one-line note), or "skipped" with the reason. Keep the plan current every turn; the tool result echoes the plan so you know each step\'s id.',
+  parameters: {
+    type: 'object',
+    properties: {
+      replace: { type: 'boolean', description: 'Replace the whole plan with `steps` (initial plan or a re-plan).' },
+      steps: {
+        type: 'array',
+        description: 'Plan steps, in execution order when replace=true.',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Step id to update (omit to create a new step).' },
+            title: { type: 'string', description: 'Concrete, verifiable step, e.g. "Wire the CSV parser + unit tests".' },
+            status: { type: 'string', enum: ['pending', 'active', 'done', 'skipped'] },
+            note: { type: 'string', description: 'One-line outcome, blocker, or skip reason.' },
+          },
+          required: ['title'],
+        },
+      },
+    },
+    required: ['steps'],
+  },
+};
+
+/**
+ * Extra tool offered only to run-driven sessions: register a concrete artifact
+ * the run produced (the trained model, a harness file, a report). Drives the
+ * "Artifacts" card on the run dashboard so the user can see exactly what was
+ * built, where it lives, and how to use it. Call it as soon as an artifact
+ * exists on disk, and again to update its note. Executed in the host.
+ */
+export const REPORT_ARTIFACT_TOOL: ToolSpec = {
+  name: 'report_artifact',
+  description:
+    'Register a concrete artifact this run produced so it shows on the run dashboard. Call it the moment an artifact exists on disk (the trained model, an AGENTS.md / SKILL.md / SPEC.md harness file, a dataset card, an evaluation report). Give the path relative to the workspace. Call again with the same path to update its note. This is how the user sees what the run actually built.',
+  parameters: {
+    type: 'object',
+    properties: {
+      kind: {
+        type: 'string',
+        enum: ['model', 'agents-md', 'skill', 'spec', 'dataset', 'code', 'report', 'other'],
+        description: 'What the artifact is. Use "model" for the trained model itself.',
+      },
+      title: { type: 'string', description: 'Short label, e.g. "Trained model (transformer)" or "AGENTS.md".' },
+      path: { type: 'string', description: 'Where it lives, relative to the workspace (or absolute), e.g. "kotrain-training/ticket-urgency/model_output".' },
+      note: { type: 'string', description: 'One line on what it is and how to use it.' },
+    },
+    required: ['kind', 'title', 'path'],
+  },
+};

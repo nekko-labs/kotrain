@@ -19,7 +19,7 @@ export interface CloudServerOptions {
 }
 
 /**
- * Nekko Cloud server. Fronts the SAME host engine + dispatcher as every other
+ * Kotrain Cloud server. Fronts the SAME host engine + dispatcher as every other
  * edition, but per authenticated account: each account gets an isolated data
  * dir (its own settings/sessions/memory) via `withDataDir`, and feature limits
  * are enforced server-side from the account's plan. The OSS app never does any
@@ -94,6 +94,17 @@ export function createCloudServer(opts: CloudServerOptions): { app: FastifyInsta
       reply.send({ account: publicAccount(account), entitlements: entitlements(account.plan) });
     });
 
+    // --- Relay (managed passthrough) ---
+    // A gated relay (KOTRAIN_RELAY_AUTHZ_URL pointing here) asks whether the
+    // agent presenting this bearer token may enroll. Any authenticated account
+    // qualifies today (managed relay is free during beta); the reply carries the
+    // plan's device allowance so limits can be surfaced/enforced downstream.
+    api.post('/api/relay/authorize', async (req, reply) => {
+      const account = store.verifyToken(bearer(req));
+      if (!account) return reply.code(401).send({ ok: false, error: 'unauthorized' });
+      reply.send({ ok: true, plan: account.plan, maxDevices: entitlements(account.plan).maxDevices });
+    });
+
     // --- Billing (Stripe) ---
     // Start a Checkout Session for a paid plan; returns the URL to redirect to.
     api.post<{ Body: { plan?: string } }>('/api/billing/checkout', async (req, reply) => {
@@ -126,7 +137,7 @@ export function createCloudServer(opts: CloudServerOptions): { app: FastifyInsta
       }
     });
 
-    // --- Authenticated NekkoApi (per-account host, isolated data dir) ---
+    // --- Authenticated KotrainApi (per-account host, isolated data dir) ---
     api.post<{ Params: { channel: string }; Body: { args?: unknown[] } }>(
       '/api/:channel',
       async (req, reply) => {

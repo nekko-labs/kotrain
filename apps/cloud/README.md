@@ -1,4 +1,4 @@
-# @kotrain/cloud, Nekko Cloud (hosted edition)
+# @kotrain/cloud, Kotrain Cloud (hosted edition)
 
 The multi-account, hosted edition. It wraps the **same** host engine (`@kotrain/host`)
 and the **same** React UI as the desktop and self-hosted web editions, just per
@@ -57,7 +57,7 @@ Environment:
 | `POST /api/billing/checkout` | Bearer | `{ plan: 'pro'｜'team' }` → `{ url }` (Stripe Checkout) |
 | `POST /api/billing/portal` | Bearer | `{ url }` (Stripe Customer Portal) |
 | `POST /api/billing/webhook` | Stripe signature | apply plan changes from Stripe events |
-| `POST /api/:channel` | Bearer | the full NekkoApi, scoped to the account |
+| `POST /api/:channel` | Bearer | the full KotrainApi, scoped to the account |
 | `GET /api/events` (WS) | Bearer (`?token=`) | the account's agent/index events |
 
 ## Still TODO (later Phase 3)

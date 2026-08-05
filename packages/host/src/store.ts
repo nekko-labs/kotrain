@@ -27,7 +27,7 @@ function defaults(): AppSettings {
   };
 }
 
-// Keyed by data dir so a single process serving many accounts (Nekko Cloud)
+// Keyed by data dir so a single process serving many accounts (Kotrain Cloud)
 // never bleeds one account's settings into another. Single-data-dir editions
 // (desktop/server/CLI) just use the one entry.
 const cache = new Map<string, AppSettings>();

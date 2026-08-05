@@ -72,7 +72,7 @@ export function installSkill(
   target: InstallTarget,
   payload?: MarketplaceSkill,
 ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] } {
-  // Skills outside the built-in catalog (e.g. Nekko Dojo) arrive as a payload
+  // Skills outside the built-in catalog (e.g. Vaizer) arrive as a payload
   // snapshot; built-in ones resolve from the catalog.
   const builtIn = getMarketSkill(skillId);
   const skill = builtIn ?? (payload?.id === skillId ? payload : undefined);

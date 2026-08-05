@@ -19,7 +19,7 @@ drives the agent running on your machine.
 ## Notifications
 
 When a task you started finishes while the app is backgrounded, you get a **local
-notification** ("Nekko finished"), no push server, no APNs/FCM setup needed
+notification** ("Kotrain finished"), no push server, no APNs/FCM setup needed
 (uses `@capacitor/local-notifications`). True remote/background push (when the app
 is fully closed) would need APNs + FCM + a sender backend, not wired yet.
 

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@kotrain/shared';
-import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@kotrain/shared';
+import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, clampMaxSteps, getSessionWorkspaceIds, getStrategy, orchestrationPromptHint } from '@kotrain/shared';
 import {
   createProvider,
   runAgent,
@@ -12,8 +12,10 @@ import {
   getConnector,
   BUILTIN_TOOLS,
   REPORT_EXPERIMENT_TOOL,
+  REPORT_ARTIFACT_TOOL,
+  UPDATE_PLAN_TOOL,
 } from '@kotrain/core';
-import { reportExperiment } from './training.js';
+import { reportExperiment, reportArtifact, updateRunPlan } from './training.js';
 import { getSettings } from './store.js';
 import { getSession, saveSession, createSession } from './sessions.js';
 import { executeTool } from './tools.js';
@@ -257,8 +259,9 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     const disabled = new Set(session.disabledTools ?? []);
     if (!allowSpawn) disabled.add('spawn_agent');
     tools = [...BUILTIN_TOOLS, ...mcpToolSpecs()].filter((t) => !disabled.has(t.name));
-    // Run-driven sessions can register experiments into their run's idea maze.
-    if (session.trainingRunId) tools.push(REPORT_EXPERIMENT_TOOL);
+    // Run-driven sessions can register experiments into their run's idea maze
+    // and (goal runs) maintain their execution plan.
+    if (session.trainingRunId) tools.push(REPORT_EXPERIMENT_TOOL, REPORT_ARTIFACT_TOOL, UPDATE_PLAN_TOOL);
   }
   // Persist only when not incognito. Preserve any prompts queued mid-run (they
   // land on disk via queuePrompt) so a normal save doesn't clobber them.
@@ -341,6 +344,22 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
             return Promise.resolve({ toolCallId: call.id, output: `Failed to record: ${(e as Error).message}`, isError: true });
           }
         }
+        if (call.name === 'report_artifact' && session.trainingRunId) {
+          try {
+            const output = reportArtifact(opts.sessionId, call.input as Record<string, unknown>);
+            return Promise.resolve({ toolCallId: call.id, output });
+          } catch (e) {
+            return Promise.resolve({ toolCallId: call.id, output: `Failed to record the artifact: ${(e as Error).message}`, isError: true });
+          }
+        }
+        if (call.name === 'update_plan' && session.trainingRunId) {
+          try {
+            const output = updateRunPlan(opts.sessionId, call.input as Record<string, unknown>);
+            return Promise.resolve({ toolCallId: call.id, output });
+          } catch (e) {
+            return Promise.resolve({ toolCallId: call.id, output: `Failed to update the plan: ${(e as Error).message}`, isError: true });
+          }
+        }
         if (call.name === 'spawn_agent') {
           const inp = call.input as { title?: string; task?: string };
           return runSubAgent(opts.sessionId, opts.providerId, opts.modelId, inp.title, String(inp.task ?? ''), send)
@@ -360,6 +379,9 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
             });
       },
       temperature: EFFORT_TEMPERATURE[settings.effort ?? 'normal'],
+      maxIterations: clampMaxSteps(settings.maxSteps),
+      think: session.thinking,
+      maxHistoryTurns: opts.maxHistoryTurns,
       signal: abort.signal,
     })) {
       if (event.type === 'usage') {

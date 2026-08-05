@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🐾 Kotrain
+# Kotrain
 
-**Local-first AI coding & cowork, chat, cowork, and code in one calm window.**
+**Local-first AI chat, cowork, and coding in one calm window.**
 
 Open source · MIT · first-class support for the models you run yourself.
 
@@ -10,13 +10,21 @@ Open source · MIT · first-class support for the models you run yourself.
 
 ---
 
-Kotrain is a desktop assistant (Electron + React) that unifies conversation and
-coding into a single surface. Its headline feature is **first-class local model
-support**, point it at Ollama, LM Studio, or vLLM in one click, alongside every
-major cloud provider. It ships with a context-provenance inspector, default
-guardrails for risky commands, an out-of-the-box sandbox, multi-folder code
-indexing, memory management, connectors, and an 8-bit cat mascot that makes
-biscuits while the model thinks.
+## Overview
+
+Kotrain is an open-source desktop assistant (Electron + React) that unifies
+conversation and coding into a single surface. Its headline feature is
+**first-class local model support**: point it at Ollama, LM Studio, or vLLM in
+one click, alongside every major cloud provider. It ships with a
+context-provenance inspector, default guardrails for risky commands, an
+out-of-the-box sandbox, multi-folder code indexing, memory management,
+connectors, and a hand-drawn astronaut cat that works in zero-g while the model
+thinks.
+
+Built by [Nekko Labs](https://nekkolabs.com) and MIT-licensed, Kotrain is a
+real, shipping product developed in the open. Contributions are welcome, from
+first issues to features; see [CONTRIBUTING.md](CONTRIBUTING.md) to get
+started.
 
 > **Verified working** end-to-end against a live LM Studio server (`google/gemma-4-31b-qat`):
 > connect, model listing, streaming, **reasoning models**, and the full tool-calling
@@ -58,14 +66,14 @@ Then open it normally. (Alternatively: right-click the app → **Open** → **Op
 
 **LM Studio runs models. Kotrain runs *with your work*.** Local model UIs are
 essentially a chat box around a model, no awareness of your files or projects.
-Nekko reads, edits, searches, and runs inside your actual codebases: multi-folder
+Kotrain reads, edits, searches, and runs inside your actual codebases: multi-folder
 index, file viewer with inline editing, a tool-using agent, per-project memory,
 and guardrails. Same one-click local-model setup, but the model can do the work,
 not just talk about it.
 
 **The power of an agentic CLI, with eyes.** Terminal agents (Claude Code, aider, …)
 are powerful but blind, you can't *see* what changed without `git diff`, and
-editing means leaving the tool. Nekko gives an IDE-like surface: browse the indexed
+editing means leaving the tool. Kotrain gives an IDE-like surface: browse the indexed
 tree, view files and diffs, edit inline, while the agent works alongside you, every
 action visible through the Context Inspector and approval prompts.
 
@@ -78,7 +86,8 @@ Same engine, same UI, multiple runtimes (see the design in the project spec):
 | **Desktop** | Electron app / `npm run dev` | ✅ available |
 | **Self-hosted web** | `npm run web`, offline, the same UI in your browser | ✅ available |
 | **Docker** | `docker compose up`, workspaces as volumes, local models via `host.docker.internal` | ✅ available |
-| **Nekko Cloud** (paid) | managed hosting: subscriptions, always-available **Zero-Data-Retention** mode, cloud chat-history + file management, and **drive your local model from your phone** via a secure E2E relay | 🔜 planned |
+| **Phone remote control** | pair your phone (QR, one-time code) and run chats/training/goals on your home machine from anywhere, end-to-end encrypted; managed relay free in beta, or [self-host it](docs/REMOTE.md) with one Docker command | ✅ available |
+| **Kotrain Cloud** (paid) | managed hosting: subscriptions, always-available **Zero-Data-Retention** mode, cloud chat-history + file management | 🔜 planned |
 
 The desktop, web, and (coming) Docker editions all run the **same engine + same React UI**, only the transport differs (Electron IPC vs HTTP/WebSocket), via the shared `@kotrain/host`.
 
@@ -104,7 +113,7 @@ docker compose up        # build + run, then open http://localhost:1440
 
 Mount your codebases into `./workspace` (the sandbox confines file tools there),
 and reach a model server on your host at `http://host.docker.internal:<port>`.
-Settings/sessions persist in the `nekko-data` volume. Published to the host's
+Settings/sessions persist in the `kotrain-data` volume. Published to the host's
 localhost by default; set `KOTRAIN_TOKEN` before exposing on a network.
 
 Cloud keeps inference and tools **on your machine**, the relay is an
@@ -125,7 +134,7 @@ private by design.
 - **Multi-folder index**: add multiple roots; file + symbol index with fast search.
 - **Memory**: global and per-project, stored as plain markdown.
 - **Connectors**: Linear, Slack, Discord, Gmail, Google Drive.
-- **Nekko the mascot**: peeks in from the edge, waves, and kneads cat biscuits.
+- **Kotrain the mascot**: peeks in from the edge, waves, and kneads cat biscuits.
 
 ## Architecture
 

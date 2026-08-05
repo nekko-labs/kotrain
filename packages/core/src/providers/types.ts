@@ -14,6 +14,13 @@ export interface ChatRequest {
   system?: string;
   tools?: ToolSpec[];
   temperature?: number;
+  /**
+   * Reasoning toggle for models that support it: `true` requests thinking,
+   * `false` suppresses it, `undefined` leaves the server/model default. Providers
+   * translate this to their native knob (Ollama `think`, OpenAI-compatible
+   * `chat_template_kwargs.enable_thinking`) and ignore it where unsupported.
+   */
+  think?: boolean;
   signal?: AbortSignal;
 }
 

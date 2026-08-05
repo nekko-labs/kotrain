@@ -1,0 +1,61 @@
+# Kotrain
+
+> Open-source, local-first AI chat, cowork, and coding in one calm window. Kotrain's headline feature is **first-class local model support**: point it at Ollama, LM Studio, or vLLM in one click, alongside every major cloud provider. Desktop, self-hosted web, and Docker editions run the same engine and the same UI. MIT licensed, by Nekko Labs.
+
+Local model UIs are essentially a chat box around a model with no awareness of your files or projects. Terminal agents are powerful but blind. Kotrain sits in between: an IDE-like surface where the agent reads, edits, searches, and runs inside your actual codebases, with every action visible through a context-provenance inspector and approval prompts.
+
+## Key facts
+
+- **What it is**: a local-first AI coding and cowork app (Electron + React) that unifies conversation and coding into one surface.
+- **Local models first**: one-click setup for Ollama, LM Studio, and vLLM, plus every major cloud provider. Verified end-to-end against a live LM Studio server, including reasoning models and the full multi-step tool-calling agent loop.
+- **Editions** (same engine, same UI, different transport): **Desktop** (macOS, Windows, Linux) available; **self-hosted web** (`npx kotrain` or `npm run web`, fully offline) available; **Docker** (`docker compose up`, workspaces as volumes) available; **phone remote control** (pair by QR, end-to-end encrypted, managed relay free in beta or self-host it) available; **Kotrain Cloud** (paid, hosted, always-on Zero-Data-Retention mode, cloud history and files) planned.
+- **Privacy**: local-first. Inference and tools stay on your machine, data lives in `~/.kotrain`. Kotrain Cloud's relay is an end-to-end-encrypted pipe to your own paired agent, so driving a local model from your phone stays private by design.
+- **Licence**: MIT, open source, developed in the open with contributions welcome.
+
+## Features
+
+Kotrain's second pitch, after local models, is **the harness**: the scaffolding around the model that decides how well a model you run yourself performs on real work. It splits into what the model sees, what it can reach, and what happens when it gets something wrong.
+
+**Unified chat / cowork / code** in one window, no mode switching.
+
+What it sees:
+
+- **Context Inspector**: every file, guideline, memory entry, and index snippet entering the next prompt, with per-source token counts, a window-headroom bar, and a toggle or pin on each. The unsent draft is counted as you type it.
+- **Grounded retrieval**: a multi-folder index (file tree, code outline, search) so a large repo arrives as the relevant slice instead of a wall of text.
+- **Guidelines and memory**: `AGENTS.md` / `CLAUDE.md` plus a markdown memory store, global and per project, each entry individually switchable.
+- **A living spec**: build `SPEC.md` (plus a plan and task list) from the conversation and feed it back as context.
+- **Prompt analyzer**: offline, zero-latency analysis of your draft with an A to F score and click-to-fill suggestions.
+
+What it can reach:
+
+- **Sub-agents and swarms**: scoped subtasks run in fresh child sessions with their own context, under a solo / balanced / swarm strategy with depth limits.
+- **Skills**: real procedures (research, plan, review, security-review, test, commit, PR) with visualized workflows, plus a marketplace.
+- **MCP in both directions**: connect stdio or streamable-HTTP MCP servers, including [Hypergate](https://hypergate.app) as a gateway, and run Kotrain itself as an MCP server.
+- **Connectors**: Linear, Slack, Discord, Gmail, and Drive, folded into context as snippets.
+- **Goal loops that terminate**: plan first, re-inject the plan each iteration, bounded context window, turn and time budgets, and stall detection.
+
+When it's wrong:
+
+- **Guardrails by default**: a risky-command classifier behind an editable allow / ask / deny policy; Ask, Guardrails, or YOLO per chat.
+- **Sandbox out of the box**: file access jailed to your folders, with optional Docker isolation for shell commands.
+- **Diff review**: agent edits land in a Changes panel as a line diff, keep or revert at line, file, or all.
+- **Recovery**: an empty reply is retried with a nudge and then surfaced, and "Reset here" rewinds the chat to any earlier message.
+
+- **Kotrain**, a hand-drawn astronaut cat that works in zero-g while the model thinks.
+
+## Install
+
+Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`. macOS builds are not notarized yet, so clear the quarantine flag once with `xattr -cr "/Applications/Kotrain.app"` after installing.
+
+## Pages
+
+- [Home](https://kotrain.com/): what Kotrain is, the features, local-model support, the editions, and downloads.
+
+## Docs and source
+
+- [GitHub repository](https://github.com/nekko-labs/kotrain): source, issues, releases.
+- [README](https://github.com/nekko-labs/kotrain/blob/main/README.md): overview, install, editions, and troubleshooting.
+- [Walkthrough](https://github.com/nekko-labs/kotrain/blob/main/docs/WALKTHROUGH.md): a picture-by-picture tour of the app.
+- [Remote access](https://github.com/nekko-labs/kotrain/blob/main/docs/REMOTE.md): phone pairing and self-hosting the relay.
+- [Contributing](https://github.com/nekko-labs/kotrain/blob/main/CONTRIBUTING.md): how to pick up a first issue.
+- [Releases](https://github.com/nekko-labs/kotrain/releases): installers for every platform.

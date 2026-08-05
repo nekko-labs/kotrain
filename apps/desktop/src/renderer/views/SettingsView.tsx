@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, NekkoMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
+import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, KotrainMcpInfo, SandboxMode, ThemeMode, UpdateInfo } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@kotrain/shared';
+import { Badge } from '../components/primitives/index.js';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
@@ -13,7 +14,7 @@ const SANDBOX_OPTS: Array<{ value: SandboxMode; label: string; desc: string }> =
   { value: 'off', label: 'Off', desc: 'No restrictions (power users).' },
 ];
 
-const ACTION_COLORS: Record<GuardrailAction, string> = { allow: '#4ec98a', ask: '#e0a44a', deny: '#e0574a' };
+const ACTION_COLORS: Record<GuardrailAction, string> = { allow: 'var(--success)', ask: 'var(--warning)', deny: 'var(--danger)' };
 
 const CHAT_MODES: Array<{ value: ChatMode; label: string; desc: string }> = [
   { value: 'ask', label: 'Ask', desc: 'Confirm every file write and command before it runs.' },
@@ -26,10 +27,10 @@ export function SettingsView() {
   const tr = useT();
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
-  useEffect(() => { window.nekko.getSettings().then(setSettings); }, []);
+  useEffect(() => { window.kotrain.getSettings().then(setSettings); }, []);
 
   const update = async (patch: Partial<AppSettings>) => {
-    const next = await window.nekko.updateSettings(patch);
+    const next = await window.kotrain.updateSettings(patch);
     setSettings(next);
     useStore.setState({ settings: next });
     applyTheme();
@@ -91,7 +92,7 @@ export function SettingsView() {
         {/* Sandbox */}
         <section className="card mt-5 p-5">
           <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">{tr('settings.sandbox')}</h2></div>
-          <p className="mt-1 text-[12px] text-ink-faint">How Nekko is allowed to touch your machine.</p>
+          <p className="mt-1 text-[12px] text-ink-faint">How Kotrain is allowed to touch your machine.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {SANDBOX_OPTS.map((o) => (
               <button key={o.value} onClick={() => update({ sandboxMode: o.value })} className={`card p-3 text-left ${settings.sandboxMode === o.value ? 'border-accent' : ''}`}>
@@ -120,6 +121,9 @@ export function SettingsView() {
             })}
           </div>
         </section>
+
+        {/* Agent loop */}
+        <AgentLoopSection settings={settings} update={update} />
 
         {/* Spec-driven development */}
         <section className="card mt-5 p-5">
@@ -213,6 +217,54 @@ export function SettingsView() {
   );
 }
 
+/**
+ * The agent loop's step budget: how many tool steps one reply may take before
+ * Kotrain stops and answers with what it has. Committed on blur/Enter (not per
+ * keystroke) so a half-typed number never becomes the live setting.
+ */
+function AgentLoopSection({ settings, update }: { settings: AppSettings; update: (patch: Partial<AppSettings>) => void }) {
+  const saved = settings.maxSteps ?? DEFAULT_MAX_STEPS;
+  const [draft, setDraft] = useState(String(saved));
+  useEffect(() => { setDraft(String(settings.maxSteps ?? DEFAULT_MAX_STEPS)); }, [settings.maxSteps]);
+
+  const commit = () => {
+    const n = clampMaxSteps(Number(draft));
+    const next = n ?? DEFAULT_MAX_STEPS;
+    setDraft(String(next));
+    if (next !== saved) update({ maxSteps: next });
+  };
+
+  return (
+    <section className="card mt-5 p-5">
+      <div className="flex items-center gap-2"><RobotIcon className="h-4 w-4" /><h2 className="font-semibold">Agent loop</h2></div>
+      <p className="mt-1 text-[12px] text-ink-faint">
+        A long task takes many tool steps (read, search, edit, verify). This is the backstop that catches a loop
+        going nowhere, not a work limit: when a reply reaches it, Kotrain stops calling tools and answers with what
+        it found plus the next steps, so nothing is thrown away.
+      </p>
+      <div className="mt-3 flex min-h-[40px] items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-[13px]">Tool steps per reply</span>
+          <p className="text-[11px] text-ink-faint">
+            {MAX_STEPS_RANGE.min}–{MAX_STEPS_RANGE.max}. Default {DEFAULT_MAX_STEPS}.
+          </p>
+        </div>
+        <input
+          type="number"
+          className="input max-w-[110px] py-1.5 tabular-nums"
+          min={MAX_STEPS_RANGE.min}
+          max={MAX_STEPS_RANGE.max}
+          value={draft}
+          aria-label="Tool steps per reply"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        />
+      </div>
+    </section>
+  );
+}
+
 function BackupSection({ settings, onSettings }: { settings: AppSettings; onSettings: (s: AppSettings) => void }) {
   const { pushToast, refreshProviders } = useStore();
 
@@ -237,7 +289,7 @@ function BackupSection({ settings, onSettings }: { settings: AppSettings; onSett
         const parsed = JSON.parse(await file.text());
         if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Not a settings object');
         if (!window.confirm('Import these settings? This overwrites your current configuration.')) return;
-        const next = await window.nekko.updateSettings(parsed);
+        const next = await window.kotrain.updateSettings(parsed);
         onSettings(next);
         await refreshProviders();
         pushToast('success', 'Settings imported.');
@@ -267,7 +319,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   const clear = async (scope: 'today' | 'month' | 'all', label: string) => {
     if (!window.confirm(`Delete ${label}? This can't be undone.`)) return;
     setBusy(true);
-    const n = await window.nekko.clearSessions(scope);
+    const n = await window.kotrain.clearSessions(scope);
     await refreshSessions();
     useStore.setState({ activeSessionId: null });
     setBusy(false);
@@ -277,7 +329,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   const reset = async () => {
     if (!window.confirm('Reset all settings to defaults? Your providers and preferences will be cleared (chats are kept).')) return;
     setBusy(true);
-    const s = await window.nekko.resetSettings();
+    const s = await window.kotrain.resetSettings();
     onSettings(s);
     await refreshProviders();
     setBusy(false);
@@ -288,7 +340,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
     if (!window.confirm('Delete EVERYTHING, all chats, settings, memory, and usage? This cannot be undone.')) return;
     if (!window.confirm('Are you absolutely sure? This wipes all Kotrain data.')) return;
     setBusy(true);
-    const s = await window.nekko.wipeAllData();
+    const s = await window.kotrain.wipeAllData();
     onSettings(s);
     await refreshSessions();
     await refreshProviders();
@@ -298,7 +350,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   };
 
   return (
-    <section className="card mt-5 p-5" style={{ borderColor: 'color-mix(in srgb, #e0574a 35%, var(--line))' }}>
+    <section className="card mt-5 p-5" style={{ borderColor: 'color-mix(in srgb, var(--danger) 35%, var(--line))' }}>
       <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">Data &amp; privacy</h2></div>
       <p className="mt-1 text-[12px] text-ink-faint">Everything stays on your machine. Clean it up here whenever you want.</p>
 
@@ -323,7 +375,7 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
         </div>
         <button
           className="btn py-1.5 text-[12px] text-white!"
-          style={{ background: '#e0574a' }}
+          style={{ background: 'var(--danger)' }}
           disabled={busy}
           onClick={wipe}
         >
@@ -339,10 +391,10 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
   const servers = settings.mcpServers ?? [];
   const [status, setStatus] = useState<McpServerStatus[]>([]);
   const [busy, setBusy] = useState(false);
-  // A local NekkoMCP daemon (github.com/nekko-labs/nekko-mcp), if one is running.
+  // A local KotrainMCP daemon (github.com/nekko-labs/kotrain-mcp), if one is running.
   // undefined = still probing, null = no daemon found.
-  const [nekko, setNekko] = useState<NekkoMcpInfo | null | undefined>(undefined);
-  useEffect(() => { void window.nekko.detectNekkoMcp().then(setNekko).catch(() => setNekko(null)); }, []);
+  const [kotrain, setKotrain] = useState<KotrainMcpInfo | null | undefined>(undefined);
+  useEffect(() => { void window.kotrain.detectKotrainMcp().then(setKotrain).catch(() => setKotrain(null)); }, []);
   const setServers = (next: typeof servers) => update({ mcpServers: next });
   const add = () =>
     setServers([
@@ -354,12 +406,12 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       ...servers,
       { id: `m_${Date.now().toString(36)}`, name: 'http server', command: '', args: [], url: 'http://localhost:7777/mcp', token: '', enabled: false },
     ]);
-  const connectNekko = async () => {
-    if (!nekko) return;
-    const existing = servers.find((s) => s.id === 'nekko-mcp');
-    const entry = { id: 'nekko-mcp', name: 'NekkoMCP gateway', command: '', args: [], url: nekko.url, token: nekko.token, enabled: true };
-    setServers(existing ? servers.map((s) => (s.id === 'nekko-mcp' ? { ...s, ...entry } : s)) : [...servers, entry]);
-    pushToast('success', 'NekkoMCP gateway added — its servers\' tools join every chat.');
+  const connectKotrain = async () => {
+    if (!kotrain) return;
+    const existing = servers.find((s) => s.id === 'kotrain-mcp');
+    const entry = { id: 'kotrain-mcp', name: 'KotrainMCP gateway', command: '', args: [], url: kotrain.url, token: kotrain.token, enabled: true };
+    setServers(existing ? servers.map((s) => (s.id === 'kotrain-mcp' ? { ...s, ...entry } : s)) : [...servers, entry]);
+    pushToast('success', 'KotrainMCP gateway added — its servers\' tools join every chat.');
   };
   const edit = (id: string, patch: Partial<(typeof servers)[number]>) =>
     setServers(servers.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -367,7 +419,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
   const connect = async () => {
     setBusy(true);
     try {
-      const st = await window.nekko.getMcpStatus();
+      const st = await window.kotrain.getMcpStatus();
       setStatus(st);
       const tools = st.reduce((n, s) => n + s.tools.length, 0);
       pushToast('success', `Connected ${st.filter((s) => s.connected).length}/${st.length} server(s), ${tools} tool(s).`);
@@ -393,41 +445,41 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       <p className="mt-1 text-[12px] text-ink-faint">
         Model Context Protocol servers extend the agent with extra tools. Enabled servers' tools are offered in every chat.
       </p>
-      {nekko && (
+      {kotrain && (
         <div className="card mt-3 p-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
           <div className="flex items-center gap-2">
-            <span className="text-[15px]">🐾</span>
+            <img src="./icon.svg" alt="Kotrain orbit mark" width="20" height="20" />
             <div>
-              <p className="text-[12.5px] font-semibold">NekkoMCP detected <span className="font-normal text-ink-faint">· v{nekko.version} · {nekko.servers} managed server(s)</span></p>
+              <p className="text-[12.5px] font-semibold">KotrainMCP detected <span className="font-normal text-ink-faint">· v{kotrain.version} · {kotrain.servers} managed server(s)</span></p>
               <p className="text-[11.5px] text-ink-faint">Run and supervise MCP servers locally, then reach them all here through one gateway endpoint.</p>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              {nekko.uiUrl && (
+              {kotrain.uiUrl && (
                 <button
                   className="btn btn-outline py-1 text-[12px]"
-                  onClick={() => { useStore.getState().openBrowserPane(nekko.uiUrl); useStore.getState().setView('chat'); }}
+                  onClick={() => { useStore.getState().openBrowserPane(kotrain.uiUrl); useStore.getState().setView('chat'); }}
                 >
                   Open manager
                 </button>
               )}
-              <button className="btn btn-primary py-1 text-[12px]" onClick={() => void connectNekko()}>
-                {servers.some((s) => s.id === 'nekko-mcp') ? 'Reconnect gateway' : 'Connect gateway'}
+              <button className="btn btn-primary py-1 text-[12px]" onClick={() => void connectKotrain()}>
+                {servers.some((s) => s.id === 'kotrain-mcp') ? 'Reconnect gateway' : 'Connect gateway'}
               </button>
             </div>
           </div>
         </div>
       )}
-      {nekko === null && !servers.some((s) => s.id === 'nekko-mcp') && (
+      {kotrain === null && !servers.some((s) => s.id === 'kotrain-mcp') && (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-line px-3 py-2">
-          <span className="text-[15px] opacity-70">🐾</span>
+          <img src="./icon.svg" alt="Kotrain orbit mark" width="20" height="20" className="opacity-70" />
           <p className="text-[11.5px] text-ink-faint">
-            Optional: <span className="font-medium text-ink-soft">NekkoMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
+            Optional: <span className="font-medium text-ink-soft">KotrainMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
           </p>
           <button
             className="btn btn-ghost ml-auto shrink-0 px-2! py-0.5! text-[11px] text-accent"
-            onClick={() => window.nekko.openPath('https://github.com/nekko-labs/nekko-mcp')}
+            onClick={() => window.kotrain.openPath('https://github.com/nekko-labs/kotrain-mcp')}
           >
-            Get NekkoMCP ↗
+            Get KotrainMCP ↗
           </button>
         </div>
       )}
@@ -441,9 +493,9 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
                 <input className="input py-1 text-[12.5px]" style={{ maxWidth: 160 }} value={s.name} onChange={(e) => edit(s.id, { name: e.target.value })} />
                 <span className="chip">{s.url != null ? 'http' : 'stdio'}</span>
                 {st && (
-                  <span className="chip text-white!" style={{ background: st.connected ? '#4ec98a' : '#e0574a' }} title={st.error}>
+                  <Badge tone={st.connected ? 'success' : 'danger'} variant="solid" title={st.error}>
                     {st.connected ? `${st.tools.length} tools` : 'offline'}
-                  </span>
+                  </Badge>
                 )}
                 <div className="ml-auto flex items-center gap-2">
                   <Toggle on={s.enabled} onChange={(v) => edit(s.id, { enabled: v })} />
@@ -461,7 +513,7 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
                   <input className="input py-1 font-mono text-[12px]" value={s.args.join(' ')} onChange={(e) => edit(s.id, { args: e.target.value.split(/\s+/).filter(Boolean) })} placeholder="-y @modelcontextprotocol/server-filesystem ." />
                 </div>
               )}
-              {st?.error && <p className="mt-1 text-[11px]" style={{ color: '#e0574a' }}>{st.error}</p>}
+              {st?.error && <p className="mt-1 text-[11px]" style={{ color: 'var(--danger)' }}>{st.error}</p>}
             </div>
           );
         })}
@@ -568,7 +620,7 @@ function GuardrailsSection({
             onChange={(e) => setDraft(e.target.value)}
             spellCheck={false}
           />
-          {error && <p className="mt-1.5 text-[12px]" style={{ color: '#e0574a' }}>{error}</p>}
+          {error && <p className="mt-1.5 text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
           <div className="mt-2 flex justify-end gap-2">
             <button className="btn btn-ghost" onClick={() => setJsonMode(false)}>Cancel</button>
             <button className="btn btn-primary" onClick={apply}>Apply</button>
@@ -582,7 +634,7 @@ function GuardrailsSection({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-[13px] font-medium">{g.label}</span>
-                    <span className="h-2 w-2 rounded-full" style={{ background: g.severity === 'high' ? '#e0574a' : g.severity === 'medium' ? '#e0a44a' : '#8a8f98' }} />
+                    <span className="h-2 w-2 rounded-full" style={{ background: g.severity === 'high' ? 'var(--danger)' : g.severity === 'medium' ? 'var(--warning)' : 'var(--neutral)' }} />
                   </div>
                   <p className="truncate text-[11px] text-ink-faint">{g.description}</p>
                 </div>
@@ -615,11 +667,11 @@ function UpdatesSection({ settings, onToggle }: { settings: AppSettings; onToggl
   const [status, setStatus] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
 
-  useEffect(() => { window.nekko.getAppInfo().then(setInfo); }, []);
+  useEffect(() => { window.kotrain.getAppInfo().then(setInfo); }, []);
 
   const check = async () => {
     setChecking(true);
-    setStatus(await window.nekko.checkForUpdates());
+    setStatus(await window.kotrain.checkForUpdates());
     setChecking(false);
   };
 

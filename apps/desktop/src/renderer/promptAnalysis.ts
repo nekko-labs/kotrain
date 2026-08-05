@@ -140,9 +140,175 @@ export function analyzePrompt(raw: string): PromptAnalysis {
   return { grade, score, parts, findings, tokens, model };
 }
 
+// --- Part fill suggestions ---------------------------------------------------
+// Powers the click-to-fill behavior of the composer's missing-part chips: for a
+// part the prompt lacks, produce a starter snippet tailored to what the prompt
+// is about (code, writing, data…), via plain text matching so it stays instant
+// and offline. Each snippet is worded to satisfy that part's detector above.
+
+export interface PartFill {
+  snippet: string;
+  /** Where the snippet belongs in the draft. */
+  placement: 'start' | 'end';
+}
+
+/** Rough topic of the prompt, used to pick the best-matching snippet. */
+function promptDomain(t: string): 'code' | 'writing' | 'data' | 'general' {
+  if (/```|\b(bug|error|stack trace|refactor|function|component|endpoint|api|code|typescript|javascript|python|rust|test|compile|repo|commit)\b/i.test(t)) return 'code';
+  if (/\b(email|blog|article|post|essay|copy|announcement|newsletter|headline|tweet|caption|story)\b/i.test(t)) return 'writing';
+  if (/\b(data|csv|json|rows|dataset|spreadsheet|metrics|numbers|report|chart|trend)\b/i.test(t)) return 'data';
+  return 'general';
+}
+
+const ROLE_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'You are a senior software engineer who writes precise, minimal changes.',
+  writing: 'You are an experienced editor with a sharp, plain-language style.',
+  data: 'You are a meticulous data analyst who shows their working.',
+  general: 'You are an expert in this domain.',
+};
+const TASK_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'Fix the issue described above and explain the root cause.',
+  writing: 'Draft the text described above.',
+  data: 'Analyze the data above and summarize the key findings.',
+  general: 'Write a response that addresses the request above.',
+};
+const FORMAT_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'Format: markdown, with code in fenced blocks and a one-line summary first.',
+  writing: 'Format: markdown, with a short title and two or three tight paragraphs.',
+  data: 'Format: a markdown table of the findings, then three bullet takeaways.',
+  general: 'Format: a short markdown answer with bullet points for the key items.',
+};
+const CONSTRAINTS_FILL: Record<ReturnType<typeof promptDomain>, string> = {
+  code: 'Constraints: keep the diff minimal; do not touch unrelated code; note any tradeoffs.',
+  writing: 'Constraints: at most 200 words; plain language; no filler.',
+  data: 'Constraints: only conclusions the data supports; do not invent numbers; at most 5 bullets.',
+  general: 'Constraints: be specific; do not invent facts; at most 5 bullet points.',
+};
+
+/**
+ * A starter snippet for a missing prompt part, matched to the prompt's topic.
+ * Returns null for unknown part ids (or parts with no sensible fill).
+ */
+export function suggestPartFill(partId: string, text: string): PartFill | null {
+  const d = promptDomain(text);
+  const isQuestion = /\?|^\s*(why|how|what|when|where|who)\b/i.test(text);
+  switch (partId) {
+    case 'role':
+      return { snippet: ROLE_FILL[d], placement: 'start' };
+    case 'task':
+      return { snippet: isQuestion ? 'Explain the answer clearly, step by step.' : TASK_FILL[d], placement: 'end' };
+    case 'context':
+      return { snippet: 'Context:\n"""\n[paste the relevant background, code, or reference material here]\n"""', placement: 'end' };
+    case 'examples':
+      return { snippet: 'Example:\nInput: [a sample input]\nOutput: [what you expect back]', placement: 'end' };
+    case 'format':
+      return { snippet: /\b(classify|categori[sz]e|extract|label|tag)\b/i.test(text)
+        ? 'Format: return valid JSON only, e.g. { "items": [] }.'
+        : FORMAT_FILL[d], placement: 'end' };
+    case 'constraints':
+      return { snippet: CONSTRAINTS_FILL[d], placement: 'end' };
+    default:
+      return null;
+  }
+}
+
 export const GRADE_COLOR: Record<PromptAnalysis['grade'], string> = {
-  A: '#4ec98a', B: '#7bc86c', C: '#e0a23a', D: '#e0823a', F: '#e0574a',
+  A: 'var(--success)', B: '#7bc86c', C: 'var(--warning)', D: '#e0823a', F: 'var(--danger)',
 };
 export const SEVERITY_COLOR: Record<Severity, string> = {
-  critical: '#e0574a', warn: '#e0a23a', info: '#5b9dd9',
+  critical: 'var(--danger)', warn: 'var(--warning)', info: 'var(--info)',
 };
+
+// --- Project / folder mention detection ------------------------------------
+// Powers the composer's "what this will reference" highlight: find where the
+// prompt names a known project (by folder name) or a folder path, so the UI can
+// underline it and surface the guidelines/specs each one drags into context.
+
+/** A known project the prompt might mention (a workspace folder). */
+export interface MentionProject {
+  id: string;
+  /** Display name of the workspace. */
+  name: string;
+  /** Last path segment of the workspace folder. */
+  base: string;
+}
+
+export interface MentionMatch {
+  /** Workspace id when the mention maps to a known project, else null. */
+  workspaceId: string | null;
+  text: string;
+  start: number;
+  end: number;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Which known project (if any) a folder path token belongs to. */
+function matchWorkspaceForPath(token: string, projects: MentionProject[]): string | null {
+  const segs = token.replace(/^[@~]+/, '').split(/[\\/]/).filter(Boolean).map((s) => s.toLowerCase());
+  if (segs.length === 0) return null;
+  for (const p of projects) {
+    const key = (p.base || p.name).toLowerCase();
+    if (key.length >= 2 && segs.includes(key)) return p.id;
+  }
+  return null;
+}
+
+/**
+ * Find, in order and without overlaps, every span of the prompt that names a
+ * known project (by name or folder basename) or looks like a folder path. Runs
+ * client-side on every keystroke, so it stays cheap and dependency-free.
+ */
+export function detectFolderMentions(text: string, projects: MentionProject[]): MentionMatch[] {
+  const out: MentionMatch[] = [];
+  const overlaps = (s: number, e: number) => out.some((m) => s < m.end && e > m.start);
+  const push = (workspaceId: string | null, s: number, e: number) => {
+    if (e <= s || overlaps(s, e)) return;
+    out.push({ workspaceId, text: text.slice(s, e), start: s, end: e });
+  };
+
+  // 1) Known projects, matched by name or folder basename as a whole token.
+  //    Longest term first so "nekko-dojo" wins over a bare "kotrain".
+  const terms: Array<{ id: string; term: string }> = [];
+  for (const p of projects) {
+    for (const term of new Set([p.name, p.base].filter((t): t is string => typeof t === 'string' && t.trim().length >= 3))) {
+      terms.push({ id: p.id, term: term.trim() });
+    }
+  }
+  terms.sort((a, b) => b.term.length - a.term.length);
+  for (const { id, term } of terms) {
+    // Not preceded/followed by a word char, slash, or hyphen — so it's a
+    // standalone reference, not a substring or a path segment (rule 2 owns paths).
+    const re = new RegExp(`(?<![\\w/\\\\.-])${escapeRegExp(term)}(?![\\w-])`, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) {
+      push(id, m.index, m.index + m[0].length);
+      if (m.index === re.lastIndex) re.lastIndex++;
+    }
+  }
+
+  // 2) Explicit folder / path tokens (foo/bar, ./x, ../x, /abs, ~/x, @path).
+  //    Requires a real path signal so prose like "and/or" is left alone.
+  const pathRe = /(?:@|~\/|\.{1,2}\/|\/)?[\w.-]+(?:[\\/][\w.-]+)*[\\/]?/g;
+  let pm: RegExpExecArray | null;
+  while ((pm = pathRe.exec(text))) {
+    const tok = pm[0];
+    if (pm.index === pathRe.lastIndex) pathRe.lastIndex++;
+    if (!/[\\/]/.test(tok)) continue; // must contain a separator
+    if (/^https?:\/\//i.test(tok)) continue; // skip URLs
+    if (pm.index > 0 && text[pm.index - 1] === '/') continue; // mid-URL tail (…://host/…)
+    const segs = tok.split(/[\\/]/).filter(Boolean);
+    if (segs.every((s) => /^\d+$/.test(s))) continue; // dates / ratios like 2026/07/24
+    const hasSignal =
+      /^(?:@|~\/|\.{1,2}\/|\/)/.test(tok) || // leading ./ ../ / ~/ @
+      /[\\/]$/.test(tok) || // trailing slash
+      /\.[a-z0-9]+(?:[\\/]|$)/i.test(tok) || // a dotted filename segment
+      segs.length >= 3; // clearly a path (a/b/c)
+    if (!hasSignal) continue;
+    push(matchWorkspaceForPath(tok, projects), pm.index, pm.index + tok.length);
+  }
+
+  return out.sort((a, b) => a.start - b.start);
+}

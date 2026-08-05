@@ -3,17 +3,30 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { createHost } from '@kotrain/host';
 import { IpcEvents } from '@kotrain/shared';
-import type { AppSettings, Session, SendOptions, AgentEvent, WorkspaceFolder, RemoteStatus } from '@kotrain/shared';
+import type {
+  AppSettings,
+  Session,
+  SendOptions,
+  AgentEvent,
+  WorkspaceFolder,
+  RemoteStatus,
+  TrainingRun,
+  NewTrainingRun,
+} from '@kotrain/shared';
 
 /** The data dir for the in-process (local) client. KOTRAIN_DATA_DIR wins, then
- * the legacy OPENPAW_DATA_DIR, then ~/.kotrain (keeping a pre-rebrand
- * ~/.open-paw if it already exists). */
+ * the legacy NEKKOS_DATA_DIR / OPENPAW_DATA_DIR, then ~/.kotrain (keeping a
+ * ~/.nekkos or ~/.open-paw from an earlier brand if one already exists). */
 export function dataDir(): string {
-  const fromEnv = process.env.KOTRAIN_DATA_DIR || process.env.OPENPAW_DATA_DIR;
+  const fromEnv =
+    process.env.KOTRAIN_DATA_DIR || process.env.NEKKOS_DATA_DIR || process.env.OPENPAW_DATA_DIR;
   if (fromEnv) return fromEnv;
   const next = join(homedir(), '.kotrain');
-  const legacy = join(homedir(), '.open-paw');
-  if (!existsSync(next) && existsSync(legacy)) return legacy;
+  if (existsSync(next)) return next;
+  for (const name of ['.nekkos', '.open-paw']) {
+    const legacy = join(homedir(), name);
+    if (existsSync(legacy)) return legacy;
+  }
   return next;
 }
 
@@ -32,6 +45,12 @@ export interface Client {
   sendChat(opts: SendOptions): Promise<void>;
   approveTool(sessionId: string, callId: string, approved: boolean): Promise<void>;
   onAgentEvent(cb: (e: AgentEvent) => void): () => void;
+  setSessionOptions(id: string, patch: Partial<Pick<Session, 'mode' | 'disabledTools' | 'title'>>): Promise<void>;
+  listTrainingRuns(): Promise<TrainingRun[]>;
+  createTrainingRun(input: NewTrainingRun): Promise<TrainingRun>;
+  startTrainingRun(id: string): Promise<TrainingRun[]>;
+  stopTrainingRun(id: string): Promise<TrainingRun[]>;
+  addTrainingHint(id: string, text: string): Promise<TrainingRun[]>;
 }
 
 /** In-process client backed by createHost on the data dir. */
@@ -51,6 +70,12 @@ function localClient(): Client {
       host.events.on('agentEvent', cb);
       return () => host.events.off('agentEvent', cb);
     },
+    setSessionOptions: async (i, p) => void host.setSessionOptions(i, p),
+    listTrainingRuns: async () => host.listTrainingRuns(),
+    createTrainingRun: async (input) => host.createTrainingRun(input),
+    startTrainingRun: async (id) => host.startTrainingRun(id),
+    stopTrainingRun: async (id) => host.stopTrainingRun(id),
+    addTrainingHint: async (id, text) => host.addTrainingHint(id, text),
   };
 }
 
@@ -102,6 +127,12 @@ function httpClient(url: string, token?: string): Client {
       void connect();
       return () => cbs.delete(cb);
     },
+    setSessionOptions: (i, p) => call('session:setOptions', i, p).then(() => undefined),
+    listTrainingRuns: () => call('training:list'),
+    createTrainingRun: (input) => call('training:create', input),
+    startTrainingRun: (id) => call('training:start', id),
+    stopTrainingRun: (id) => call('training:stop', id),
+    addTrainingHint: (id, text) => call('training:hint', id, text),
   };
 }
 

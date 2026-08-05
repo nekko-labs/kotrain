@@ -8,7 +8,7 @@ import type { ContextBundle } from './context.js';
 import type { MemoryEntry, MemoryScope } from './memory.js';
 import type { WorkspaceFolder, IndexStatus, SearchHit, IndexedFile } from './workspace.js';
 import type { DirEntry, FileContent, FileChange, LineComment } from './files.js';
-import type { DesignBoard, DesignPage } from './design.js';
+import type { DesignBoard, DesignPage, GenerateDesignInput } from './design.js';
 import type { AutomationTask, NewTask } from './tasks.js';
 import type { TrainingRun, NewTrainingRun } from './training.js';
 import type { ConnectorConfig, ConnectorKind, ConnectorResource } from './connectors.js';
@@ -31,6 +31,10 @@ export const IpcChannels = {
   modelPull: 'model:pull',
   modelLoad: 'model:load',
   modelUnload: 'model:unload',
+  lmsProbe: 'lms:probe',
+  serverStop: 'server:stop',
+  gpuStats: 'gpu:stats',
+  systemStats: 'system:stats',
 
   sessionsList: 'sessions:list',
   sessionCreate: 'session:create',
@@ -98,6 +102,10 @@ export const IpcChannels = {
   changeAccept: 'changes:accept',
   changeAcceptAll: 'changes:acceptAll',
 
+  prSessionList: 'pr:sessionList',
+  prDiff: 'pr:diff',
+  prAction: 'pr:action',
+
   commentsList: 'comments:list',
   commentAdd: 'comment:add',
   commentResolve: 'comment:resolve',
@@ -108,14 +116,15 @@ export const IpcChannels = {
   designRemovePage: 'design:removePage',
   designAddNote: 'design:addNote',
   designResolveNote: 'design:resolveNote',
+  designGenerate: 'design:generate',
 
   skillsInstalled: 'skills:installed',
   skillsTargets: 'skills:targets',
   skillInstall: 'skill:install',
   skillUninstall: 'skill:uninstall',
 
-  dojoCatalog: 'dojo:catalog',
-  dojoSkillMd: 'dojo:skillMd',
+  vaizerCatalog: 'vaizer:catalog',
+  vaizerSkillMd: 'vaizer:skillMd',
 
   tasksList: 'tasks:list',
   taskCreate: 'task:create',
@@ -144,10 +153,15 @@ export const IpcChannels = {
   remoteEnable: 'remote:enable',
   remoteDisable: 'remote:disable',
   remoteStatus: 'remote:status',
+  remotePair: 'remote:pair',
+  remoteDevices: 'remote:devices',
+  remoteRevoke: 'remote:revoke',
+  remoteRename: 'remote:rename',
+  remoteRotate: 'remote:rotate',
 
   appInfo: 'app:info',
   mcpStatus: 'mcp:status',
-  mcpNekko: 'mcp:nekko',
+  mcpKotrain: 'mcp:kotrain',
   // Transport-local update controls (desktop = electron-updater, web = refresh).
   updateCheck: 'update:check',
   updateDownload: 'update:download',
@@ -167,8 +181,8 @@ export const IpcEvents = {
   trainingUpdated: 'training:updated',
 } as const;
 
-/** The typed API the preload bridge exposes as window.nekko. */
-export interface NekkoApi {
+/** The typed API the preload bridge exposes as window.kotrain. */
+export interface KotrainApi {
   getSettings(): Promise<AppSettings>;
   updateSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
 
@@ -182,8 +196,16 @@ export interface NekkoApi {
 
   listModels(providerId: string): Promise<ModelInfo[]>;
   pullModel(providerId: string, model: string): Promise<{ ok: boolean; message: string }>;
-  loadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
-  unloadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
+  loadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  unloadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  /** Whether per-model load/unload is available for an LM Studio provider (via `lms`). */
+  lmsAvailable(providerId: string): Promise<import('./models.js').LmsProbe>;
+  /** Stop the local model server backing a provider (ollama/lmstudio/vllm/…). */
+  stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
+  /** GPU/VRAM stats for the metrics bar + Command Center (null if unavailable). */
+  getGpuStats(): Promise<import('./models.js').GpuStats | null>;
+  /** CPU load + RAM use for the monitor surfaces (null if unavailable). */
+  getSystemStats(): Promise<import('./monitor.js').SystemStats | null>;
 
   listSessions(): Promise<Session[]>;
   createSession(workspaceId?: string): Promise<Session>;
@@ -239,7 +261,7 @@ export interface NekkoApi {
   specPath(sessionId: string): Promise<string | null>;
   setSessionOptions(
     id: string,
-    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'order' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel'>>,
+    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'order' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel' | 'autoQuality' | 'thinking' | 'providerId' | 'modelId'>>,
   ): Promise<Session | null>;
   truncateSession(id: string, messageId: string): Promise<Session | null>;
   /** Delete chats within a window; returns how many were removed. */
@@ -282,6 +304,13 @@ export interface NekkoApi {
   /** Keep all of a session's changes. */
   acceptAllChanges(sessionId: string): Promise<void>;
 
+  /** Live PR state for every GitHub PR URL referenced in a chat's transcript. */
+  listSessionPrs(sessionId: string): Promise<import('./pr.js').PrInfo[]>;
+  /** A PR's changed files + patches (for the diff pane). */
+  getPrDiff(url: string): Promise<import('./pr.js').PrDiff>;
+  /** Approve / decline / merge / reopen a PR. Always user-initiated. */
+  prAction(url: string, action: import('./pr.js').PrAction): Promise<import('./pr.js').PrActionResult>;
+
   /** Inline editor comments on a file (gutter "+" annotations the agent picks up). */
   listComments(path: string): Promise<LineComment[]>;
   addComment(path: string, line: number, lineText: string, comment: string): Promise<LineComment[]>;
@@ -294,6 +323,8 @@ export interface NekkoApi {
   removeDesignPage(workspaceId: string, pageId: string): Promise<DesignBoard>;
   addDesignNote(workspaceId: string, pageId: string, text: string): Promise<DesignBoard>;
   resolveDesignNote(workspaceId: string, pageId: string, noteId: string): Promise<DesignBoard>;
+  /** Generate (or refine) an AI design concept from a prompt and/or a sketch. */
+  generateDesign(workspaceId: string, input: GenerateDesignInput): Promise<DesignBoard>;
 
   /** Skills marketplace: what's installed, where installs can go, install/remove. */
   listInstalledSkills(): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
@@ -307,9 +338,9 @@ export interface NekkoApi {
     skillId: string,
     target: import('./skills-market.js').InstallTarget,
   ): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
-  /** Nekko Dojo skills hub (optional integration): catalog + SKILL.md fetch. */
-  dojoCatalog(refresh?: boolean): Promise<import('./dojo.js').DojoCatalog>;
-  dojoSkillMd(slug: string): Promise<string | null>;
+  /** Vaizer skills hub (optional integration): catalog + SKILL.md fetch. */
+  vaizerCatalog(refresh?: boolean): Promise<import('./vaizer.js').VaizerCatalog>;
+  vaizerSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): Promise<AutomationTask[]>;
@@ -342,13 +373,20 @@ export interface NekkoApi {
   enableRemote(relayUrl: string): Promise<import('./remote.js').RemoteStatus>;
   disableRemote(): Promise<import('./remote.js').RemoteStatus>;
   getRemoteStatus(): Promise<import('./remote.js').RemoteStatus>;
+  /** Mint a short-lived single-use pairing code for enrolling a new device. */
+  startRemotePairing(): Promise<import('./remote.js').PairingGrant>;
+  listRemoteDevices(): Promise<import('./remote.js').RemoteDevice[]>;
+  revokeRemoteDevice(deviceId: string): Promise<import('./remote.js').RemoteDevice[]>;
+  renameRemoteDevice(deviceId: string, name: string): Promise<import('./remote.js').RemoteDevice[]>;
+  /** Rotate the pairing secret: re-keys the room; every device must re-pair. */
+  rotateRemoteSecret(): Promise<import('./remote.js').RemoteStatus>;
 
   /** Running version + edition. */
   getAppInfo(): Promise<AppInfo>;
   /** Connect configured MCP servers and return their status + tools. */
   getMcpStatus(): Promise<import('./mcp.js').McpServerStatus[]>;
-  /** Probe for a local NekkoMCP daemon (nekko-mcpd) and return its gateway info. */
-  detectNekkoMcp(): Promise<import('./mcp.js').NekkoMcpInfo | null>;
+  /** Probe for a local KotrainMCP daemon (kotrain-mcpd) and return its gateway info. */
+  detectKotrainMcp(): Promise<import('./mcp.js').KotrainMcpInfo | null>;
   /** Register this device's push token with the relay (mobile/relay only; no-op elsewhere). */
   registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
   /** Check for a newer version (desktop: GitHub feed; web: server version). */

@@ -23,19 +23,24 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
 
   const workspaceIds = session ? getSessionWorkspaceIds(session) : [];
   const workspaceKey = workspaceIds.join(',');
+  const primaryWorkspaceId = session?.workspaceId;
   const selectedWorkspaceId = workspaceIds.includes(workspaceId ?? '') ? workspaceId : workspaceIds[0];
   const hasWorkspace = workspaceIds.length > 0;
 
   const refresh = (targetWorkspaceId = selectedWorkspaceId) => {
-    window.nekko.readSpecDocs(sessionId, targetWorkspaceId).then((r) => {
+    window.kotrain.readSpecDocs(sessionId, targetWorkspaceId).then((r) => {
       setDocs(r.docs);
       setMethodologyId(r.methodologyId);
     });
   };
 
+  // Follow the folder picked in the Folders section above: whenever the primary
+  // changes (or the set of folders does), snap to it. Keeping a stale pick here
+  // meant the panel showed one project's spec while the pane above said another
+  // was primary. The select below still overrides, until the choice above moves.
   useEffect(() => {
-    setWorkspaceId((current) => (current && workspaceIds.includes(current) ? current : workspaceIds[0]));
-  }, [workspaceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    setWorkspaceId(primaryWorkspaceId ?? workspaceIds[0]);
+  }, [primaryWorkspaceId, workspaceKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sessionId) return;
@@ -50,14 +55,14 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
 
   const changeMethodology = async (id: string) => {
     setMethodologyId(id);
-    await window.nekko.setSpecMethodology(sessionId, id);
+    await window.kotrain.setSpecMethodology(sessionId, id);
     await refreshSessions();
     refresh(selectedWorkspaceId);
   };
 
   const build = async (docId: string) => {
     setBusy(docId);
-    const res = await window.nekko.buildSpecDoc(sessionId, docId, selectedWorkspaceId);
+    const res = await window.kotrain.buildSpecDoc(sessionId, docId, selectedWorkspaceId);
     setBusy(null);
     if (res.ok) {
       const label = methodology.docs.find((d) => d.id === docId)?.label ?? 'Document';
@@ -72,7 +77,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
     setBusy('all');
     let failed: string | null = null;
     for (const d of methodology.docs) {
-      const res = await window.nekko.buildSpecDoc(sessionId, d.id, selectedWorkspaceId);
+      const res = await window.kotrain.buildSpecDoc(sessionId, d.id, selectedWorkspaceId);
       if (!res.ok) {
         failed = res.message ?? `Could not build ${d.label}.`;
         break;
@@ -85,12 +90,12 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
   };
 
   const toggleLive = async () => {
-    await window.nekko.setSpecLinked(sessionId, !session?.specLinked);
+    await window.kotrain.setSpecLinked(sessionId, !session?.specLinked);
     await refreshSessions();
   };
 
   const toggleTask = async (line: number) => {
-    const res = await window.nekko.toggleSpecTask(sessionId, line, selectedWorkspaceId);
+    const res = await window.kotrain.toggleSpecTask(sessionId, line, selectedWorkspaceId);
     if (res.ok) refresh(selectedWorkspaceId);
     else pushToast('error', res.message ?? 'Could not update the task.');
   };
@@ -107,7 +112,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
         {docs && docs.some((d) => d.exists) && (
           <button
             className={`text-[10px] uppercase tracking-wide ${session?.specLinked ? 'text-accent' : 'text-ink-faint hover:text-ink'}`}
-            title="Rebuild the spec after every turn"
+            title="Rebuild the spec after every reply"
             onClick={toggleLive}
           >
             {session?.specLinked ? '● Live' : '○ Live'}
@@ -184,7 +189,7 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
           </div>
 
           {methodology.docs.length > 1 && (
-            <button className="btn btn-primary mt-2 w-full text-[12px]" onClick={buildAll} disabled={!!busy}>
+            <button className="btn btn-outline mt-2 w-full text-[12px]" onClick={buildAll} disabled={!!busy}>
               {busy === 'all' ? 'Building all…' : 'Build all from chat'}
             </button>
           )}

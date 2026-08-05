@@ -2,7 +2,7 @@
 #   docker compose up        (build + run)
 # Then open http://localhost:1440
 services:
-  nekko:
+  kotrain:
     build: .
     # Or use a published image instead of building:
     # image: ghcr.io/nekko-labs/kotrain:latest
@@ -14,7 +14,7 @@ services:
       # Codebases the agent may read/edit (workspace-jail sandbox confines it here).
       - ./workspace:/workspace
       # Settings, sessions, memory, usage.
-      - nekko-data:/data
+      - kotrain-data:/data
     environment:
       - KOTRAIN_SANDBOX=workspace-jail
       # Uncomment to require an access token (recommended if exposing beyond localhost):
@@ -26,4 +26,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  nekko-data: {}
+  kotrain-data: {}

@@ -5,7 +5,7 @@ import type {
   GuardrailRule,
   MemoryEntry,
   MemoryScope,
-  NekkoApi,
+  KotrainApi,
   ProviderConfig,
   SendOptions,
   AgentEvent,
@@ -17,7 +17,7 @@ import { IpcChannels, IpcEvents } from '@kotrain/shared';
 
 const inv = ipcRenderer.invoke.bind(ipcRenderer);
 
-const api: NekkoApi = {
+const api: KotrainApi = {
   getSettings: () => inv(IpcChannels.settingsGet),
   updateSettings: (patch) => inv(IpcChannels.settingsUpdate, patch),
 
@@ -32,6 +32,10 @@ const api: NekkoApi = {
   pullModel: (providerId, model) => inv(IpcChannels.modelPull, providerId, model),
   loadModel: (providerId, model) => inv(IpcChannels.modelLoad, providerId, model),
   unloadModel: (providerId, model) => inv(IpcChannels.modelUnload, providerId, model),
+  lmsAvailable: (providerId) => inv(IpcChannels.lmsProbe, providerId),
+  stopServer: (providerId) => inv(IpcChannels.serverStop, providerId),
+  getGpuStats: () => inv(IpcChannels.gpuStats),
+  getSystemStats: () => inv(IpcChannels.systemStats),
 
   listSessions: () => inv(IpcChannels.sessionsList),
   createSession: (workspaceId) => inv(IpcChannels.sessionCreate, workspaceId),
@@ -100,6 +104,10 @@ const api: NekkoApi = {
   acceptChange: (sessionId, path) => inv(IpcChannels.changeAccept, sessionId, path),
   acceptAllChanges: (sessionId) => inv(IpcChannels.changeAcceptAll, sessionId),
 
+  listSessionPrs: (sessionId) => inv(IpcChannels.prSessionList, sessionId),
+  getPrDiff: (url) => inv(IpcChannels.prDiff, url),
+  prAction: (url, action) => inv(IpcChannels.prAction, url, action),
+
   listComments: (path) => inv(IpcChannels.commentsList, path),
   addComment: (path, line, lineText, comment) => inv(IpcChannels.commentAdd, path, line, lineText, comment),
   resolveComment: (path, id) => inv(IpcChannels.commentResolve, path, id),
@@ -110,13 +118,14 @@ const api: NekkoApi = {
   removeDesignPage: (workspaceId, pageId) => inv(IpcChannels.designRemovePage, workspaceId, pageId),
   addDesignNote: (workspaceId, pageId, text) => inv(IpcChannels.designAddNote, workspaceId, pageId, text),
   resolveDesignNote: (workspaceId, pageId, noteId) => inv(IpcChannels.designResolveNote, workspaceId, pageId, noteId),
+  generateDesign: (workspaceId, input) => inv(IpcChannels.designGenerate, workspaceId, input),
 
   listInstalledSkills: () => inv(IpcChannels.skillsInstalled),
   skillTargets: () => inv(IpcChannels.skillsTargets),
   installSkill: (skillId, target, payload) => inv(IpcChannels.skillInstall, skillId, target, payload),
   uninstallSkill: (skillId, target) => inv(IpcChannels.skillUninstall, skillId, target),
-  dojoCatalog: (refresh) => inv(IpcChannels.dojoCatalog, refresh),
-  dojoSkillMd: (slug) => inv(IpcChannels.dojoSkillMd, slug),
+  vaizerCatalog: (refresh) => inv(IpcChannels.vaizerCatalog, refresh),
+  vaizerSkillMd: (slug) => inv(IpcChannels.vaizerSkillMd, slug),
 
   listTasks: () => inv(IpcChannels.tasksList),
   createTask: (task) => inv(IpcChannels.taskCreate, task),
@@ -152,10 +161,15 @@ const api: NekkoApi = {
   enableRemote: (relayUrl) => inv(IpcChannels.remoteEnable, relayUrl),
   disableRemote: () => inv(IpcChannels.remoteDisable),
   getRemoteStatus: () => inv(IpcChannels.remoteStatus),
+  startRemotePairing: () => inv(IpcChannels.remotePair),
+  listRemoteDevices: () => inv(IpcChannels.remoteDevices),
+  revokeRemoteDevice: (deviceId) => inv(IpcChannels.remoteRevoke, deviceId),
+  renameRemoteDevice: (deviceId, name) => inv(IpcChannels.remoteRename, deviceId, name),
+  rotateRemoteSecret: () => inv(IpcChannels.remoteRotate),
 
   getAppInfo: () => inv(IpcChannels.appInfo),
   getMcpStatus: () => inv(IpcChannels.mcpStatus),
-  detectNekkoMcp: () => inv(IpcChannels.mcpNekko),
+  detectKotrainMcp: () => inv(IpcChannels.mcpKotrain),
   registerPushToken: () => Promise.resolve(), // desktop isn't a relay client
   checkForUpdates: () => inv(IpcChannels.updateCheck),
   downloadUpdate: () => inv(IpcChannels.updateDownload),
@@ -198,4 +212,4 @@ const api: NekkoApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('nekko', api);
+contextBridge.exposeInMainWorld('kotrain', api);

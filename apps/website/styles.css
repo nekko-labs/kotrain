@@ -1,4 +1,4 @@
-/* Kotrain marketing site — immersive deep-space look (liquidink-inspired):
+/* Kotrain marketing site, immersive deep-space look (liquidink-inspired):
    near-black navy, drifting starfield, giant display type, glass panels,
    the Kotrain violet→cyan gradient as the nebula accent. Dark by design. */
 
@@ -12,6 +12,7 @@
   --accent: #6d5efc;
   --accent-2: #22d3ee;
   --grad: linear-gradient(115deg, #6d5efc 10%, #22d3ee 90%);
+  --on-grad: #04060e; /* ink that sits on the gradient */
   --sans: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 }
@@ -39,7 +40,9 @@ body {
     radial-gradient(45% 35% at 15% 25%, rgba(34, 211, 238, 0.1), transparent 70%),
     radial-gradient(60% 50% at 50% 110%, rgba(1, 14, 34, 0.9), transparent 70%);
 }
-main, header, footer { position: relative; z-index: 1; }
+/* main sits above the footer so an open download menu can overlap it */
+main { position: relative; z-index: 2; }
+header, footer { position: relative; z-index: 1; }
 
 /* ---- nav ---- */
 .nav {
@@ -54,7 +57,9 @@ main, header, footer { position: relative; z-index: 1; }
   font-weight: 800; letter-spacing: 0.14em; font-size: 15px;
   color: var(--ink); text-decoration: none; margin-right: auto;
 }
-.brand-mark { margin-right: 6px; }
+/* the orbit mark, same art as the app icon; a rounded tile that sits on the
+   nav's own dark glass rather than punching a square hole in it */
+.brand-mark { vertical-align: -4px; margin-right: 7px; border-radius: 5px; }
 .nav-links { display: flex; gap: 22px; }
 .nav-links a {
   color: var(--muted); text-decoration: none; font-size: 13.5px;
@@ -111,26 +116,31 @@ a { color: var(--accent-2); }
   font-size: clamp(20px, 2.6vw, 30px); font-weight: 600; letter-spacing: -0.015em; line-height: 1.25;
 }
 .lede { max-width: 620px; margin: 20px auto 0; font-size: 16px; }
-.cta-row { display: flex; gap: 14px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
+/* align-items: stretch so the ghost pill matches the split button's height */
+.cta-row { display: flex; align-items: stretch; gap: 14px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
 .hero .micro { margin-top: 18px; }
 
+/* One pill shape for every button on the site, same as hypergate.app: fully
+   rounded, single line, dark ink on the brand gradient. */
 .btn {
-  display: inline-block; padding: 12px 26px; border-radius: 12px;
-  font-weight: 600; font-size: 14.5px; text-decoration: none;
-  letter-spacing: 0.01em; transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 13px 26px; border-radius: 999px;
+  font-weight: 600; font-size: 16px; text-decoration: none;
+  letter-spacing: 0.01em; white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
-.btn:active { transform: translateY(1px); }
 .btn-primary {
-  background: var(--grad); color: #fff;
-  box-shadow: 0 8px 32px rgba(109, 94, 252, 0.4);
+  background: var(--grad); color: var(--on-grad);
+  box-shadow: 0 0 0 rgba(34, 211, 238, 0);
 }
-.btn-primary:hover { box-shadow: 0 10px 42px rgba(109, 94, 252, 0.6); }
-.btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 9px; }
-.btn-glass {
-  background: var(--glass); color: var(--ink);
-  border: 1px solid var(--line); backdrop-filter: blur(8px);
-}
-.btn-glass:hover { background: rgba(255, 255, 255, 0.1); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 40px rgba(34, 211, 238, 0.35); }
+.btn-sm { padding: 8px 18px; font-size: 13px; }
+
+/* quiet outline pill, for the link that sits beside a primary CTA */
+.btn-ghost { border: 1px solid var(--line); color: var(--ink); }
+.btn-ghost:hover { border-color: var(--accent); background: rgba(109, 94, 252, 0.1); }
+.btn-ghost .arr { font-size: 13px; opacity: 0.8; }
+.btn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 4px; }
 
 .scroll-hint {
   position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -139,18 +149,22 @@ a { color: var(--accent-2); }
 }
 @keyframes hint-bob { 0%, 100% { transform: translate(-50%, 0); opacity: 0.7; } 50% { transform: translate(-50%, 6px); opacity: 1; } }
 
-/* mascot floats at the hero's lower right, mid-suburi */
+/* mascot drifts at the hero's lower right, in zero-g */
 .mascot { position: absolute; bottom: 42px; right: clamp(16px, 8vw, 140px); }
-.mascot .swing {
-  animation: swing 1.7s cubic-bezier(0.5, 0, 0.3, 1) infinite;
-  transform-origin: 16px 22px; transform-box: view-box;
+.mascot .m-float {
+  animation: m-float 4s ease-in-out infinite;
+  transform-origin: center; transform-box: fill-box;
 }
-@keyframes swing {
-  0% { transform: rotate(-78deg); }
-  38% { transform: rotate(-78deg); }
-  50% { transform: rotate(24deg); }
-  66% { transform: rotate(20deg); }
-  100% { transform: rotate(-78deg); }
+@keyframes m-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-7px) rotate(4deg); }
+}
+.mascot .m-orbit {
+  animation: m-orbit 3s linear infinite;
+  transform-origin: 0 0; transform-box: view-box;
+}
+@keyframes m-orbit {
+  to { transform: rotate(360deg); }
 }
 
 /* ---- glass panels ---- */
@@ -194,6 +208,46 @@ a { color: var(--accent-2); }
 .ok { color: #4ade80; font-size: 12.5px; font-family: var(--mono); }
 .dim { color: var(--muted); font-size: 12.5px; font-family: var(--mono); }
 
+/* ---- the harness manifest: a spec sheet, not a card grid.
+       Groups are full-bleed rows split by hairlines, each with a sticky label
+       column on the left and its capability rows on the right. ---- */
+.manifest { margin-top: 42px; }
+.mf-group {
+  display: grid; grid-template-columns: minmax(190px, 260px) 1fr; gap: clamp(24px, 5vw, 60px);
+  padding: 34px 0; border-top: 1px solid var(--line);
+}
+.manifest .mf-group:last-child { border-bottom: 1px solid var(--line); }
+.mf-head { position: sticky; top: 96px; align-self: start; }
+.mf-num {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em;
+  color: var(--accent-2); display: block;
+}
+.mf-head h3 { font-size: clamp(19px, 2vw, 23px); margin: 8px 0 8px; letter-spacing: -0.02em; }
+.mf-head p { font-size: 13px; line-height: 1.55; }
+.mf-rows { list-style: none; counter-reset: mf; }
+.mf-rows li {
+  display: grid; grid-template-columns: minmax(150px, 200px) 1fr; gap: clamp(14px, 2.5vw, 30px);
+  align-items: baseline;
+  padding: 15px 14px 15px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  box-shadow: inset 2px 0 0 transparent;
+  transition: background 0.22s ease, box-shadow 0.22s ease;
+}
+.mf-rows li:last-child { border-bottom: 0; }
+.mf-rows li:hover {
+  background: rgba(109, 94, 252, 0.07);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.mf-rows b { font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
+.mf-rows b::before {
+  counter-increment: mf; content: counter(mf, decimal-leading-zero);
+  font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--muted);
+  margin-right: 10px; vertical-align: 1px;
+}
+.mf-rows span { color: var(--muted); font-size: 13.5px; line-height: 1.62; }
+.mf-rows code { font-size: 0.8em; }
+.mf-foot { margin-top: 26px; }
+
 .split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: start; }
 .check { list-style: none; display: flex; flex-direction: column; gap: 12px; }
 .check li { padding-left: 30px; position: relative; color: var(--ink); font-size: 15px; }
@@ -206,15 +260,116 @@ a { color: var(--accent-2); }
 .sc b { min-width: 90px; }
 .sc code { margin-left: auto; }
 
-/* ---- download ---- */
+/* ---- download: one smart button for the visitor's machine, plus a menu ---- */
 .download { text-align: center; }
 .download .chapter-lede { margin-left: auto; margin-right: auto; }
-.dl-row { display: flex; gap: 16px; justify-content: center; margin: 30px 0 22px; flex-wrap: wrap; }
-.dl { padding: 22px 34px; text-decoration: none; color: var(--ink); transition: transform 0.2s, border-color 0.2s; }
-.dl:hover { transform: translateY(-4px); border-color: var(--accent); }
-.dl-os { font-weight: 700; font-size: 17px; }
-.dl-sub { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.dl-cta { margin: 34px 0 26px; }
+/* The picker is one .btn-shaped pill: the gradient lives on the wrapper so it
+   runs unbroken under the caret (per-child gradients restarted at the seam).
+   z-index (not isolation) so the open menu clears whatever follows it in flow. */
+.dl-pick {
+  position: relative; display: inline-flex; z-index: 30;
+  background: var(--grad); border-radius: 999px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dl-pick:hover { transform: translateY(-1px); box-shadow: 0 8px 40px rgba(34, 211, 238, 0.35); }
+.dl-pick.open:hover { transform: none; } /* don't bob the pill while its menu is open */
+.dl-main,
+.dl-caret {
+  background: none; border: 0; color: var(--on-grad); cursor: pointer;
+  font-family: var(--sans); font-weight: 600; font-size: 16px;
+}
+.dl-main {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 22px 13px 26px; border-radius: 999px 0 0 999px;
+  text-decoration: none; white-space: nowrap;
+}
+.dl-main-t { letter-spacing: 0.01em; }
+/* version chip, hairline-separated, hidden until the release API answers */
+.dl-main-v {
+  padding-left: 10px; border-left: 1px solid rgba(4, 6, 14, 0.3);
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+}
+.dl-main-v:empty { display: none; }
+.dl-caret {
+  display: grid; place-items: center; width: 40px; padding-right: 4px;
+  border-radius: 0 999px 999px 0;
+}
+.dl-caret svg { transition: transform 0.2s ease; }
+.dl-main:hover, .dl-caret:hover { background: rgba(4, 6, 14, 0.1); }
+.dl-main:focus-visible, .dl-caret:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 4px; }
+.dl-pick.open .dl-caret svg { transform: rotate(180deg); }
+
+.dl-menu {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 20;
+  width: min(340px, calc(100vw - 40px)); min-width: 100%;
+  padding: 8px; text-align: left;
+  /* near-opaque: this menu overlaps body copy and the footer, it has to read as a layer */
+  background: rgba(3, 11, 24, 0.97);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.72);
+  max-height: min(66vh, 520px); overflow-y: auto; overscroll-behavior: contain;
+  animation: dl-pop 0.16s ease-out;
+}
+/* flipped above the button when the page bottom is nearer than the menu is tall */
+.dl-menu.up { top: auto; bottom: calc(100% + 10px); animation-name: dl-pop-up; }
+/* transform only, no opacity: where animations are throttled (hidden tabs,
+   embedded webviews) a frozen first frame still leaves the menu readable */
+@keyframes dl-pop { from { transform: translateY(-6px); } to { transform: none; } }
+@keyframes dl-pop-up { from { transform: translateY(6px); } to { transform: none; } }
+.dl-group {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--muted); padding: 12px 12px 6px;
+}
+.dl-group:first-child { padding-top: 6px; }
+.dl-item {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 9px 12px; border-radius: 10px; text-decoration: none; color: var(--ink);
+  font-size: 13.5px; transition: background 0.15s;
+}
+.dl-item:hover, .dl-item:focus-visible { background: rgba(109, 94, 252, 0.18); outline: none; }
+.dl-item .dl-fmt { font-family: var(--mono); font-size: 12px; }
+.dl-item .dl-hint { margin-left: auto; color: var(--muted); font-size: 11.5px; }
+.dl-item[aria-current='true'] .dl-hint::after {
+  content: 'yours'; color: var(--accent-2);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  border: 1px solid rgba(34, 211, 238, 0.4); border-radius: 99px;
+  padding: 1px 6px; margin-left: 8px;
+}
+.dl-sep { height: 1px; background: var(--line); margin: 6px 10px; }
+.dl-note { margin-top: 14px; }
 .download .micro { margin-top: 8px; }
+
+/* ---- the same build as a one-liner, for people who'd rather stay in a shell ---- */
+.dl-term { max-width: 760px; margin: 30px auto 0; text-align: left; }
+.dl-term-or {
+  display: block; text-align: center; margin-bottom: 10px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--muted);
+}
+.dl-term-or b { color: var(--ink); font-weight: 500; }
+.dl-term-row { display: flex; align-items: stretch; border-radius: 12px; overflow: hidden; }
+.dl-term-cmd {
+  flex: 1; min-width: 0;
+  background: none; border: 0; border-radius: 0;
+  padding: 13px 12px 13px 14px;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.65; color: var(--ink);
+  /* wraps rather than scrolls: nobody should paste a command they can't see */
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.dl-term-cmd::before { content: '❯ '; color: var(--accent-2); }
+.dl-copy {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 0 16px; cursor: pointer;
+  border: 0; border-left: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05); color: var(--muted);
+  font-family: var(--sans); font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+  transition: background 0.18s, color 0.18s;
+}
+.dl-copy:hover { background: rgba(109, 94, 252, 0.22); color: var(--ink); }
+.dl-copy:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+.dl-copy.done { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.dl-copy-t { min-width: 46px; text-align: left; }
 
 /* ---- footer ---- */
 footer {
@@ -222,6 +377,7 @@ footer {
   padding: 30px 28px; border-top: 1px solid var(--line); flex-wrap: wrap;
   font-size: 13px;
 }
+.footer-brand { font-weight: 800; letter-spacing: 0.14em; }
 footer a { color: var(--muted); text-decoration: none; font-family: var(--mono); font-size: 12px; }
 footer a:hover { color: var(--ink); }
 
@@ -236,13 +392,27 @@ footer a:hover { color: var(--ink); }
   .wm-body { grid-template-columns: 52px 1fr; }
   .wm-ctx { display: none; }
   .nav-links { display: none; }
+  .mf-group { grid-template-columns: 1fr; gap: 18px; }
+  .mf-head { position: static; }
+  .mf-rows li { grid-template-columns: 1fr; gap: 4px; padding-left: 12px; }
 }
 @media (max-width: 560px) {
   .grid, .grid.two, .grid.four { grid-template-columns: 1fr; }
   .chapter { padding: 90px 20px; }
   .mascot { display: none; }
+  /* full-width pill, label centred against the caret sitting inside its right end */
+  .dl-main { flex: 1; justify-content: center; padding-left: 46px; }
+  .dl-pick { display: flex; width: 100%; }
+  .dl-menu { right: auto; left: 0; }
+  .cta-row { display: block; }
+  .cta-row .btn-ghost { margin-top: 12px; width: 100%; }
+  /* the command is long: give it the full width and put Copy underneath */
+  .dl-term-row { flex-direction: column; }
+  .dl-copy { border-left: 0; border-top: 1px solid var(--line); padding: 11px 14px; justify-content: center; }
+  .dl-copy-t { min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
   .mascot .swing, .scroll-hint { animation: none; }
+  .dl-menu { animation: none; }
 }

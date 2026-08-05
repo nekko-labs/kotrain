@@ -16,15 +16,20 @@ const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', '
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** KOTRAIN_* env with legacy OPENPAW_* fallback (pre-rebrand installs). */
+/** KOTRAIN_* env with legacy NEKKOS_* / OPENPAW_* fallbacks (earlier-brand installs). */
 function env(name: string): string | undefined {
-  return process.env[`KOTRAIN_${name}`] ?? process.env[`OPENPAW_${name}`];
+  return (
+    process.env[`KOTRAIN_${name}`] ?? process.env[`NEKKOS_${name}`] ?? process.env[`OPENPAW_${name}`]
+  );
 }
-/** Default data dir: ~/.kotrain, but keep using a pre-rebrand ~/.open-paw if it exists. */
+/** Default data dir: ~/.kotrain, but keep using a ~/.nekkos or ~/.open-paw if one exists. */
 function defaultDataDir(): string {
   const next = join(homedir(), '.kotrain');
-  const legacy = join(homedir(), '.open-paw');
-  if (!existsSync(next) && existsSync(legacy)) return legacy;
+  if (existsSync(next)) return next;
+  for (const name of ['.nekkos', '.open-paw']) {
+    const legacy = join(homedir(), name);
+    if (existsSync(legacy)) return legacy;
+  }
   return next;
 }
 
@@ -105,7 +110,7 @@ async function main() {
     if (!authorized(bearer ?? q)) reply.code(401).send({ error: 'unauthorized' });
   });
 
-  // One HTTP route fronts the whole NekkoApi via the shared dispatcher.
+  // One HTTP route fronts the whole KotrainApi via the shared dispatcher.
   app.post<{ Params: { channel: string }; Body: { args?: unknown[] } }>('/api/:channel', async (req, reply) => {
     try {
       const result = await dispatch(req.params.channel, req.body?.args ?? []);

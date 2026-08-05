@@ -80,8 +80,20 @@ export interface Session {
   specMethodology?: string;
   /** When set, the chat picks the best model per turn (model auto-mode). */
   autoModel?: boolean;
+  /**
+   * How hard Auto mode leans on capability for this chat: `cheap` always takes
+   * the smallest capable model, `quality` always the strongest, `normal` (the
+   * default) reads each prompt and picks between them.
+   */
+  autoQuality?: import('./model-select.js').AutoQuality;
   /** Tool-execution policy for this chat. */
   mode?: ChatMode;
+  /**
+   * Per-chat reasoning toggle for models that support it: `true` forces thinking
+   * on, `false` suppresses it, `undefined` leaves the model's default. Only
+   * offered in the UI when the selected model is reasoning-capable.
+   */
+  thinking?: boolean;
   /** Tool names the user disabled for this chat (subset of the builtins). */
   disabledTools?: string[];
   /** Offline: no tool calls, no connectors/internet (local models only). */
@@ -138,4 +150,11 @@ export interface SendOptions {
   /** Re-answer the last user turn: drop trailing assistant/tool messages and
    *  don't append a new user message. */
   regenerate?: boolean;
+  /**
+   * Only send the last N user-turn groups to the model (the full transcript is
+   * still persisted). Used by long-running run-driven turns (Goals/Training) so
+   * a loop that spans hundreds of turns doesn't replay its whole ever-growing
+   * history to the model each turn. Omitted for normal chats (full history).
+   */
+  maxHistoryTurns?: number;
 }

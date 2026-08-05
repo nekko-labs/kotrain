@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import type { ModelInfo, ProviderConfig, ProviderKind } from '@kotrain/shared';
-import { PROVIDER_DEFAULTS } from '@kotrain/shared';
+import { PROVIDER_DEFAULTS, isLocalProvider } from '@kotrain/shared';
 import { useStore } from '../store.js';
+import { Badge } from '../components/primitives/index.js';
 import { PlusIcon, TrashIcon, CheckIcon, StarIcon } from '../icons.js';
 
 const KINDS: ProviderKind[] = ['ollama', 'lmstudio', 'vllm', 'anthropic', 'openai', 'openrouter', 'openai-compat'];
-const LOCAL_KINDS: ProviderKind[] = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
-const isLocal = (k: ProviderKind) => LOCAL_KINDS.includes(k);
+const isLocal = (k: ProviderKind) => isLocalProvider(k);
 
 export function ModelsView() {
   const { providers, refreshProviders, pushToast } = useStore();
@@ -20,7 +20,7 @@ export function ModelsView() {
   const discover = async () => {
     setDiscovering(true);
     const before = providers.length;
-    const after = await window.nekko.discoverProviders();
+    const after = await window.kotrain.discoverProviders();
     await refreshProviders();
     setDiscovering(false);
     const added = after.length - before;
@@ -62,14 +62,14 @@ export function ModelsView() {
 
         <ProviderSection
           title="Local"
-          accent="#4ec98a"
+          accent="var(--success)"
           subtitle="On-device model servers, private, free, fast."
           providers={local}
           onChanged={refreshProviders}
         />
         <ProviderSection
           title="Cloud"
-          accent="#5b9dd9"
+          accent="var(--info)"
           subtitle="Hosted APIs, Anthropic, OpenAI, OpenRouter, or any compatible endpoint."
           providers={cloud}
           onChanged={refreshProviders}
@@ -141,13 +141,13 @@ function AddProvider({ onDone }: { onDone: () => void }) {
   const test = async () => {
     setTesting(true);
     setResult(null);
-    const r = await window.nekko.testProviderConfig(draft());
+    const r = await window.kotrain.testProviderConfig(draft());
     setResult(r);
     setTesting(false);
   };
 
   const save = async () => {
-    await window.nekko.saveProvider(draft());
+    await window.kotrain.saveProvider(draft());
     onDone();
   };
 
@@ -187,7 +187,7 @@ function AddProvider({ onDone }: { onDone: () => void }) {
       <div className="mt-4 flex items-center justify-between gap-2">
         <div className="min-w-0 text-[12px]">
           {result && (
-            <span style={{ color: result.ok ? '#4ec98a' : '#e0574a' }} className="inline-flex items-center gap-1.5">
+            <span style={{ color: result.ok ? 'var(--success)' : 'var(--danger)' }} className="inline-flex items-center gap-1.5">
               {result.ok && <CheckIcon className="h-3.5 w-3.5" />}
               {result.ok ? 'Connected' : result.message}
             </span>
@@ -208,25 +208,32 @@ function AddProvider({ onDone }: { onDone: () => void }) {
 function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onChanged: () => void }) {
   const settings = useStore((s) => s.settings);
   const refreshSettings = useStore((s) => s.refreshSettings);
+  const pushToast = useStore((s) => s.pushToast);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [conn, setConn] = useState<{ state: 'unknown' | 'testing' | 'ok' | 'fail'; message?: string }>({ state: 'unknown' });
   const [pullName, setPullName] = useState('');
+  const [busy, setBusy] = useState<string | null>(null); // model id being (un)loaded
+  const [stopping, setStopping] = useState(false);
+  // Per-model load/unload for LM Studio rides its `lms` CLI, so it's only
+  // available for a local instance with the CLI installed. `null` = not yet
+  // probed; the reason feeds the fallback badge's tooltip.
+  const [lms, setLms] = useState<{ available: boolean; reason?: string } | null>(null);
 
   const isFavorite = (key: string) => (settings?.favoriteModels ?? []).includes(key);
   const toggleFavorite = async (key: string) => {
     const set = new Set(settings?.favoriteModels ?? []);
     set.has(key) ? set.delete(key) : set.add(key);
-    await window.nekko.updateSettings({ favoriteModels: [...set] });
+    await window.kotrain.updateSettings({ favoriteModels: [...set] });
     refreshSettings();
   };
 
   const load = async () => {
-    setModels(await window.nekko.listModels(provider.id));
+    setModels(await window.kotrain.listModels(provider.id).catch(() => []));
   };
 
   const test = async () => {
     setConn({ state: 'testing' });
-    const r = await window.nekko.testProvider(provider.id);
+    const r = await window.kotrain.testProvider(provider.id);
     setConn({ state: r.ok ? 'ok' : 'fail', message: r.message });
   };
 
@@ -234,10 +241,50 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
   useEffect(() => {
     load();
     test();
+    if (provider.kind === 'lmstudio') {
+      window.kotrain.lmsAvailable(provider.id).then(setLms).catch(() => setLms({ available: false }));
+    }
     /* eslint-disable-next-line */
   }, [provider.id]);
 
+  // While connected, refresh the loaded state periodically — local servers
+  // JIT-load/evict models as they're used, so this keeps the badges honest.
+  useEffect(() => {
+    if (conn.state !== 'ok') return;
+    const t = setInterval(load, 6000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conn.state, provider.id]);
+
   const isOllama = provider.kind === 'ollama';
+  const local = isLocal(provider.kind);
+  const anyLoaded = models.some((m) => m.loaded);
+  // Ollama always supports per-model load/unload; LM Studio does too once its
+  // `lms` CLI is reachable. Others fall back to the static badge + Stop server.
+  const canManage = isOllama || (provider.kind === 'lmstudio' && lms?.available === true);
+
+  const setLoaded = async (m: ModelInfo, loaded: boolean) => {
+    setBusy(m.id);
+    try {
+      const r = loaded
+        ? await window.kotrain.loadModel(provider.id, m.id)
+        : await window.kotrain.unloadModel(provider.id, m.id);
+      if (r && !r.ok) pushToast('error', r.message ?? `Couldn't ${loaded ? 'load' : 'unload'} ${m.id}.`);
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const stopServer = async () => {
+    if (!window.confirm(`Stop the ${provider.label} server? This unloads its models and ends the process.`)) return;
+    setStopping(true);
+    const r = await window.kotrain.stopServer(provider.id);
+    pushToast(r.ok ? 'success' : 'error', r.message);
+    setStopping(false);
+    setTimeout(test, 600); // reflect the now-offline state
+    load();
+  };
 
   return (
     <div className="card p-5">
@@ -246,12 +293,12 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold">{provider.label}</h3>
             {conn.state === 'ok' && (
-              <span className="chip text-white!" style={{ background: '#4ec98a' }}>
+              <Badge tone="success" variant="solid" className="px-2 py-0.5">
                 <CheckIcon className="h-3 w-3" /> Connected
-              </span>
+              </Badge>
             )}
             {conn.state === 'fail' && (
-              <span className="chip text-white!" style={{ background: '#e0574a' }} title={conn.message}>Offline</span>
+              <Badge tone="danger" variant="solid" title={conn.message}>Offline</Badge>
             )}
             {conn.state === 'testing' && <span className="chip">checking…</span>}
             {provider.discovered && <span className="chip">discovered</span>}
@@ -260,16 +307,30 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
         </div>
         <button
           className="btn btn-ghost px-2"
-          onClick={async () => { await window.nekko.removeProvider(provider.id); onChanged(); }}
+          onClick={async () => { await window.kotrain.removeProvider(provider.id); onChanged(); }}
           title="Remove"
         >
           <TrashIcon className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button className="btn btn-outline py-1.5 text-[12px]" onClick={test}>Test connection</button>
-        {conn.state === 'fail' && <span className="text-[12px]" style={{ color: '#e0574a' }}>{conn.message}</span>}
+        {/* Stopping a server only makes sense while one is answering: an offline
+            (or not-yet-probed) provider has no process to stop, and a greyed-out
+            button just invites a click that can't work. */}
+        {local && conn.state === 'ok' && (
+          <button
+            className="btn btn-outline py-1.5 text-[12px]"
+            style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
+            onClick={stopServer}
+            disabled={stopping}
+            title="Stop this local model server (kills its process and unloads its models)"
+          >
+            {stopping ? 'Stopping…' : 'Stop server'}
+          </button>
+        )}
+        {conn.state === 'fail' && <span className="text-[12px]" style={{ color: 'var(--danger)' }}>{conn.message}</span>}
       </div>
 
       {isOllama && (
@@ -277,14 +338,21 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
           <input className="input py-1.5 text-[12px]" placeholder="pull a model, e.g. llama3.2" value={pullName} onChange={(e) => setPullName(e.target.value)} />
           <button
             className="btn btn-outline py-1.5 text-[12px]"
-            onClick={async () => { setConn({ state: 'testing', message: 'pulling…' }); const r = await window.nekko.pullModel(provider.id, pullName); setConn({ state: r.ok ? 'ok' : 'fail', message: r.message }); load(); }}
+            onClick={async () => { setConn({ state: 'testing', message: 'pulling…' }); const r = await window.kotrain.pullModel(provider.id, pullName); setConn({ state: r.ok ? 'ok' : 'fail', message: r.message }); load(); }}
           >
             Pull
           </button>
         </div>
       )}
 
-      <div className="mt-3 max-h-44 space-y-1 overflow-y-auto">
+      {local && (
+        <div className="mt-3 flex items-center justify-between text-[11px] text-ink-faint">
+          <span>{models.length} model{models.length === 1 ? '' : 's'}{anyLoaded ? ` · ${models.filter((m) => m.loaded).length} loaded` : ''}</span>
+          <button className="hover:text-ink" onClick={load} title="Refresh loaded state">↻ Refresh</button>
+        </div>
+      )}
+
+      <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">
         {models.length === 0 && <p className="text-[12px] text-ink-faint">No models found.</p>}
         {models.map((m) => (
           <div key={m.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 text-[12.5px]" style={{ background: 'var(--surface-2)' }}>
@@ -298,17 +366,47 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderConfig; onCha
               </button>
               <span className="truncate font-mono">{m.name}</span>
             </div>
-            <div className="flex items-center gap-2">
-              {m.sizeBytes && <span className="text-[10px] text-ink-faint">{(m.sizeBytes / 1e9).toFixed(1)} GB</span>}
-              {isOllama && (
+            <div className="flex shrink-0 items-center gap-2">
+              {m.vramBytes ? (
+                <span className="text-[10px] text-ink-faint" title="VRAM used while loaded">{(m.vramBytes / 1e9).toFixed(1)} GB VRAM</span>
+              ) : m.sizeBytes ? (
+                <span className="text-[10px] text-ink-faint" title="Size on disk">{(m.sizeBytes / 1e9).toFixed(1)} GB</span>
+              ) : null}
+              {canManage ? (
                 m.loaded ? (
-                  <button className="chip text-white!" style={{ background: '#4ec98a' }} onClick={async () => { await window.nekko.unloadModel(provider.id, m.id); load(); }}>
-                    <CheckIcon className="h-3 w-3" /> loaded
+                  <button
+                    className="chip chip-loaded text-white!"
+                    style={{ background: 'var(--success)' }}
+                    disabled={busy === m.id}
+                    onClick={() => setLoaded(m, false)}
+                    title="Loaded in memory, click to unload"
+                  >
+                    <CheckIcon className="h-3 w-3" />
+                    {busy === m.id ? (
+                      'unloading…'
+                    ) : (
+                      <>
+                        {/* Reads as state at rest, as an action under the cursor. */}
+                        <span className="chip-loaded-rest">loaded</span>
+                        <span className="chip-loaded-hover">unload</span>
+                      </>
+                    )}
                   </button>
                 ) : (
-                  <button className="chip" onClick={async () => { await window.nekko.loadModel(provider.id, m.id); load(); }}>load</button>
+                  <button
+                    className="chip chip-action"
+                    disabled={busy === m.id}
+                    onClick={() => setLoaded(m, true)}
+                    title={`Load ${m.name} into memory`}
+                  >
+                    {busy === m.id ? 'loading…' : 'load'}
+                  </button>
                 )
-              )}
+              ) : local && m.loaded ? (
+                <Badge tone="success" variant="solid" title={lms?.reason ?? 'Loaded in memory. Use “Stop server” to unload.'}>
+                  <CheckIcon className="h-3 w-3" /> loaded
+                </Badge>
+              ) : null}
             </div>
           </div>
         ))}

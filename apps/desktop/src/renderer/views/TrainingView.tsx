@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { DatasetRef, BaseModelRef, NewTrainingRun, TrainingConfig, TrainingRun } from '@kotrain/shared';
 import { useStore } from '../store.js';
-import { ChampionCard, HintComposer, IdeaMaze, RunLog, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
+import { ArtifactsCard, ChampionCard, HintComposer, IdeaMaze, RunLog, RunModelPicker, RunNowStrip, RunStatTiles, RunStatusChip } from '../components/RunBoard.js';
 
 /**
  * The Training tab: train a model in a simple UI that abstracts the complexity
@@ -19,8 +19,8 @@ export function TrainingView() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    void window.nekko.listTrainingRuns().then(setRuns);
-    return window.nekko.onTrainingUpdated(setRuns);
+    void window.kotrain.listTrainingRuns().then(setRuns);
+    return window.kotrain.onTrainingUpdated(setRuns);
   }, []);
 
   const mine = runs.filter((r) => r.kind === 'training');
@@ -61,7 +61,13 @@ export function TrainingView() {
         {creating || !selected ? (
           <NewRunForm
             workspaces={settings?.workspaces ?? []}
-            onCreated={(run) => { setSelectedId(run.id); setCreating(false); }}
+            onCreated={(run) => {
+              // Show the run's dashboard right away, even before the live list
+              // refresh lands, so starting a run takes you straight to watching it.
+              setRuns((prev) => (prev.some((r) => r.id === run.id) ? prev : [run, ...prev]));
+              setSelectedId(run.id);
+              setCreating(false);
+            }}
             onCancel={mine.length ? () => setCreating(false) : undefined}
           />
         ) : (
@@ -73,32 +79,47 @@ export function TrainingView() {
 }
 
 function RunDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (sessionId: string) => void }) {
-  const start = () => void window.nekko.startTrainingRun(run.id);
-  const pause = () => void window.nekko.pauseTrainingRun(run.id);
-  const stop = () => void window.nekko.stopTrainingRun(run.id);
+  const start = () => void window.kotrain.startTrainingRun(run.id);
+  const pause = () => void window.kotrain.pauseTrainingRun(run.id);
+  const stop = () => void window.kotrain.stopTrainingRun(run.id);
   const remove = () => {
-    if (confirm(`Delete run "${run.name}"? The experiment history is lost.`)) void window.nekko.deleteTrainingRun(run.id);
+    if (confirm(`Delete run "${run.name}"? The experiment history is lost.`)) void window.kotrain.deleteTrainingRun(run.id);
   };
   const cfg = run.config ?? {};
+  // Run controls live in one cluster (Start · Pause · Stop); Open chat + Delete
+  // sit in a separate, set-apart group so the primary actions stay together and
+  // the destructive one isn't mixed in with them.
+  const showRunControls = run.status !== 'completed';
   return (
     <div className="mx-auto max-w-5xl space-y-3">
       <div className="flex flex-wrap items-center gap-2.5">
         <h1 className="mr-1 text-lg font-bold tracking-tight">{run.name}</h1>
         <RunStatusChip run={run} />
-        <span className="ml-auto flex gap-1.5">
-          {run.status !== 'running' && run.status !== 'completed' && (
-            <button className="btn btn-primary py-1.5!" onClick={start}>{run.turns ? 'Resume' : 'Start training'}</button>
+        <span className="ml-auto flex items-center gap-2">
+          {showRunControls && (
+            <span className="flex items-center gap-1.5">
+              {run.status !== 'running' && (
+                <button className="btn btn-primary py-1.5!" onClick={start}>{run.turns ? 'Resume' : 'Start training'}</button>
+              )}
+              {run.status === 'running' && <button className="btn btn-outline py-1.5!" onClick={pause}>Pause</button>}
+              {(run.status === 'running' || run.status === 'paused') && (
+                <button className="btn btn-outline py-1.5! border-red-400/40! text-red-400!" onClick={stop}>Stop</button>
+              )}
+            </span>
           )}
-          {run.status === 'running' && <button className="btn btn-outline py-1.5!" onClick={pause}>Pause</button>}
-          {(run.status === 'running' || run.status === 'paused') && (
-            <button className="btn btn-ghost py-1.5! text-red-400" onClick={stop}>Stop</button>
-          )}
-          {run.sessionId && (
-            <button className="btn btn-outline py-1.5!" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>
-          )}
-          <button className="btn btn-ghost py-1.5! text-red-400" onClick={remove}>Delete</button>
+          <span className={`flex items-center gap-1.5 ${showRunControls ? 'border-l border-(--line) pl-2' : ''}`}>
+            {run.sessionId && (
+              <button className="btn btn-ghost py-1.5!" onClick={() => onOpenChat(run.sessionId!)}>Open chat →</button>
+            )}
+            <button className="btn btn-ghost py-1.5! text-red-400" onClick={remove}>Delete</button>
+          </span>
         </span>
       </div>
+
+      <p className="text-[12px] leading-snug text-(--ink-faint)">
+        A data-scientist agent trains a model for this purpose: it runs experiments (each dot in the maze), keeps the best one,
+        and saves the trained model plus its harness files as artifacts. Watch it live below, or steer it with a hint.
+      </p>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-(--ink-soft)">
         <span className="max-w-full"><b className="text-(--ink)">Purpose:</b> {run.goal}</span>
@@ -110,11 +131,13 @@ function RunDashboard({ run, onOpenChat }: { run: TrainingRun; onOpenChat: (sess
         )}
       </div>
 
+      <RunNowStrip run={run} />
       <RunStatTiles run={run} />
       <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
         <IdeaMaze run={run} />
         <div className="space-y-3">
           <ChampionCard run={run} />
+          <ArtifactsCard run={run} />
           <HintComposer run={run} placeholder='e.g. "try gradient boosting", "the date column leaks the target", "more augmentation"' />
         </div>
       </div>
@@ -150,6 +173,8 @@ function NewRunForm({
   const [maxExp, setMaxExp] = useState('');
   const [budget, setBudget] = useState('');
   const [extra, setExtra] = useState('');
+  const [providerId, setProviderId] = useState('');
+  const [modelId, setModelId] = useState('');
   const [busy, setBusy] = useState(false);
 
   const create = async (startNow: boolean) => {
@@ -174,10 +199,11 @@ function NewRunForm({
       goal: goal.trim(),
       config,
       workspaceId: workspaceId || undefined,
+      ...(providerId && modelId.trim() ? { providerId, modelId: modelId.trim() } : {}),
     };
     try {
-      const run = await window.nekko.createTrainingRun(input);
-      if (startNow) await window.nekko.startTrainingRun(run.id);
+      const run = await window.kotrain.createTrainingRun(input);
+      if (startNow) await window.kotrain.startTrainingRun(run.id);
       onCreated(run);
     } finally {
       setBusy(false);
@@ -199,7 +225,7 @@ function NewRunForm({
 
       <div className="card space-y-3.5 p-4">
         <div>
-          <L>Purpose — what should this model do?</L>
+          <L>Purpose: what should this model do?</L>
           <textarea
             className="input min-h-[64px] w-full resize-y text-[13px]"
             placeholder='e.g. "Classify customer support tickets by urgency" or "Predict house prices from the tabular features"'
@@ -221,6 +247,11 @@ function NewRunForm({
               {workspaces.length === 0 && <option value="">(add a folder in Projects first)</option>}
             </select>
           </div>
+        </div>
+        <div>
+          <L>Data-scientist model (optional)</L>
+          <RunModelPicker providerId={providerId} modelId={modelId} onChange={(n) => { setProviderId(n.providerId); setModelId(n.modelId); }} />
+          <p className="mt-1 text-[10.5px] text-(--ink-faint)">The model that runs the experiments (not the model being trained). Leave on App default to use your default model.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -317,7 +348,7 @@ function NewRunForm({
           {onCancel && <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>}
         </div>
         <p className="text-[11px] text-(--ink-faint)">
-          Uses your default provider/model (change it later from the run's chat). Hugging Face datasets load via the datasets library; Kaggle needs your KAGGLE credentials configured on this machine.
+          Hugging Face datasets load via the datasets library; Kaggle needs your KAGGLE credentials configured on this machine. You can also switch the agent's model later from the run's chat.
         </p>
       </div>
     </div>

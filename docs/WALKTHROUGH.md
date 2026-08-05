@@ -22,8 +22,8 @@ are from the running app.
 
 | Platform | Artifact |
 | --- | --- |
-| Windows | `Nekko-Paw-<version>-x64.msi` (or the `.exe`) |
-| macOS | `Nekko-Paw-<version>-arm64.dmg` (Apple Silicon) |
+| Windows | `Kotrain-Paw-<version>-x64.msi` (or the `.exe`) |
+| macOS | `Kotrain-Paw-<version>-arm64.dmg` (Apple Silicon) |
 | Linux | `.AppImage` or `.deb` |
 
 **Or run from source:**
@@ -63,7 +63,7 @@ model servers are first-class, not an afterthought.
 
 1. In LM Studio, load a model and start its server (Developer → Start Server).
 2. In Kotrain: **Add provider → LM Studio**, set the **Base URL** to your server,
-   e.g. `http://10.5.0.2:1338` (you can paste just `host:port`, Nekko appends
+   e.g. `http://10.5.0.2:1338` (you can paste just `host:port`, Kotrain appends
    `/v1` automatically). No API key needed.
 3. **Test connection** → the model dropdown fills with whatever LM Studio is serving.
 4. Pick the model in the chat header and go.
@@ -78,7 +78,7 @@ answer, so you see progress during long reasoning and the answer stays clean.
 
 The **Chat** tab is the heart of the app. There are no separate "chat", "cowork",
 and "code" modes, it's one thread. Ask a question, or hand off a task and let
-Nekko act on your machine through tools (read / write / edit files, glob, grep,
+Kotrain act on your machine through tools (read / write / edit files, glob, grep,
 list dirs, run shell commands).
 
 ![Unified chat](screenshots/chat.png)
@@ -121,7 +121,7 @@ and shape it.
 
 ## 5. Guardrails & sandbox
 
-Open **Settings**. Two layers keep Nekko from doing something you didn't intend.
+Open **Settings**. Two layers keep Kotrain from doing something you didn't intend.
 
 ![Guardrails & sandbox](screenshots/guardrails.png)
 
@@ -163,7 +163,7 @@ classes, interfaces, types) so the agent and search have a fast map of your code
 The **Memory** tab is a simple, durable knowledge base stored as plain markdown.
 Keep **global** memories (preferences, conventions) and **per-project** memories.
 Relevant entries are surfaced in the Context Inspector and injected automatically,
-so Nekko remembers how you like to work across sessions.
+so Kotrain remembers how you like to work across sessions.
 
 ---
 
@@ -178,7 +178,7 @@ to confirm it works, and the results become available to the assistant.
 
 ## 9. The mascot
 
-**Nekko** is the 8-bit cat that lives at the edge of the window. It waves to say
+**Kotrain** is the 8-bit cat that lives at the edge of the window. It waves to say
 hello, peeks in from the side, and **"makes cat biscuits"** (kneads its paws) while
 the model is thinking. Don't want it? Toggle it off in Settings → Appearance.
 

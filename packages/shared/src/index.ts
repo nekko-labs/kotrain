@@ -5,6 +5,7 @@
 
 export * from './models.js';
 export * from './chat.js';
+export * from './pr.js';
 export * from './terminal.js';
 export * from './guardrails.js';
 export * from './context.js';
@@ -16,7 +17,7 @@ export * from './tasks.js';
 export * from './training.js';
 export * from './skills.js';
 export * from './skills-market.js';
-export * from './dojo.js';
+export * from './vaizer.js';
 export * from './agent-types.js';
 export * from './connectors.js';
 export * from './ipc.js';
@@ -29,3 +30,4 @@ export * from './spec.js';
 export * from './orchestration.js';
 export * from './insights.js';
 export * from './model-select.js';
+export * from './monitor.js';

@@ -16,9 +16,14 @@ import type {
   DirEntry,
   FileContent,
   FileChange,
+  PrInfo,
+  PrDiff,
+  PrAction,
+  PrActionResult,
   LineComment,
   DesignBoard,
   DesignPage,
+  GenerateDesignInput,
   AutomationTask,
   NewTask,
   TrainingRun,
@@ -38,7 +43,11 @@ import type {
   TerminalInfo,
   TerminalSnapshot,
   ShellOption,
+  GpuStats,
+  SystemStats,
+  LmsProbe,
 } from '@kotrain/shared';
+import { isLocalProvider } from '@kotrain/shared';
 import {
   createProvider,
   discoverLocalProviders,
@@ -55,6 +64,7 @@ import { usageSummary, clearUsage } from './usage.js';
 import { indexWorkspace, getIndexStatus, searchWorkspace, listIndexedFiles } from './workspace.js';
 import { readFile, writeFile, listDir } from './files.js';
 import { listChanges, acceptChange, acceptAllChanges, setChangeNotifier } from './changes.js';
+import { listSessionPrs, getPrDiff, prAction } from './pr.js';
 import { listComments, addComment, resolveComment } from './comments.js';
 import {
   getDesignBoard,
@@ -63,9 +73,10 @@ import {
   removeDesignPage,
   addDesignNote,
   resolveDesignNote,
+  generateDesign,
 } from './design.js';
 import { listInstalledSkills, skillTargets, installSkill, uninstallSkill } from './skills.js';
-import { getDojoCatalog, getDojoSkillMd } from './dojo.js';
+import { getVaizerCatalog, getVaizerSkillMd } from './vaizer.js';
 import {
   listTasks,
   createTask,
@@ -91,8 +102,12 @@ import {
 } from './training.js';
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
-import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
-import { syncMcp, mcpStatus, mcpToolList, detectNekkoMcp } from './mcp.js';
+import { createRemoteService } from './remote.js';
+import { getGpuStats } from './gpu.js';
+import { getSystemStats } from './system.js';
+import { stopLocalServer } from './servers.js';
+import { lmsProbe, lmsLoad, lmsUnload } from './lms.js';
+import { syncMcp, mcpStatus, mcpToolList, detectKotrainMcp } from './mcp.js';
 import {
   setTerminalSender,
   listTerminals,
@@ -110,12 +125,12 @@ import { randomUUID } from 'crypto';
 
 /**
  * The transport-agnostic host. `createHost()` returns an object implementing the
- * full NekkoApi surface (sans the renderer-side `on*` subscriptions, which are
+ * full KotrainApi surface (sans the renderer-side `on*` subscriptions, which are
  * served by `events`) plus a couple of methods the UI layer drives differently
  * per runtime (e.g. `addWorkspaceByPath`, since Electron uses a native dialog
  * while the web server takes a path string).
  *
- * Every edition, Electron, the web server, Nekko Cloud, wraps the same Host.
+ * Every edition, Electron, the web server, Kotrain Cloud, wraps the same Host.
  */
 export interface Host {
   /** Emits 'agentEvent' (AgentEvent) and 'indexProgress' (IndexStatus). */
@@ -134,8 +149,16 @@ export interface Host {
 
   listModels(providerId: string): Promise<ModelInfo[]>;
   pullModel(providerId: string, model: string): Promise<{ ok: boolean; message: string }>;
-  loadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
-  unloadModel(providerId: string, model: string): Promise<{ ok: boolean }>;
+  loadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  unloadModel(providerId: string, model: string): Promise<{ ok: boolean; message?: string }>;
+  /** Whether per-model load/unload is available for an LM Studio provider (via `lms`). */
+  lmsAvailable(providerId: string): Promise<LmsProbe>;
+  /** Stop the local model server backing a provider (kills its listening process). */
+  stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
+  /** GPU/VRAM stats (null when no NVIDIA GPU / nvidia-smi is available). */
+  getGpuStats(): Promise<GpuStats | null>;
+  /** CPU load + RAM use for the resource monitors. */
+  getSystemStats(): Promise<SystemStats | null>;
 
   listSessions(): Session[];
   createSession(workspaceId?: string): Session;
@@ -173,7 +196,7 @@ export interface Host {
   specPath(sessionId: string): string | null;
   setSessionOptions(
     id: string,
-    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel'>>,
+    patch: Partial<Pick<Session, 'title' | 'pinned' | 'tags' | 'mode' | 'disabledTools' | 'offline' | 'incognito' | 'autoModel' | 'autoQuality' | 'thinking' | 'providerId' | 'modelId'>>,
   ): Session | null;
   truncateSession(id: string, messageId: string): Session | null;
   clearSessions(scope: 'today' | 'month' | 'all'): number;
@@ -204,6 +227,13 @@ export interface Host {
   /** Keep all of a session's changes. */
   acceptAllChanges(sessionId: string): void;
 
+  /** Live PR state for every PR URL referenced in a chat's transcript. */
+  listSessionPrs(sessionId: string): Promise<PrInfo[]>;
+  /** A PR's changed files + patches (diff pane). */
+  getPrDiff(url: string): Promise<PrDiff>;
+  /** Approve / decline / merge / reopen a PR (user-initiated). */
+  prAction(url: string, action: PrAction): Promise<PrActionResult>;
+
   /** Inline editor comments on a file. */
   listComments(path: string): LineComment[];
   addComment(path: string, line: number, lineText: string, comment: string): LineComment[];
@@ -216,6 +246,7 @@ export interface Host {
   removeDesignPage(workspaceId: string, pageId: string): DesignBoard;
   addDesignNote(workspaceId: string, pageId: string, text: string): DesignBoard;
   resolveDesignNote(workspaceId: string, pageId: string, noteId: string): DesignBoard;
+  generateDesign(workspaceId: string, input: GenerateDesignInput): Promise<DesignBoard>;
 
   /** Skills marketplace installs. */
   listInstalledSkills(): InstalledSkillRecord[];
@@ -226,9 +257,9 @@ export interface Host {
     payload?: import('@kotrain/shared').MarketplaceSkill,
   ): { ok: boolean; message?: string; installed: InstalledSkillRecord[] };
   uninstallSkill(skillId: string, target: InstallTarget): InstalledSkillRecord[];
-  /** Nekko Dojo skills hub (optional): catalog + a skill's SKILL.md. */
-  dojoCatalog(refresh?: boolean): Promise<import('@kotrain/shared').DojoCatalog>;
-  dojoSkillMd(slug: string): Promise<string | null>;
+  /** Vaizer skills hub (optional): catalog + a skill's SKILL.md. */
+  vaizerCatalog(refresh?: boolean): Promise<import('@kotrain/shared').VaizerCatalog>;
+  vaizerSkillMd(slug: string): Promise<string | null>;
 
   /** Automation tasks: scheduled, recurring, and long-running background agents. */
   listTasks(): AutomationTask[];
@@ -255,15 +286,22 @@ export interface Host {
   classifyCommand(command: string): GuardrailDecision;
   usageSummary(): UsageSummary;
 
-  /** Expose this machine over a relay so a remote client can reach it. */
+  /** Expose this machine over a relay so paired devices can reach it. */
   enableRemote(relayUrl: string): RemoteStatus;
   disableRemote(): RemoteStatus;
   remoteStatus(): RemoteStatus;
+  startRemotePairing(): import('@kotrain/shared').PairingGrant;
+  listRemoteDevices(): import('@kotrain/shared').RemoteDevice[];
+  revokeRemoteDevice(deviceId: string): import('@kotrain/shared').RemoteDevice[];
+  renameRemoteDevice(deviceId: string, name: string): import('@kotrain/shared').RemoteDevice[];
+  rotateRemoteSecret(): RemoteStatus;
+  /** The remote-access service itself (headless relay-agent mode attaches here). */
+  remote: import('./remote.js').RemoteService;
   appInfo(): AppInfo;
   /** Connect (or reconnect) configured MCP servers and return their status. */
   mcpStatus(): Promise<McpServerStatus[]>;
-  /** Probe for a local NekkoMCP daemon and return its gateway info. */
-  detectNekkoMcp(): Promise<import('@kotrain/shared').NekkoMcpInfo | null>;
+  /** Probe for a local KotrainMCP daemon and return its gateway info. */
+  detectKotrainMcp(): Promise<import('@kotrain/shared').KotrainMcpInfo | null>;
 }
 
 export function createHost(opts: { dataDir: string }): Host {
@@ -287,11 +325,10 @@ export function createHost(opts: { dataDir: string }): Host {
 
   const findProvider = (id: string) => getSettings().providers.find((p) => p.id === id);
 
-  let remote: { handle: RelayAgentHandle; status: RemoteStatus } | null = null;
-
   const host: Host = {
     events,
     dataDir,
+    remote: null as unknown as import('./remote.js').RemoteService, // set right after construction (needs `host`)
 
     getSettings,
     updateSettings: (patch) => saveSettings(patch),
@@ -345,14 +382,31 @@ export function createHost(opts: { dataDir: string }): Host {
     },
     loadModel: async (providerId, model) => {
       const p = findProvider(providerId);
-      if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, true);
+      if (p?.kind === 'ollama') { await new OllamaProvider(p).setLoaded(model, true); return { ok: true }; }
+      // LM Studio has no HTTP load; drive its `lms` CLI for a local instance.
+      if (p?.kind === 'lmstudio') return lmsLoad(p.baseUrl, model);
       return { ok: true };
     },
     unloadModel: async (providerId, model) => {
       const p = findProvider(providerId);
-      if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, false);
+      if (p?.kind === 'ollama') { await new OllamaProvider(p).setLoaded(model, false); return { ok: true }; }
+      // LM Studio has no HTTP per-model unload; drive its `lms` CLI instead.
+      if (p?.kind === 'lmstudio') return lmsUnload(p.baseUrl, model);
       return { ok: true };
     },
+    lmsAvailable: async (providerId) => {
+      const p = findProvider(providerId);
+      if (p?.kind !== 'lmstudio') return { available: false };
+      return lmsProbe(p.baseUrl);
+    },
+    stopServer: async (providerId) => {
+      const p = findProvider(providerId);
+      if (!p) return { ok: false, message: 'Provider not found.' };
+      if (!isLocalProvider(p.kind)) return { ok: false, message: 'Only local model servers can be stopped from here.' };
+      return stopLocalServer(p.baseUrl);
+    },
+    getGpuStats: () => getGpuStats(),
+    getSystemStats: () => getSystemStats(),
 
     listSessions: sessions.listSessions,
     createSession: sessions.createSession,
@@ -440,6 +494,9 @@ export function createHost(opts: { dataDir: string }): Host {
     listChanges,
     acceptChange,
     acceptAllChanges,
+    listSessionPrs,
+    getPrDiff,
+    prAction,
     listComments,
     addComment,
     resolveComment,
@@ -449,12 +506,13 @@ export function createHost(opts: { dataDir: string }): Host {
     removeDesignPage,
     addDesignNote,
     resolveDesignNote,
+    generateDesign,
     listInstalledSkills,
     skillTargets,
     installSkill,
     uninstallSkill,
-    dojoCatalog: (refresh?: boolean) => getDojoCatalog(refresh),
-    dojoSkillMd: (slug: string) => getDojoSkillMd(slug),
+    vaizerCatalog: (refresh?: boolean) => getVaizerCatalog(refresh),
+    vaizerSkillMd: (slug: string) => getVaizerSkillMd(slug),
 
     listTasks,
     createTask,
@@ -490,29 +548,25 @@ export function createHost(opts: { dataDir: string }): Host {
     classifyCommand: (command) => classifyCommand(command, getSettings().guardrails),
     usageSummary,
 
-    enableRemote: (relayUrl) => {
-      if (remote) remote.handle.stop();
-      const room = randomUUID().slice(0, 6);
-      const key = randomUUID().replace(/-/g, '').slice(0, 16);
-      const handle = connectRelayAgent(host, { relayUrl, room, key });
-      remote = { handle, status: { enabled: true, relayUrl, room, key } };
-      return remote.status;
-    },
-    disableRemote: () => {
-      if (remote) {
-        remote.handle.stop();
-        remote = null;
-      }
-      return { enabled: false };
-    },
-    remoteStatus: () => (remote ? remote.status : { enabled: false }),
+    enableRemote: (relayUrl) => host.remote.enable(relayUrl),
+    disableRemote: () => host.remote.disable(),
+    remoteStatus: () => host.remote.status(),
+    startRemotePairing: () => host.remote.pair(),
+    listRemoteDevices: () => host.remote.devices(),
+    revokeRemoteDevice: (deviceId) => host.remote.revoke(deviceId),
+    renameRemoteDevice: (deviceId, name) => host.remote.rename(deviceId, name),
+    rotateRemoteSecret: () => host.remote.rotate(),
     appInfo: () => ({ version: process.env.KOTRAIN_VERSION ?? '0.0.0', platform: process.platform, edition: 'web' }),
     mcpStatus: async () => {
       const configs = getSettings().mcpServers ?? [];
       await syncMcp(configs);
       return mcpStatus(configs);
     },
-    detectNekkoMcp: () => detectNekkoMcp(),
+    detectKotrainMcp: () => detectKotrainMcp(),
   };
+  // Remote access needs the finished host (it dispatches into it); reconnect if
+  // remote access was left enabled when the host last shut down.
+  host.remote = createRemoteService(host);
+  host.remote.startIfEnabled();
   return host;
 }

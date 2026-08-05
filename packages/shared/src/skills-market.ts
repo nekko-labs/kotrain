@@ -16,7 +16,7 @@
 
 import type { SkillCategory, SkillDef, SkillWorkflow } from './skills.js';
 
-export type SkillSource = 'nekkolabs' | 'community' | 'dojo';
+export type SkillSource = 'nekkolabs' | 'community' | 'vaizer';
 
 /** Where a skill can be installed. */
 export type InstallTarget = 'kotrain' | 'claude' | 'codex';
@@ -52,11 +52,11 @@ export interface MarketplaceSkill {
   instructions: string;
   /** Optional bespoke workflow graph; `marketWorkflow` derives one otherwise. */
   workflow?: SkillWorkflow;
-  /** Trust tier for skills from the Nekko Dojo hub. */
-  tier?: 'nekko-official' | 'community';
+  /** Trust tier for skills from the Vaizer hub. */
+  tier?: 'kotrain-official' | 'community';
   /**
-   * Verbatim SKILL.md for skills sourced outside the built-in catalog (the
-   * Dojo). File-based installs write this instead of a generated summary.
+   * Verbatim SKILL.md for skills sourced outside the built-in catalog
+   * (Vaizer). File-based installs write this instead of a generated summary.
    */
   markdown?: string;
 }
@@ -70,15 +70,15 @@ export interface InstalledSkillRecord {
   installedAt: number;
   /**
    * Snapshot of the skill for installs that aren't in the built-in catalog
-   * (e.g. Nekko Dojo skills), so they stay runnable after install.
+   * (e.g. Vaizer skills), so they stay runnable after install.
    */
   skill?: MarketplaceSkill;
 }
 
 /** First-party skills by Nekko Labs. */
-export const NEKKO_SKILLS: MarketplaceSkill[] = [
+export const KOTRAIN_SKILLS: MarketplaceSkill[] = [
   {
-    id: 'nekko-review-council',
+    id: 'kotrain-review-council',
     name: 'review-council',
     description: 'Summon a council of specialised reviewers over your diff: correctness, security, and simplicity, each reporting separately',
     author: 'Nekko Labs',
@@ -113,7 +113,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
     },
   },
   {
-    id: 'nekko-spec-sync',
+    id: 'kotrain-spec-sync',
     name: 'spec-sync',
     description: 'Reconcile SPEC.md with the code: find shipped features the spec missed and spec promises the code broke',
     author: 'Nekko Labs',
@@ -127,7 +127,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
       'Read the workspace SPEC.md, then survey the codebase (entry points, routes, views, commands). Produce two lists: features that exist in code but are missing from the spec, and spec statements the code contradicts. Update SPEC.md so it describes the system as it actually is, keeping its existing voice and structure.',
   },
   {
-    id: 'nekko-changelog',
+    id: 'kotrain-changelog',
     name: 'changelog',
     description: 'Write a user-facing changelog entry from the commits since the last release tag',
     author: 'Nekko Labs',
@@ -141,7 +141,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
       'Run git log from the last release tag to HEAD. Group the changes into Added / Changed / Fixed sections written for end users (plain language, no commit hashes, no internal refactors unless user-visible). Prepend the entry to CHANGELOG.md with the version and date.',
   },
   {
-    id: 'nekko-standup',
+    id: 'kotrain-standup',
     name: 'standup',
     description: 'Summarize what changed in this workspace since yesterday, written as a standup update',
     author: 'Nekko Labs',
@@ -155,7 +155,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
       'Inspect git log and the working tree for the last 24 hours. Write a standup update with three short sections: Done (merged/committed), In progress (uncommitted or branch work), Blockers (failing tests, TODOs, unresolved conflicts). Keep each section to three bullets.',
   },
   {
-    id: 'nekko-dep-audit',
+    id: 'kotrain-dep-audit',
     name: 'dep-audit',
     description: 'Audit dependencies for known vulnerabilities, unused packages, and majors you are behind on',
     author: 'Nekko Labs',
@@ -169,7 +169,7 @@ export const NEKKO_SKILLS: MarketplaceSkill[] = [
       'Run the package manager audit (npm audit / cargo audit / pip-audit as appropriate), cross-check package manifests against actual imports to find unused dependencies, and list major versions the project is behind on. Produce a prioritized plan: security fixes first, then easy majors, then risky ones with their breaking changes.',
   },
   {
-    id: 'nekko-a11y-audit',
+    id: 'kotrain-a11y-audit',
     name: 'a11y-audit',
     description: 'Audit UI code for accessibility: contrast, keyboard navigation, labels, and focus handling',
     author: 'Nekko Labs',
@@ -309,7 +309,7 @@ export const POPULAR_SKILLS: MarketplaceSkill[] = [
   },
 ];
 
-export const MARKET_SKILLS: MarketplaceSkill[] = [...NEKKO_SKILLS, ...POPULAR_SKILLS];
+export const MARKET_SKILLS: MarketplaceSkill[] = [...KOTRAIN_SKILLS, ...POPULAR_SKILLS];
 
 export function getMarketSkill(id: string): MarketplaceSkill | undefined {
   return MARKET_SKILLS.find((s) => s.id === id);
@@ -351,7 +351,7 @@ export function marketToSkillDef(m: MarketplaceSkill): SkillDef {
 
 /** SKILL.md content for file-based installs (Claude Code / Codex convention). */
 export function skillToMarkdown(m: MarketplaceSkill): string {
-  // Skills that came with a verbatim SKILL.md (the Dojo) install it as-is.
+  // Skills that came with a verbatim SKILL.md (Vaizer) install it as-is.
   if (m.markdown) return m.markdown.endsWith('\n') ? m.markdown : `${m.markdown}\n`;
   return [
     '---',

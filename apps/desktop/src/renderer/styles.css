@@ -12,6 +12,18 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-neutral: var(--neutral);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-running: var(--running);
+  --color-highlight: var(--highlight);
 
   --radius-xl: 12px;
   --radius-2xl: 16px;
@@ -115,13 +127,168 @@
   color: var(--ink-soft);
 }
 
+@utility chip-action {
+  /* A chip that acts (load a model, toggle a view) rather than just reporting. */
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  &:disabled {
+    opacity: 0.55;
+  }
+}
+
+@utility chip-loaded {
+  /* A loaded model reports its state at rest and offers the unload under the
+     cursor, so one chip covers both without a second control. */
+  transition:
+    background 0.12s ease,
+    filter 0.12s ease;
+  &:hover:not(:disabled) {
+    background: var(--danger) !important;
+  }
+  &:hover:not(:disabled) .chip-loaded-rest {
+    display: none;
+  }
+  &:hover:not(:disabled) .chip-loaded-hover {
+    display: inline;
+  }
+}
+
+@utility chip-loaded-hover {
+  display: none;
+  .chip-loaded:hover:not(:disabled) & {
+    display: inline;
+  }
+}
+
+@utility chip-loaded-rest {
+  .chip-loaded:hover:not(:disabled) & {
+    display: none;
+  }
+}
+
+@utility md-doc {
+  /* Rendered markdown documents (the file viewer). The chat renderer keeps its
+     own tight rhythm; this only relaxes the first/last block so a document
+     doesn't open with a gap above its title. */
+  & > :first-child {
+    margin-top: 0;
+  }
+  & > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+@utility ctl-menu {
+  /* The composer's instrument strip uses three deliberately different shapes so
+     a row of settings never reads as one undifferentiated run of pills:
+     `.ctl-menu` for value pickers (a bordered field with a caret), `.ctl-toggle`
+     for on/off switches (quiet until hovered; state carried by color + a lit
+     dot, never a filled background), and plain icon buttons for actions. */
+  @apply inline-flex items-center gap-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-medium;
+  background: transparent;
+  color: var(--ink-soft);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+
+@utility ctl-menu-label {
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+@utility ctl-caret {
+  color: var(--ink-faint);
+  font-size: 9px;
+  line-height: 1;
+}
+
+@utility ctl-toggle {
+  @apply inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium;
+  background: transparent;
+  color: var(--ink-faint);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  &:disabled {
+    opacity: 0.45;
+  }
+  /* `.ctl-toggle-on` is the same lit state for a read-only indicator (a span
+     that reports state rather than a button that changes it). */
+  &[aria-pressed='true'] {
+    color: var(--accent);
+  }
+  &[aria-pressed='true'] .ctl-dot {
+    background: currentColor;
+    opacity: 1;
+  }
+}
+
+@utility ctl-toggle-on {
+  color: var(--accent);
+  & .ctl-dot {
+    background: currentColor;
+    opacity: 1;
+  }
+}
+
+@utility ctl-toggle-neutral {
+  /* Incognito is a privacy switch, not an accent-worthy one: it reads in plain
+     ink when on so Offline stays the only accent-colored state in the strip. */
+  &[aria-pressed='true'] {
+    color: var(--ink);
+  }
+}
+
+@utility ctl-dot {
+  @apply h-1.5 w-1.5 shrink-0 rounded-full;
+  background: var(--ink-faint);
+  opacity: 0.5;
+  .ctl-toggle[aria-pressed='true'] & {
+    background: currentColor;
+    opacity: 1;
+  }
+
+  .ctl-toggle-on & {
+    background: currentColor;
+    opacity: 1;
+  }
+}
+
+@utility kbd {
+  /* Keyboard-shortcut hint, sat at the end of a menu row or a button. */
+  @apply inline-flex shrink-0 items-center rounded-md border border-line px-1.5 py-px font-sans text-[10px] font-medium;
+  background: var(--surface-2);
+  color: var(--ink-faint);
+}
+
 @utility rail {
   /* The collapsible left rail: 64px of icons at rest; hovering (or keyboard
      focus inside) expands it over the content to reveal the labels. */
   width: 64px;
   transition:
-    width 0.26s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.26s ease;
+    width var(--dur-slow) var(--ease-out),
+    box-shadow var(--dur-slow) ease;
   will-change: width;
   &:hover {
     width: 200px;
@@ -150,7 +317,7 @@
   pointer-events: none;
   transition:
     opacity 0.16s ease,
-    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    transform var(--dur-slow) var(--ease-out);
   .rail:hover & {
     opacity: 1;
     transform: none;
@@ -194,7 +361,7 @@
   & svg {
     opacity: 0.82;
     transition:
-      transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+      transform var(--dur-med) var(--ease-spring),
       opacity 0.15s ease;
     will-change: transform;
   }
@@ -207,7 +374,7 @@
   }
   &.active svg {
     opacity: 1;
-    animation: nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: nav-pop 0.45s var(--ease-spring);
   }
 }
 
@@ -230,7 +397,7 @@
   }
   &.nav-item svg {
     opacity: 1;
-    animation: nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: nav-pop 0.45s var(--ease-spring);
   }
 }
 
@@ -255,6 +422,39 @@
     --shadow-md:
       0 4px 16px rgba(20, 20, 30, 0.08), 0 1px 3px rgba(20, 20, 30, 0.06);
     --ring: color-mix(in srgb, var(--accent) 35%, transparent);
+    /* Motion vocabulary: one deceleration curve for arrivals and layout change,
+     one spring reserved for the playful nav icons. Durations by consequence:
+     fast feedback, standard state change, slow layout/overlay. */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --dur-fast: 0.12s;
+    --dur-med: 0.2s;
+    --dur-slow: 0.26s;
+    /* Semantic status colors. Every screen reads state through these (never a
+     raw hex), so a theme change moves every badge, dot and chip at once. */
+    --success: #3aa870;
+    --danger: #d24738;
+    --warning: #c9871f;
+    --info: #3f7fb8;
+    --neutral: #8a8f98;
+    --running: #3b82f6;
+    --highlight: #d99b12;
+    --success-soft: color-mix(in srgb, var(--success) 14%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 14%, transparent);
+    --warning-soft: color-mix(in srgb, var(--warning) 14%, transparent);
+    --info-soft: color-mix(in srgb, var(--info) 14%, transparent);
+    --neutral-soft: color-mix(in srgb, var(--neutral) 14%, transparent);
+    /* Context/provenance categories, shared by the metrics bar, the context
+     inspector and the prompt analyzer so one source is one color app-wide. */
+    --cat-system: var(--neutral);
+    --cat-conversation: var(--accent);
+    --cat-guideline: #a06fbf;
+    --cat-memory: var(--warning);
+    --cat-file: var(--info);
+    --cat-connector: var(--success);
+    --cat-index: #3f9e97;
+    --cat-skill: var(--danger);
+    --cat-spec: #3f9e97;
     /* Make native controls (select popups, scrollbars) match the theme so we
      never get light text on a light system-rendered dropdown. */
     color-scheme: light;
@@ -275,6 +475,22 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
     --ring: color-mix(in srgb, var(--accent) 45%, transparent);
+    /* Brighter status hues so state stays legible on the dark surfaces. */
+    --success: #4ec98a;
+    --danger: #e0574a;
+    --warning: #e0a44a;
+    --info: #5b9dd9;
+    --neutral: #8a8f98;
+    --running: #60a5fa;
+    --highlight: #fbbf24;
+    --success-soft: color-mix(in srgb, var(--success) 18%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 18%, transparent);
+    --warning-soft: color-mix(in srgb, var(--warning) 18%, transparent);
+    --info-soft: color-mix(in srgb, var(--info) 18%, transparent);
+    --neutral-soft: color-mix(in srgb, var(--neutral) 18%, transparent);
+    --cat-guideline: #c08adb;
+    --cat-index: #5bc8c0;
+    --cat-spec: #5bc8c0;
     color-scheme: dark;
   }
 
@@ -368,73 +584,82 @@
   }
 }
 
-/* Mascot animations */
-@keyframes nekko-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+/* Mascot animations: Kotrain works in zero-g, so everything is slow and floaty */
+@keyframes aphelion-float {
+  0%, 100% { transform: translateY(0) rotate(-1.4deg); }
+  50% { transform: translateY(-4px) rotate(1.8deg); }
 }
-@keyframes nekko-wave {
+@keyframes aphelion-wave {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(18deg); }
-  75% { transform: rotate(-8deg); }
+  25% { transform: rotate(20deg); }
+  75% { transform: rotate(-9deg); }
 }
-@keyframes nekko-knead {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(4px); }
-}
-@keyframes nekko-peek {
+@keyframes aphelion-peek {
   0% { transform: translateY(20px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
-/* kendo training: alternating jabs (mini + full sprite) */
-@keyframes nekko-punch {
-  0%, 100% { transform: translate(0, 0); }
-  30% { transform: translate(0, 0); }
-  50% { transform: translate(-4px, -3px); }
-  70% { transform: translate(0, 0); }
+/* zero-g drift: a lazier, wider float with a little roll */
+@keyframes aphelion-drift {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-6px) rotate(7deg); }
 }
-@keyframes nekko-punch-r {
-  0%, 100% { transform: translate(0, 0); }
-  30% { transform: translate(0, 0); }
-  50% { transform: translate(4px, -3px); }
-  70% { transform: translate(0, 0); }
+/* The mini status spinner keeps its working spark; the full mascot has no orbit. */
+@keyframes aphelion-spin {
+  to { transform: rotate(360deg); }
 }
-@keyframes nekko-jab {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(3px); }
+.aphelion-orbit { animation: aphelion-spin 2.6s linear infinite; }
+/* comet fly-by, timed so the bat swipe below connects mid-pass */
+@keyframes aphelion-comet-pass {
+  0% { transform: translate(18px, -5px); opacity: 0; }
+  10% { opacity: 1; }
+  40% { transform: translate(8px, 1px); opacity: 1; }
+  65% { transform: translate(0, 3px); opacity: 1; }
+  85% { transform: translate(-12px, 16px); opacity: 0.55; }
+  100% { transform: translate(-22px, 26px); opacity: 0; }
 }
-/* side-kick snap: leg fires out from the hip, holds, returns */
-@keyframes nekko-kick {
-  0%, 15% { transform: rotate(38deg); }
-  35% { transform: rotate(-12deg); }
-  55% { transform: rotate(-8deg); }
-  75%, 100% { transform: rotate(38deg); }
+.aphelion-comet { animation: aphelion-comet-pass 2.4s ease-in-out infinite; }
+@keyframes aphelion-bat-swipe {
+  0%, 38% { transform: rotate(0deg); }
+  50% { transform: rotate(-58deg); }
+  60% { transform: rotate(-46deg); }
+  80%, 100% { transform: rotate(0deg); }
 }
-/* bokken suburi: slow lift overhead, fast strike down, brief hold */
-@keyframes nekko-swing {
-  0% { transform: rotate(-78deg); }
-  38% { transform: rotate(-78deg); }
-  50% { transform: rotate(24deg); }
-  66% { transform: rotate(20deg); }
-  100% { transform: rotate(-78deg); }
+.aphelion-bat { animation: aphelion-bat-swipe 2.4s ease-in-out infinite; }
+/* twinkling backdrop stars */
+@keyframes aphelion-twinkle-k {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50% { opacity: 0.9; transform: scale(1.1); }
 }
-/* arms held up in guard while gripping */
-@keyframes nekko-guard {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+.aphelion-twinkle { animation: aphelion-twinkle-k 1.6s ease-in-out infinite; }
+.aphelion-twinkle-slow { animation: aphelion-twinkle-k 3.4s ease-in-out infinite 0.9s; }
+/* boost puff on click: falls away and fades */
+@keyframes aphelion-puff-k {
+  0% { opacity: 0.9; transform: translateY(0) scale(0.7); }
+  100% { opacity: 0; transform: translateY(7px) scale(1.25); }
 }
-.nekko-bob { animation: nekko-bob 0.7s ease-in-out infinite; }
-.nekko-wave { animation: nekko-wave 0.9s ease-in-out infinite; transform-origin: bottom center; }
-.nekko-knead-l { animation: nekko-knead 0.45s ease-in-out infinite; }
-.nekko-knead-r { animation: nekko-knead 0.45s ease-in-out infinite 0.22s; }
-.nekko-punch-l { animation: nekko-punch 0.8s ease-in-out infinite; }
-.nekko-punch-r { animation: nekko-punch-r 0.8s ease-in-out infinite 0.4s; }
-.nekko-jab-l { animation: nekko-jab 0.5s ease-in-out infinite; }
-.nekko-jab-r { animation: nekko-jab 0.5s ease-in-out infinite 0.25s; }
-.nekko-kick { animation: nekko-kick 1.3s ease-in-out infinite; }
-.nekko-swing { animation: nekko-swing 1.7s cubic-bezier(0.5, 0, 0.3, 1) infinite; }
-.nekko-arms-up { animation: nekko-guard 0.8s ease-in-out infinite; }
-.nekko-peek { animation: nekko-peek 0.5s ease-out; }
+.aphelion-puff { animation: aphelion-puff-k 0.7s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+.aphelion-float { animation: aphelion-float 3.4s ease-in-out infinite; }
+.aphelion-drift { animation: aphelion-drift 4s ease-in-out infinite; }
+.aphelion-mini-float { animation: aphelion-float 2.2s ease-in-out infinite; display: inline-block; }
+.aphelion-wave { animation: aphelion-wave 0.9s ease-in-out infinite; }
+.aphelion-peek { animation: aphelion-peek 0.5s ease-out; }
+/* interactive: lean right while animating; a hover wiggle and a click hop */
+@keyframes aphelion-hover-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-5deg); }
+  60% { transform: rotate(5deg); }
+}
+@keyframes aphelion-hop {
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-16px) rotate(-10deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  70% { transform: translateY(-7px) rotate(6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+.aphelion-lean { transform-origin: bottom center; transition: transform 0.25s ease; }
+.aphelion-lean-right { transform-origin: bottom center; transition: transform 0.25s ease; transform: rotate(9deg); }
+.aphelion-hover-wiggle { animation: aphelion-hover-wiggle 0.7s ease-in-out infinite; transform-origin: bottom center; }
+.aphelion-hop { animation: aphelion-hop 0.75s ease-out; transform-origin: bottom center; }
 @keyframes dots {
   0% { content: ''; }
   25% { content: '.'; }
@@ -451,20 +676,55 @@
   animation: dots 1.4s steps(1, end) infinite;
 }
 
-.fade-in { animation: fade 0.25s ease; }
+/* The floating monitor chip and the chat's monitoring section show the same
+   numbers, so they never show them at once: when the section mounts the chip
+   flies into it, shrinking and blurring out, and flies back when it leaves. The
+   section answers with a one-shot glow, so the handoff reads as one object
+   moving rather than two things blinking. */
+.monitor-chip {
+  transform-origin: center;
+  transition: transform 0.34s var(--ease-out), opacity 0.28s ease, filter 0.28s ease, visibility 0.34s;
+}
+.monitor-absorb { animation: monitor-absorb 0.5s var(--ease-out); }
+@keyframes monitor-absorb {
+  0% { box-shadow: inset 0 0 0 0 transparent; }
+  35% { box-shadow: inset 0 1px 0 0 var(--accent), inset 0 0 26px -8px var(--accent); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+.fade-in { animation: fade 0.25s var(--ease-out); }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-/* Smooth expand/collapse for sidebar folder sections (the 0fr→1fr grid trick,
-   which animates to the content's natural height without measuring it). */
+/* Deliberate entrance for high-stakes surfaces (the tool-approval bar): slides
+   up from the composer edge so the interruption reads as arriving, not popping. */
+.slide-up { animation: slide-up 0.22s var(--ease-out); }
+@keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Smooth expand/collapse (the 0fr→1fr grid trick, which animates to the
+   content's natural height without measuring it). Used by sidebar folder
+   sections and by composer attachments (analyzer, queue) so they never shove
+   the textarea around mid-keystroke. */
 .collapse-wrap {
   display: grid;
   grid-template-rows: 1fr;
-  transition: grid-template-rows 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  transition: grid-template-rows 0.22s var(--ease-out), opacity var(--dur-med) ease;
   opacity: 1;
 }
 .collapse-wrap.collapsed {
   grid-template-rows: 0fr;
   opacity: 0;
+}
+
+/* Honor the OS reduce-motion setting: kill loops (mascot, pulsing dots) and
+   collapse transitions to instant. Snapshot the first animation frame so
+   entrance keyframes land in their end state. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Clean, conversational thread (no bubbles). The user's turn sits in a soft

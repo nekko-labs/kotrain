@@ -6,6 +6,15 @@ import { registerIpc } from './ipc.js';
 import { checkForUpdates } from './update.js';
 import { loadWindowBounds, saveWindowBounds } from './windowState.js';
 
+function resolveWindowIcon(): string | undefined {
+  const candidates = [
+    join(__dirname, '../renderer/icon-512.png'),
+    join(__dirname, '../renderer/public/icon-512.png'),
+    join(__dirname, '../../src/renderer/public/icon-512.png'),
+  ];
+  return candidates.find((path) => existsSync(path));
+}
+
 function createWindow(): void {
   const bounds = loadWindowBounds();
   const win = new BrowserWindow({
@@ -14,6 +23,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     backgroundColor: '#0f0f11',
+    icon: resolveWindowIcon(),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -53,15 +63,24 @@ function createWindow(): void {
 }
 
 /**
- * Pre-rebrand installs kept their data under the "Open Paw" userData dir
- * (productName then). Copy it into the Kotrain location once, on first run
- * after the rename, so nobody loses chats/settings.
+ * Installs from an earlier brand kept their data under the "Nekkos" or
+ * "Open Paw" userData dir (whatever productName was then). Copy it into the
+ * Kotrain location once, on first run after the rename, so nobody loses
+ * chats/settings.
  */
 function migrateLegacyData(nextDir: string): void {
   try {
     if (existsSync(nextDir)) return;
-    const legacy = join(app.getPath('userData'), '..', 'Open Paw', 'open-paw');
-    if (existsSync(legacy)) cpSync(legacy, nextDir, { recursive: true });
+    const legacies = [
+      join(app.getPath('userData'), '..', 'Nekkos', 'nekkos'),
+      join(app.getPath('userData'), '..', 'Open Paw', 'open-paw'),
+    ];
+    for (const legacy of legacies) {
+      if (existsSync(legacy)) {
+        cpSync(legacy, nextDir, { recursive: true });
+        return;
+      }
+    }
   } catch (err) {
     console.error('[kotrain] legacy data migration failed:', err);
   }

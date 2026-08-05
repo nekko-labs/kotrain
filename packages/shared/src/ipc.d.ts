@@ -96,8 +96,8 @@ export declare const IpcChannels: {
     readonly skillsTargets: "skills:targets";
     readonly skillInstall: "skill:install";
     readonly skillUninstall: "skill:uninstall";
-    readonly dojoCatalog: "dojo:catalog";
-    readonly dojoSkillMd: "dojo:skillMd";
+    readonly vaizerCatalog: "vaizer:catalog";
+    readonly vaizerSkillMd: "vaizer:skillMd";
     readonly tasksList: "tasks:list";
     readonly taskCreate: "task:create";
     readonly taskUpdate: "task:update";
@@ -114,7 +114,7 @@ export declare const IpcChannels: {
     readonly remoteStatus: "remote:status";
     readonly appInfo: "app:info";
     readonly mcpStatus: "mcp:status";
-    readonly mcpNekko: "mcp:nekko";
+    readonly mcpKotrain: "mcp:kotrain";
     readonly updateCheck: "update:check";
     readonly updateDownload: "update:download";
     readonly updateInstall: "update:install";
@@ -129,8 +129,8 @@ export declare const IpcEvents: {
     readonly changesUpdated: "changes:updated";
     readonly tasksUpdated: "tasks:updated";
 };
-/** The typed API the preload bridge exposes as window.nekko. */
-export interface NekkoApi {
+/** The typed API the preload bridge exposes as window.kotrain. */
+export interface KotrainApi {
     getSettings(): Promise<AppSettings>;
     updateSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
     listProviders(): Promise<ProviderConfig[]>;
@@ -291,9 +291,9 @@ export interface NekkoApi {
         installed: import('./skills-market.js').InstalledSkillRecord[];
     }>;
     uninstallSkill(skillId: string, target: import('./skills-market.js').InstallTarget): Promise<import('./skills-market.js').InstalledSkillRecord[]>;
-    /** Nekko Dojo skills hub (optional integration): catalog + SKILL.md fetch. */
-    dojoCatalog(refresh?: boolean): Promise<import('./dojo.js').DojoCatalog>;
-    dojoSkillMd(slug: string): Promise<string | null>;
+    /** Vaizer skills hub (optional integration): catalog + SKILL.md fetch. */
+    vaizerCatalog(refresh?: boolean): Promise<import('./vaizer.js').VaizerCatalog>;
+    vaizerSkillMd(slug: string): Promise<string | null>;
     /** Automation tasks: scheduled, recurring, and long-running background agents. */
     listTasks(): Promise<AutomationTask[]>;
     createTask(task: NewTask): Promise<AutomationTask[]>;
@@ -314,8 +314,8 @@ export interface NekkoApi {
     getAppInfo(): Promise<AppInfo>;
     /** Connect configured MCP servers and return their status + tools. */
     getMcpStatus(): Promise<import('./mcp.js').McpServerStatus[]>;
-    /** Probe for a local NekkoMCP daemon (nekko-mcpd) and return its gateway info. */
-    detectNekkoMcp(): Promise<import('./mcp.js').NekkoMcpInfo | null>;
+    /** Probe for a local KotrainMCP daemon (kotrain-mcpd) and return its gateway info. */
+    detectKotrainMcp(): Promise<import('./mcp.js').KotrainMcpInfo | null>;
     /** Register this device's push token with the relay (mobile/relay only; no-op elsewhere). */
     registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
     /** Check for a newer version (desktop: GitHub feed; web: server version). */

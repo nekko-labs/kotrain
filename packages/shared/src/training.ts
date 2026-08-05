@@ -1,12 +1,15 @@
 /**
  * Model training runs + long-running goal runs, one shared engine.
  *
- * A run drives a dedicated agent session (the "data-scientist agent") through
- * repeated turns. The agent registers every attempt via the report_experiment
- * tool, which builds the run's experiment tree (the "idea maze"). The user can
- * inject hints, new approaches, or new data mid-run; unconsumed hints are folded
- * into the next turn's prompt. Pure helpers here (stats, maze layout, presets)
- * are unit-tested and shared by the host service and both views.
+ * A run drives a dedicated agent session through repeated turns. Training runs
+ * (the "data-scientist agent") register every attempt via the report_experiment
+ * tool, which builds the run's experiment tree (the "idea maze"). Goal runs are
+ * plan-first: the agent writes an execution plan via the update_plan tool, then
+ * executes it step by step, revising and iterating until the goal is finished.
+ * The user can inject hints, new approaches, or new data mid-run; unconsumed
+ * hints are folded into the next turn's prompt. Pure helpers here (stats, maze
+ * layout, plan progress) are unit-tested and shared by the host service and
+ * both views.
  */
 
 export type RunKind = 'training' | 'goal';
@@ -29,6 +32,43 @@ export interface ExperimentNode {
   /** Metric name, e.g. "cv r2", "accuracy". */
   metric?: string;
   /** The agent's one-line takeaway. */
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** What a produced artifact is, so the dashboard can label and icon it. */
+export type ArtifactKind = 'model' | 'agents-md' | 'skill' | 'spec' | 'dataset' | 'code' | 'report' | 'other';
+
+/**
+ * A concrete thing a run produced: the trained model, a harness file (agent
+ * file / skill / spec), a dataset card, etc. Registered by the agent via the
+ * report_artifact tool so the dashboard can show exactly what was built, where
+ * it lives, and how to use it, rather than leaving it buried in the log.
+ */
+export interface RunArtifact {
+  id: string;
+  kind: ArtifactKind;
+  /** Human label, e.g. "Trained model (transformer)", "AGENTS.md". */
+  title: string;
+  /** Where it lives: a path relative to the workspace, or absolute. */
+  path: string;
+  /** One-line description of what it is / how to use it. */
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Status of one step in a goal run's execution plan. */
+export type PlanStepStatus = 'pending' | 'active' | 'done' | 'skipped';
+
+/** One step of the execution plan a goal agent builds before working. */
+export interface PlanStep {
+  id: string;
+  /** Concrete, verifiable step, e.g. "Wire the CSV parser + unit tests". */
+  title: string;
+  status: PlanStepStatus;
+  /** One-line outcome, blocker, or the reason a step was skipped. */
   note?: string;
   createdAt: number;
   updatedAt: number;
@@ -76,6 +116,8 @@ export interface TrainingConfig {
   learningRate?: number;
   maxExperiments?: number;
   timeBudgetMin?: number;
+  /** Safety backstop on total agent turns; resuming past it grants another leg. */
+  maxTurns?: number;
   /** Free-form expert notes appended verbatim to the agent brief. */
   extra?: string;
   /** Harness artifacts to produce beside the model for the use case. */
@@ -96,6 +138,10 @@ export interface TrainingRun {
   sessionId?: string;
   workspaceId?: string;
   experiments: ExperimentNode[];
+  /** Concrete outputs the run produced (model, harness files, reports). */
+  artifacts?: RunArtifact[];
+  /** Goal runs: the execution plan the agent builds first, then works through. */
+  plan?: PlanStep[];
   hints: RunHint[];
   log: RunLogEntry[];
   bestExperimentId?: string;
@@ -107,6 +153,17 @@ export interface TrainingRun {
   runtimeMs?: number;
   /** Count of agent turns taken so far. */
   turns?: number;
+  /**
+   * Engine loop bookkeeping for stall detection (not user-facing): a fingerprint
+   * of measurable progress (plan + experiments), a fingerprint of the last
+   * turn's output, and the count of consecutive turns that made neither. Reset
+   * whenever the run makes progress, consumes a hint, or is (re)started.
+   */
+  lastProgressKey?: string;
+  lastOutputSig?: string;
+  stallTurns?: number;
+  /** Consecutive turns that ended in an error (guards against error loops). */
+  errorTurns?: number;
 }
 
 export interface NewTrainingRun {
@@ -234,6 +291,25 @@ export function runStats(run: TrainingRun, now = Date.now()): RunStats {
   };
 }
 
+/** Plan progress for the Goals dashboard (done + skipped count toward completion). */
+export interface PlanProgress {
+  total: number;
+  done: number;
+  skipped: number;
+  /** The step being worked now: the first 'active' step, else the first 'pending'. */
+  current?: PlanStep;
+  /** Completion 0..1 ((done + skipped) / total); 0 while there is no plan. */
+  ratio: number;
+}
+
+export function planProgress(plan: PlanStep[] | undefined): PlanProgress {
+  const steps = plan ?? [];
+  const done = steps.filter((s) => s.status === 'done').length;
+  const skipped = steps.filter((s) => s.status === 'skipped').length;
+  const current = steps.find((s) => s.status === 'active') ?? steps.find((s) => s.status === 'pending');
+  return { total: steps.length, done, skipped, current, ratio: steps.length ? (done + skipped) / steps.length : 0 };
+}
+
 /** A node placed on the idea-maze canvas (column/row grid coordinates). */
 export interface MazeNode {
   exp: ExperimentNode;
@@ -282,6 +358,20 @@ export function layoutMaze(run: Pick<TrainingRun, 'experiments' | 'config' | 'be
   return out;
 }
 
+/** Workspace-safe folder name for a run's artifacts (shared by host + UI). */
+export function runFolderSlug(run: Pick<TrainingRun, 'name' | 'id'>): string {
+  return run.name.replace(/[^a-z0-9-_ ]/gi, '').slice(0, 30).trim() || run.id.slice(0, 8);
+}
+
+/**
+ * The workspace-relative folder a run keeps its artifacts in. Training runs use
+ * "kotrain-training/<slug>"; goal runs use "kotrain-goal/<slug>". The host tells
+ * the agent to work here, and the dashboard shows/opens it, so both agree.
+ */
+export function runOutputDir(run: Pick<TrainingRun, 'name' | 'id' | 'kind'>): string {
+  return `${run.kind === 'goal' ? 'kotrain-goal' : 'kotrain-training'}/${runFolderSlug(run)}`;
+}
+
 /** Short human runtime, e.g. "15h", "2d 4h", "34m". */
 export function formatRuntime(ms: number): string {
   const m = Math.floor(ms / 60_000);
@@ -293,3 +383,10 @@ export function formatRuntime(ms: number): string {
 
 /** Token the agent uses to declare the whole run finished. */
 export const RUN_DONE_TOKEN = '⟦RUN_DONE⟧';
+
+/**
+ * Default safety backstop on total agent turns for a run (overridable per run
+ * via config.maxTurns). The host stops a run at this cap; resuming grants a
+ * fresh leg. Shared so the dashboard can show the budget the loop enforces.
+ */
+export const RUN_MAX_TURNS_DEFAULT = 400;

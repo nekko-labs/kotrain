@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentEvent, AppSettings, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@kotrain/shared';
-import { useStore, type FilesPaneSide, type WbGroup, type WbPane } from '../store.js';
+import type { AgentEvent, Session, ShellOption, TerminalInfo, WorkspaceFolder } from '@kotrain/shared';
+import { collectSessionPrUrls, parsePrUrl } from '@kotrain/shared';
+import { useStore, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
 import { FilePane } from '../components/FilePane.js';
 import { BrowserPane } from '../components/BrowserPane.js';
 import { DiffPane } from '../components/DiffPane.js';
-import { ProjectFiles } from '../components/FileTree.js';
+import { PrPane, PrBadge } from '../components/PrCard.js';
+import { ContextInspector } from '../components/ContextInspector.js';
 import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
+import { SHORTCUTS } from '../shortcuts.js';
+import { AphelionAvatar } from '../components/Mascot.js';
 
 /** Short label for a pane's tab/title. */
 function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
@@ -17,6 +21,10 @@ function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[])
     try { return new URL(pane.refId).host || 'Browser'; } catch { return 'Browser'; }
   }
   if (pane.kind === 'diff') return 'Changes';
+  if (pane.kind === 'pr') {
+    const p = parsePrUrl(pane.refId);
+    return p ? `PR #${p.number}` : 'Pull request';
+  }
   return pane.refId.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pane.refId;
 }
 
@@ -25,6 +33,7 @@ function PaneIcon({ kind }: { kind: WbPane['kind'] }) {
   const cls = 'h-3.5 w-3.5 shrink-0 text-ink-faint';
   if (kind === 'terminal') return <TerminalIcon className={cls} />;
   if (kind === 'browser') return <ExternalIcon className={cls} />;
+  if (kind === 'pr') return <span className="w-3.5 shrink-0 text-center text-[12px] leading-none text-ink-faint">⑂</span>;
   if (kind === 'file' || kind === 'diff') return <FileIcon className={cls} />;
   return <ChatIcon className={cls} />;
 }
@@ -37,6 +46,7 @@ function PaneBody({ pane }: { pane: WbPane }) {
     case 'file': return <FilePane key={pane.refId} path={pane.refId} />;
     case 'browser': return <BrowserPane key={pane.refId} url={pane.refId} />;
     case 'diff': return <DiffPane key={pane.refId} sessionId={pane.refId} />;
+    case 'pr': return <PrPane key={pane.refId} url={pane.refId} />;
     default: return null;
   }
 }
@@ -52,8 +62,8 @@ function PaneBody({ pane }: { pane: WbPane }) {
 type AgentStatus = 'working' | 'input' | 'error';
 const STATUS_META: Record<AgentStatus, { color: string; label: string; pulse: boolean }> = {
   working: { color: 'var(--accent)', label: 'Working…', pulse: true },
-  input: { color: '#e0a23a', label: 'Needs your input', pulse: true },
-  error: { color: '#e0574a', label: 'Stopped on an error', pulse: false },
+  input: { color: 'var(--warning)', label: 'Needs your input', pulse: true },
+  error: { color: 'var(--danger)', label: 'Stopped on an error', pulse: false },
 };
 
 function StatusDot({ status, className = '' }: { status: AgentStatus; className?: string }) {
@@ -98,8 +108,7 @@ export function WorkbenchView() {
     sessions, terminals, groups, activeGroupId, settings, activeSessionId,
     refreshSessions, refreshTerminals, openChatPane, openTerminalPane, newTerminal,
     setActivePane, closePane, focusGroup, splitRight, newChat, setActiveWorkspace,
-    reorderWorkspaces, layoutChats, layoutTerminals, openFilePane,
-    filesPaneOpen, filesPaneSide, filesPaneWidth, toggleFilesPane, setFilesPaneOpen, setFilesPaneSide, setFilesPaneWidth,
+    reorderWorkspaces, layoutChats, layoutTerminals, contextPanelOpen,
   } = useStore();
 
   const [statuses, setStatuses] = useState<Map<string, AgentStatus>>(new Map());
@@ -112,7 +121,7 @@ export function WorkbenchView() {
   const newMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { refreshTerminals(); }, [refreshTerminals]);
-  useEffect(() => { window.nekko.listShells().then(setShells).catch(() => {}); }, []);
+  useEffect(() => { window.kotrain.listShells().then(setShells).catch(() => {}); }, []);
 
   // Close the "+" create menu on an outside click.
   useEffect(() => {
@@ -135,7 +144,7 @@ export function WorkbenchView() {
   // sub-agents by refreshing the list when an unknown id appears.
   useEffect(() => {
     const known = new Set(sessions.map((s) => s.id));
-    const off = window.nekko.onAgentEvent((e: AgentEvent) => {
+    const off = window.kotrain.onAgentEvent((e: AgentEvent) => {
       const next = statusFromEvent(e.type);
       setStatuses((prev) => {
         const m = new Map(prev);
@@ -147,6 +156,17 @@ export function WorkbenchView() {
     });
     return off;
   }, [sessions, refreshSessions]);
+
+  // Populate PR badges for chats that reference a PR in their transcript. Only
+  // sessions with a detected PR URL and no cached state get a (host-cached)
+  // fetch, bounded so we never shell out to gh for a whole list at once.
+  useEffect(() => {
+    const loaded = useStore.getState().prsBySession;
+    sessions
+      .filter((s) => !(s.id in loaded) && collectSessionPrUrls(s.messages).length > 0)
+      .slice(0, 8)
+      .forEach((s) => { void useStore.getState().refreshSessionPrs(s.id); });
+  }, [sessions]);
 
   const childrenOf = useMemo(() => {
     const m = new Map<string, Session[]>();
@@ -231,10 +251,11 @@ export function WorkbenchView() {
         <span className="text-sm font-semibold">Workbench</span>
         <div className="relative" ref={newMenuRef}>
           <button
-            className={`rounded-sm p-1.5 ${filesPaneOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
-            title={filesPaneOpen ? 'Close Files pane' : 'Open Files pane'}
-            aria-label={filesPaneOpen ? 'Close Files pane' : 'Open Files pane'}
-            onClick={toggleFilesPane}
+            className={`rounded-sm p-1.5 ${contextPanelOpen ? 'bg-surface-2 text-accent' : 'text-ink-faint hover:text-ink'}`}
+            title={`${contextPanelOpen ? 'Hide' : 'Show'} the folders, files & context panel (${SHORTCUTS.contextPanel.label})`}
+            aria-label={`${contextPanelOpen ? 'Hide' : 'Show'} the folders, files and context panel`}
+            aria-pressed={contextPanelOpen}
+            onClick={() => useStore.getState().toggleContextPanel()}
           >
             <PanelIcon className="h-3.5 w-3.5" />
           </button>
@@ -247,21 +268,25 @@ export function WorkbenchView() {
                 onClick={() => { setNewMenuOpen(false); newChat(); }}
               >
                 <ChatIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                <span className="min-w-0">
-                  <span className="block text-[12.5px] font-medium">New agent</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-medium">New agent</span>
                   <span className="block text-[11px] text-ink-faint">Chat that drives an agent</span>
                 </span>
+                <kbd className="kbd mt-0.5">{SHORTCUTS.newAgent.label}</kbd>
               </button>
 
               <div className="my-1 border-t border-line" />
-              <p className="px-2.5 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Terminal</p>
+              <div className="flex items-center justify-between gap-2 px-2.5 pb-0.5 pt-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Terminal</p>
+                <kbd className="kbd">{SHORTCUTS.newTerminal.label}</kbd>
+              </div>
               {shells.length === 0 ? (
                 <button
                   className="flex w-full items-start gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-2"
                   onClick={() => { setNewMenuOpen(false); newTerminal(); }}
                 >
                   <TerminalIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                  <span className="text-[12.5px] font-medium">New terminal</span>
+                  <span className="text-[13px] font-medium">New terminal</span>
                 </button>
               ) : (
                 shells.map((sh) => (
@@ -272,7 +297,7 @@ export function WorkbenchView() {
                     onClick={() => { setNewMenuOpen(false); newTerminal(undefined, sh.path); }}
                   >
                     <TerminalIcon className="h-4 w-4 shrink-0 text-ink-faint" />
-                    <span className="min-w-0 flex-1 truncate text-[12.5px]">{sh.label}</span>
+                    <span className="min-w-0 flex-1 truncate text-[13px]">{sh.label}</span>
                   </button>
                 ))
               )}
@@ -337,7 +362,7 @@ export function WorkbenchView() {
                       className={dropTarget === 'chatrow:' + s.id ? 'rounded-lg ring-1 ring-accent/60' : ''}
                     >
                       <ChatRow session={s} depth={0} statuses={statuses} childrenOf={childrenOf}
-                        activeSessionId={activeSessionId} onOpen={openChatPane} />
+                        activeSessionId={activeSessionId} onOpen={openChatPane} workspaces={settings?.workspaces ?? []} />
                     </div>
                   ))}
                   {terms.map((t) => (
@@ -367,18 +392,6 @@ export function WorkbenchView() {
       {mobileNav && <div className="absolute inset-0 z-20 bg-black/40 md:hidden" onClick={() => setMobileNav(false)} />}
       <aside className={`${mobileNav ? 'absolute inset-y-0 left-0 z-30 flex' : 'hidden'} md:relative md:z-auto md:flex`}>{Sidebar}</aside>
 
-      {filesPaneOpen && filesPaneSide === 'left' && (
-        <FilesSidePane
-          settings={settings}
-          side={filesPaneSide}
-          width={filesPaneWidth}
-          onClose={() => setFilesPaneOpen(false)}
-          onSideChange={setFilesPaneSide}
-          onWidthChange={setFilesPaneWidth}
-          onOpen={openFilePane}
-        />
-      )}
-
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-line px-2 py-1.5 md:hidden">
           <button className="btn btn-ghost px-2 py-1" onClick={() => setMobileNav(true)} aria-label="Open sidebar">
@@ -400,6 +413,7 @@ export function WorkbenchView() {
                 statuses={statuses}
                 sessions={sessions}
                 titleFor={titleFor}
+                workspaces={settings?.workspaces ?? []}
                 onFocus={() => focusGroup(g.id)}
                 onSelect={(pid) => setActivePane(g.id, pid)}
                 onClose={(pid) => closePane(g.id, pid)}
@@ -412,127 +426,67 @@ export function WorkbenchView() {
         )}
       </main>
 
-      {filesPaneOpen && filesPaneSide === 'right' && (
-        <FilesSidePane
-          settings={settings}
-          side={filesPaneSide}
-          width={filesPaneWidth}
-          onClose={() => setFilesPaneOpen(false)}
-          onSideChange={setFilesPaneSide}
-          onWidthChange={setFilesPaneWidth}
-          onOpen={openFilePane}
-        />
+      {/* The right panel: folders + file explorer over the context breakdown. It
+          belongs to the workbench rather than to a chat pane, so opening a file
+          from the explorer doesn't take the explorer away with it. It follows the
+          active chat, and says so when there isn't one. */}
+      {contextPanelOpen && (
+        <aside className="hidden shrink-0 lg:block" style={{ background: 'var(--paper)' }}>
+          <ContextInspector sessionId={activeSessionId} />
+        </aside>
       )}
     </div>
   );
 }
 
-function FilesSidePane({
-  settings,
-  side,
-  width,
-  onClose,
-  onSideChange,
-  onWidthChange,
-  onOpen,
-}: {
-  settings: AppSettings | null;
-  side: FilesPaneSide;
-  width: number;
-  onClose: () => void;
-  onSideChange: (side: FilesPaneSide) => void;
-  onWidthChange: (width: number) => void;
-  onOpen: (path: string) => void;
-}) {
-  const resizing = useRef(false);
-
-  const startResize = (e: React.PointerEvent) => {
-    e.preventDefault();
-    resizing.current = true;
-    const startX = e.clientX;
-    const startWidth = width;
-    const onMove = (event: PointerEvent) => {
-      const delta = side === 'left' ? event.clientX - startX : startX - event.clientX;
-      onWidthChange(startWidth + delta);
-    };
-    const onUp = () => {
-      resizing.current = false;
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
+/**
+ * Compact project/tag chips for a chat: the extra projects it references
+ * (supporting workspaces) and any free-form tags. The primary project is the
+ * sidebar bucket the row already sits in, so it isn't repeated here.
+ */
+function ChatTags({ session, workspaces }: { session: Session; workspaces: WorkspaceFolder[] }) {
+  const chips: Array<{ label: string; project: boolean }> = [
+    ...(session.supportingWorkspaceIds ?? [])
+      .map((id) => workspaces.find((w) => w.id === id)?.name)
+      .filter((n): n is string => !!n)
+      .map((label) => ({ label, project: true })),
+    ...(session.tags ?? []).map((label) => ({ label, project: false })),
+  ];
+  if (!chips.length) return null;
   return (
-    <section
-      className={`relative flex min-h-0 shrink-0 flex-col border-line bg-paper ${
-        side === 'left' ? 'border-r' : 'border-l'
-      }`}
-      style={{ width }}
-    >
-      <div className="flex items-center gap-1.5 border-b border-line px-3 py-2">
-        <FileIcon className="h-3.5 w-3.5 text-ink-faint" />
-        <span className="min-w-0 flex-1 text-[12px] font-semibold">Files</span>
-        <button
-          className="rounded-sm p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
-          title={`Dock Files on the ${side === 'left' ? 'right' : 'left'}`}
-          onClick={() => onSideChange(side === 'left' ? 'right' : 'left')}
+    <span className="flex shrink-0 items-center gap-1">
+      {chips.slice(0, 2).map((c, i) => (
+        <span
+          key={i}
+          className="max-w-[70px] shrink-0 truncate rounded-sm px-1 py-px text-[10px] leading-normal"
+          style={{ background: 'var(--surface-2)', color: 'var(--ink-faint)' }}
+          title={c.project ? `Also references ${c.label}` : `Tag: ${c.label}`}
         >
-          <span className="text-[13px]">{side === 'left' ? '→' : '←'}</span>
-        </button>
-        <button className="rounded-sm p-1 text-ink-faint hover:bg-surface-2 hover:text-ink" title="Close Files pane" onClick={onClose}>
-          <CloseIcon className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {(settings?.workspaces ?? []).length ? (
-          <div className="space-y-2">
-            {(settings?.workspaces ?? []).map((workspace) => (
-              <ProjectFiles
-                key={workspace.id}
-                root={workspace.path}
-                label={workspace.name || baseName(workspace.path)}
-                onOpen={onOpen}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="px-1 py-2 text-[11px] text-ink-faint">Add a workspace to browse its files.</p>
-        )}
-      </div>
-      <div
-        className={`absolute inset-y-0 z-10 w-1 cursor-col-resize hover:bg-accent/40 ${
-          side === 'left' ? '-right-0.5' : '-left-0.5'
-        }`}
-        onPointerDown={startResize}
-        role="separator"
-        aria-label="Resize Files pane"
-      />
-    </section>
+          {c.label}
+        </span>
+      ))}
+      {chips.length > 2 && <span className="shrink-0 text-[10px] text-ink-faint">+{chips.length - 2}</span>}
+    </span>
   );
 }
 
-function baseName(path: string): string {
-  const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/);
-  return parts[parts.length - 1] || path;
-}
-
 function ChatRow({
-  session, depth, statuses, childrenOf, activeSessionId, onOpen,
+  session, depth, statuses, childrenOf, activeSessionId, onOpen, workspaces,
 }: {
   session: Session; depth: number; statuses: Map<string, AgentStatus>;
   childrenOf: Map<string, Session[]>; activeSessionId: string | null; onOpen: (id: string) => void;
+  workspaces: WorkspaceFolder[];
 }) {
   const kids = childrenOf.get(session.id) ?? [];
   const status = statuses.get(session.id);
+  const prs = useStore((s) => s.prsBySession[session.id]);
   const isActive = session.id === activeSessionId;
   const nested = depth > 0;
   return (
     <>
       <button
         onClick={() => onOpen(session.id)}
-        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[12.5px] transition-colors duration-150 ${
+        className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[13px] transition-colors duration-150 ${
           isActive ? 'bg-accent-soft font-medium text-ink' : 'text-ink-soft hover:bg-surface-2'
         }`}
         style={{ paddingLeft: 14 + depth * 16 }}
@@ -549,10 +503,12 @@ function ChatRow({
           style={{ width: nested ? 5 : 6, height: nested ? 5 : 6, marginLeft: nested ? 1 : 0 }}
         />
         <span className="min-w-0 flex-1 truncate">{session.title}</span>
+        {prs?.length ? <PrBadge prs={prs} compact /> : null}
+        <ChatTags session={session} workspaces={workspaces} />
         {status && <StatusDot status={status} />}
       </button>
       {kids.map((k) => (
-        <ChatRow key={k.id} session={k} depth={depth + 1} statuses={statuses} childrenOf={childrenOf} activeSessionId={activeSessionId} onOpen={onOpen} />
+        <ChatRow key={k.id} session={k} depth={depth + 1} statuses={statuses} childrenOf={childrenOf} activeSessionId={activeSessionId} onOpen={onOpen} workspaces={workspaces} />
       ))}
     </>
   );
@@ -562,48 +518,71 @@ function TerminalRow({ term, onOpen }: { term: TerminalInfo; onOpen: (id: string
   return (
     <button
       onClick={() => onOpen(term.id)}
-      className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[12.5px] text-ink-soft transition-colors duration-150 hover:bg-surface-2"
+      className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[13px] text-ink-soft transition-colors duration-150 hover:bg-surface-2"
       style={{ paddingLeft: 14 }}
     >
       <TerminalIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
       <span className="min-w-0 flex-1 truncate">{term.title}</span>
-      {!term.running && <span className="shrink-0 text-[10px] text-red-400">exited</span>}
+      {!term.running && <span className="shrink-0 text-[10px]" style={{ color: 'var(--danger)' }}>exited</span>}
     </button>
   );
 }
 
 function PaneGroupView({
-  group, isActive, canSplit, statuses, sessions, titleFor,
+  group, isActive, canSplit, statuses, sessions, titleFor, workspaces,
   onFocus, onSelect, onClose, onSplit, onNewChat, onNewTerminal,
 }: {
   group: WbGroup; isActive: boolean; canSplit: boolean; statuses: Map<string, AgentStatus>;
-  sessions: Session[]; titleFor: (p: WbPane) => string;
+  sessions: Session[]; titleFor: (p: WbPane) => string; workspaces: WorkspaceFolder[];
   onFocus: () => void; onSelect: (paneId: string) => void; onClose: (paneId: string) => void;
   onSplit: (paneId: string) => void; onNewChat: () => void; onNewTerminal: () => void;
 }) {
   const active = group.panes.find((p) => p.id === group.activeId) ?? group.panes[0];
+  // The project a chat tab belongs to (tabs from different projects sit side by
+  // side, so the chip is what tells them apart).
+  const projectFor = (p: WbPane): string | null => {
+    if (p.kind !== 'chat') return null;
+    const wid = sessions.find((s) => s.id === p.refId)?.workspaceId;
+    return wid ? workspaces.find((w) => w.id === wid)?.name ?? null : null;
+  };
   return (
-    <div className={`flex min-w-0 flex-1 flex-col border-r border-line ${isActive ? '' : 'opacity-95'}`} onMouseDown={onFocus}>
-      {/* Tab strip */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-line px-1.5 py-1" style={{ background: 'var(--surface-2)' }}>
+    <div className="flex min-w-0 flex-1 flex-col border-r border-line" onMouseDown={onFocus}>
+      {/* Tab strip: real tabs, reachable and switchable from the keyboard. */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-line px-1.5 py-1" style={{ background: 'var(--surface-2)' }} role="tablist">
         {group.panes.map((p) => {
           const isActiveTab = p.id === active?.id;
           const status = p.kind === 'chat' ? statuses.get(p.refId) : undefined;
           return (
             <div
               key={p.id}
+              role="tab"
+              aria-selected={isActiveTab}
+              tabIndex={0}
               onClick={() => onSelect(p.id)}
-              className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(p.id); }
+              }}
+              className={`group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] outline-hidden focus-visible:ring-2 focus-visible:ring-(--ring) ${
                 isActiveTab ? 'bg-paper font-medium shadow-xs' : 'text-ink-soft hover:bg-paper/50'
               }`}
               style={isActiveTab ? { background: 'var(--paper)' } : undefined}
             >
               <PaneIcon kind={p.kind} />
               <span className="max-w-[140px] truncate">{titleFor(p)}</span>
+              {projectFor(p) && (
+                <span
+                  className="max-w-[90px] shrink-0 truncate rounded-sm px-1 py-px text-[10px] leading-normal text-ink-faint"
+                  style={{ background: 'var(--surface-2)' }}
+                  title={`Project: ${projectFor(p)}`}
+                >
+                  {projectFor(p)}
+                </span>
+              )}
               {status && <StatusDot status={status} />}
               <button
-                className="ml-0.5 rounded-sm p-0.5 text-ink-faint opacity-0 hover:text-ink group-hover:opacity-100"
+                className="ml-0.5 rounded-sm p-0.5 text-ink-faint opacity-0 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
                 title="Close tab"
+                aria-label={`Close ${titleFor(p)}`}
                 onClick={(e) => { e.stopPropagation(); onClose(p.id); }}
               >
                 <CloseIcon className="h-3 w-3" />
@@ -612,8 +591,8 @@ function PaneGroupView({
           );
         })}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="New chat" onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
-          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="New terminal" onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title={`New chat (${SHORTCUTS.newAgent.label})`} onClick={onNewChat}><PlusIcon className="h-3.5 w-3.5" /></button>
+          <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title={`New terminal (${SHORTCUTS.newTerminal.label})`} onClick={onNewTerminal}><TerminalIcon className="h-3.5 w-3.5" /></button>
           {canSplit && group.panes.length > 1 && active && (
             <button className="rounded-sm p-1 text-ink-faint hover:text-ink" title="Split tab to the right" onClick={() => onSplit(active.id)}><SplitIcon className="h-3.5 w-3.5" /></button>
           )}
@@ -630,14 +609,18 @@ function PaneGroupView({
 function EmptyState({ onNewChat, onNewTerminal }: { onNewChat: () => void; onNewTerminal: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-      <div className="grid h-14 w-14 place-items-center rounded-2xl text-3xl" style={{ background: 'var(--accent-soft)' }}>🐾</div>
+      <div className="grid h-14 w-14 place-items-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}><AphelionAvatar size={34} /></div>
       <div>
         <h2 className="text-lg font-semibold">Your workbench is empty</h2>
         <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-faint">Open a chat to drive an agent, or a terminal to run commands. Open several and split them side by side.</p>
       </div>
       <div className="flex gap-2">
-        <button className="btn btn-primary" onClick={onNewChat}><ChatIcon className="h-4 w-4" /> New chat</button>
-        <button className="btn btn-outline" onClick={onNewTerminal}><TerminalIcon className="h-4 w-4" /> New terminal</button>
+        <button className="btn btn-primary" onClick={onNewChat}>
+          <ChatIcon className="h-4 w-4" /> New chat <kbd className="kbd">{SHORTCUTS.newAgent.label}</kbd>
+        </button>
+        <button className="btn btn-outline" onClick={onNewTerminal}>
+          <TerminalIcon className="h-4 w-4" /> New terminal <kbd className="kbd">{SHORTCUTS.newTerminal.label}</kbd>
+        </button>
       </div>
     </div>
   );

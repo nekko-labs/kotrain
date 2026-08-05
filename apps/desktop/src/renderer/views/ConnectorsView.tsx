@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { ConnectorConfig, ConnectorKind, ConnectorResource } from '@kotrain/shared';
 import { CONNECTOR_CATALOG } from '@kotrain/shared';
 import { ConnectorIcon } from '../connectorIcons.js';
+import { Badge } from '../components/primitives/index.js';
 
 /** Where to get each connector's token, with a link to open. */
 const HELP: Record<ConnectorKind, { hint: string; url: string }> = {
@@ -20,7 +21,7 @@ export function ConnectorsView() {
   const [busy, setBusy] = useState<ConnectorKind | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const load = async () => setConfigs(await window.nekko.listConnectors());
+  const load = async () => setConfigs(await window.kotrain.listConnectors());
   useEffect(() => { load(); }, []);
 
   const isConnected = (k: ConnectorKind) => configs.find((c) => c.kind === k)?.connected;
@@ -32,14 +33,14 @@ export function ConnectorsView() {
     setBusy(k);
     setErrors((e) => ({ ...e, [k]: '' }));
     try {
-      await window.nekko.connectConnector(k, tokens[k].trim());
-      const res = await window.nekko.fetchConnector(k);
-      setConfigs(await window.nekko.listConnectors());
+      await window.kotrain.connectConnector(k, tokens[k].trim());
+      const res = await window.kotrain.fetchConnector(k);
+      setConfigs(await window.kotrain.listConnectors());
       setTokens((t) => ({ ...t, [k]: '' }));
       setPreview((p) => ({ ...p, [k]: res }));
     } catch (e) {
-      await window.nekko.disconnectConnector(k);
-      setConfigs(await window.nekko.listConnectors());
+      await window.kotrain.disconnectConnector(k);
+      setConfigs(await window.kotrain.listConnectors());
       setErrors((er) => ({ ...er, [k]: (e as Error).message || 'Could not connect, check the token.' }));
     } finally {
       setBusy(null);
@@ -47,13 +48,13 @@ export function ConnectorsView() {
   };
 
   const disconnect = async (k: ConnectorKind) => {
-    setConfigs(await window.nekko.disconnectConnector(k));
+    setConfigs(await window.kotrain.disconnectConnector(k));
     setPreview((p) => ({ ...p, [k]: undefined as unknown as ConnectorResource[] }));
   };
 
   const fetchData = async (k: ConnectorKind) => {
     try {
-      const res = await window.nekko.fetchConnector(k);
+      const res = await window.kotrain.fetchConnector(k);
       setPreview((p) => ({ ...p, [k]: res }));
     } catch (e) {
       setPreview((p) => ({ ...p, [k]: (e as Error).message }));
@@ -83,7 +84,7 @@ export function ConnectorsView() {
                       <p className="text-[12px] text-ink-faint">{meta.description}</p>
                     </div>
                   </div>
-                  {connected && <span className="chip text-white!" style={{ background: '#4ec98a' }}>connected</span>}
+                  {connected && <Badge tone="success" variant="solid">connected</Badge>}
                 </div>
 
                 {connected ? (
@@ -109,16 +110,16 @@ export function ConnectorsView() {
                     </div>
                     <p className="mt-1.5 text-[11px] text-ink-faint">
                       {help.hint}{' '}
-                      <button className="text-accent hover:underline" onClick={() => window.nekko.openPath(help.url)}>Get a token →</button>
+                      <button className="text-accent hover:underline" onClick={() => window.kotrain.openPath(help.url)}>Get a token →</button>
                     </p>
-                    {errors[meta.kind] && <p className="mt-1 text-[11px]" style={{ color: '#e0574a' }}>{errors[meta.kind]}</p>}
+                    {errors[meta.kind] && <p className="mt-1 text-[11px]" style={{ color: 'var(--danger)' }}>{errors[meta.kind]}</p>}
                   </div>
                 )}
 
                 {data && (
                   <div className="mt-3 max-h-40 space-y-1 overflow-y-auto rounded-xl p-2" style={{ background: 'var(--surface-2)' }}>
                     {typeof data === 'string' ? (
-                      <p className="text-[12px]" style={{ color: '#e0574a' }}>{data}</p>
+                      <p className="text-[12px]" style={{ color: 'var(--danger)' }}>{data}</p>
                     ) : data.length === 0 ? (
                       <p className="text-[12px] text-ink-faint">No results.</p>
                     ) : (
