@@ -15,19 +15,120 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    # Signing is secret-gated: with no signing secrets configured the macOS
+    # build ships unsigned (ad-hoc signed by the afterPack hook), exactly as it
+    # did before. The env indirection exists because `secrets` cannot be read
+    # in a step-level `if`. Secret names and setup: docs/signing.md.
+    env:
+      MACOS_SIGNING_CERTS_P12: ${{ secrets.MACOS_SIGNING_CERTS_P12 }}
+      APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
     steps:
       - uses: actions/checkout@v7
+
+      # A tagged release that is *partially* configured is the dangerous case:
+      # it would publish a signed-but-unnotarized app that Gatekeeper still
+      # blocks, and look like it worked. Fail before building instead.
+      - name: Validate macOS signing configuration
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+
+          # The certificate is what decides whether we sign at all, so it is
+          # the gate. No cert means an unsigned build, which is a supported
+          # outcome, not an error — even if stray notarization secrets are
+          # lying around.
+          #
+          # (Hypergate fails on *any* partially populated set. That is stricter
+          # than it needs to be: it turns a leftover secret into a hard build
+          # failure while the cert is still missing.)
+          if [ -z "${MACOS_SIGNING_CERTS_P12:-}" ]; then
+            echo 'No Developer ID certificate configured, building unsigned.'
+            for name in MACOS_CERT_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER; do
+              if [ -n "${!name:-}" ]; then
+                echo "Note: $name is set but unused without MACOS_SIGNING_CERTS_P12." >&2
+              fi
+            done
+            exit 0
+          fi
+
+          # A cert *is* present, so this build will be signed. Anything missing
+          # now yields a signed-but-unnotarized app: still Gatekeeper-blocked,
+          # while looking like the release worked. Fail before building.
+          missing=()
+          for name in MACOS_CERT_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            [ -n "${!name:-}" ] || missing+=("$name")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'macOS signing configuration is incomplete. Missing: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          echo 'macOS signing fully configured.'
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
-      # Build installers (Windows: MSI + NSIS, macOS: dmg/zip, Linux: AppImage/deb)
-      # and upload them to a draft GitHub Release for this tag.
-      - run: npm run release -w @kotrain/desktop
+
+      # Build installers (Windows: MSI + NSIS, macOS: dmg/zip, Linux:
+      # AppImage/deb) and upload them to a draft GitHub Release for this tag.
+      #
+      # electron-builder reads CSC_LINK/CSC_KEY_PASSWORD to sign, and
+      # APPLE_API_KEY (a *path* to the .p8, hence the temp file) with
+      # APPLE_API_KEY_ID/APPLE_API_ISSUER to notarize.
+      - name: Build and publish installers
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No Apple Developer cert: skip electron-builder's signing discovery
-          # (the afterPack hook ad-hoc signs the macOS app instead).
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          CSC_LINK: ${{ secrets.MACOS_SIGNING_CERTS_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          EXTRA=""
+          if [ "$RUNNER_OS" = "macOS" ] && [ -n "${CSC_LINK:-}" ]; then
+            key="$RUNNER_TEMP/notary-api-key.p8"
+            # Subshell so the restrictive umask applies to the key file only,
+            # not to every artifact the build writes afterwards.
+            (umask 077; printf '%s' "$APPLE_API_KEY_P8" > "$key")
+            export APPLE_API_KEY="$key"
+            EXTRA="-c.mac.notarize=true"
+            echo 'macOS: signing with Developer ID and notarizing.'
+          else
+            # No certificate. Clear the signing env so electron-builder does not
+            # try to sign with an empty cert path, and let the afterPack hook
+            # ad-hoc sign instead.
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            if [ "$RUNNER_OS" = "macOS" ]; then
+              echo 'macOS: building UNSIGNED (no Developer ID cert configured).'
+            fi
+          fi
+          npm run release -w @kotrain/desktop -- $EXTRA
+
+      # Proof the artifact is actually distributable, rather than trusting that
+      # the build steps above did what they claim.
+      - name: Verify the signed app
+        if: runner.os == 'macOS' && env.MACOS_SIGNING_CERTS_P12 != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(find apps/desktop/release -maxdepth 2 -name '*.app' -print -quit)
+          if [ -z "$app" ]; then
+            echo 'No .app found to verify.' >&2
+            exit 1
+          fi
+          echo "Verifying $app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv --verbose=4 "$app" 2>&1 | grep -E 'Authority|TeamIdentifier|flags'
+          # The notarization ticket is stapled to the .app, not to the .dmg
+          # that wraps it, so this is the artifact to validate.
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=4 "$app"

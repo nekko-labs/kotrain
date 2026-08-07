@@ -51,10 +51,23 @@ mac:
     - zip
   category: public.app-category.developer-tools
   artifactName: ${productName}-${version}-${arch}.${ext}
-  # No Apple Developer ID yet → can't notarize. Ad-hoc signing happens in the
-  # afterPack hook so the (unsigned) app still launches on Apple Silicon.
-  hardenedRuntime: false
+  # Developer ID signing + notarization. electron-builder signs when CSC_LINK
+  # and CSC_KEY_PASSWORD are in the environment, and skips signing entirely
+  # when they are not — in which case the afterPack hook ad-hoc signs instead
+  # so the build still launches locally. Release CI sets them from the
+  # nekko-labs org secrets; see docs/signing.md.
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Left off here on purpose: notarization needs the App Store Connect key,
+  # which only the release workflow has. It turns this on with
+  # `-c.mac.notarize=true` rather than failing every local `npm run dist`.
+  notarize: false
   gatekeeperAssess: false
+  extendInfo:
+    # Required for the QR pairing scanner (QrScanner.tsx → getUserMedia).
+    # Without it macOS kills the process instead of prompting.
+    NSCameraUsageDescription: Kotrain uses the camera to scan the pairing QR code shown by the Kotrain mobile app.
 linux:
   target:
     - AppImage
