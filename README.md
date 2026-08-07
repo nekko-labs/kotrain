@@ -46,15 +46,17 @@ started.
 
 Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
 
-### macOS: "Kotrain is damaged and can't be opened" 🛑
-
-Kotrain isn't notarized yet (no Apple Developer certificate), so macOS quarantines the downloaded app and may say it's *damaged* or move it to the Trash. The app is fine, this is Gatekeeper blocking an unsigned download. After dragging **Kotrain** to Applications, clear the quarantine flag once:
+macOS builds are signed with a Nekko Labs Developer ID certificate and notarized by Apple, so the `.dmg` opens and installs normally with no Gatekeeper workaround. Verify it yourself if you like:
 
 ```bash
-xattr -cr "/Applications/Kotrain.app"
+spctl --assess --type execute --verbose=4 "/Applications/Kotrain.app"
 ```
 
-Then open it normally. (Alternatively: right-click the app → **Open** → **Open**.) We'll drop this step once notarized builds are signed. Windows may also show a SmartScreen "unknown publisher" prompt, choose **More info → Run anyway**.
+That should report `accepted` with `source=Notarized Developer ID`. How this is set up: [docs/signing.md](docs/signing.md).
+
+Windows isn't code-signed yet, so SmartScreen may show an "unknown publisher" prompt: choose **More info → Run anyway**.
+
+> **Releases before v0.6.0** are unsigned. macOS quarantines them and may say the app is *damaged* or move it to the Trash. The app is fine; clear the quarantine flag once with `xattr -cr "/Applications/Kotrain.app"`, or upgrade to a signed build.
 
 ### Uninstalling
 

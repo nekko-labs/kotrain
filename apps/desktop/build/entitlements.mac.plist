@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Hardened-runtime entitlements for the Developer ID build.
+
+    The hardened runtime is mandatory for notarization, and it switches off
+    several things Electron and Kotrain genuinely need. Each exception below is
+    here for a reason; check the note before pruning one.
+
+    Used for both `entitlements` and `entitlementsInherit`, so the Electron
+    helper processes (which are the ones that actually run V8) inherit them.
+  -->
+
+  <!-- V8 compiles JavaScript at runtime. Without these the renderer helper
+       crashes on launch under the hardened runtime. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+
+  <!-- @lydell/node-pty ships a prebuilt .node that lives outside the asar
+       (see asarUnpack in electron-builder.yml) and is dlopen'd at runtime.
+       Library validation would refuse to load it. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+
+  <!-- Kotrain spawns the user's shell, coding agents, and MCP servers as child
+       processes, and has to be able to hand them an environment. -->
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+
+  <!-- Reading and writing the user's chosen project folders. -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+
+  <!-- Outbound: model providers, Ollama/LM Studio/vLLM, the update feed.
+       Inbound: the local host server the phone relay pairs against. -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.network.server</key>
+  <true/>
+
+  <!-- QrScanner.tsx calls getUserMedia to pair a phone by QR code. Pairs with
+       NSCameraUsageDescription in the mac.extendInfo block. -->
+  <key>com.apple.security.device.camera</key>
+  <true/>
+</dict>
+</plist>
