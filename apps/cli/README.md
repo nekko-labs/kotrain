@@ -6,7 +6,14 @@ requests, spin up sessions, and read status. Runs the same engine (`createHost`)
 in-process against your data dir.
 
 ```bash
-npm run build -w @kotrain/cli
+npm install --global kotrain
+npx kotrain status
+```
+
+From a checkout:
+
+```bash
+npm run build --workspace=apps/cli
 node apps/cli/dist/index.js status        # or: npm link, then `kotrain status`
 ```
 
@@ -32,7 +39,8 @@ kotrain chat "summarize README.md" \    # run an agent turn (streams the reply)
 kotrain chat "and now add tests" --session <id>
 ```
 
-`chat` auto-approves tool calls (it's your machine, invoked explicitly).
+`chat` defaults to guardrails approval. Use `--approve yolo` only when you
+explicitly want unattended tool approval.
 
 ## MCP server
 

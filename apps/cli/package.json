@@ -1,22 +1,59 @@
 {
-  "name": "@kotrain/cli",
-  "version": "0.1.5",
-  "private": true,
+  "name": "kotrain",
+  "version": "0.5.1",
   "type": "module",
   "description": "Kotrain CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nekko-labs/kotrain.git",
+    "directory": "apps/cli"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "cli",
+    "mcp",
+    "coding"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/run.js",
+    "dist/run.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "kotrain": "./dist/index.js",
     "nekkos": "./dist/index.js"
   },
-  "main": "./dist/run.js",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./run": {
+      "types": "./dist/run.d.ts",
+      "import": "./dist/run.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:publish": "npm run build && node scripts/bundle.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build:publish"
   },
   "dependencies": {
-    "@kotrain/host": "*",
-    "@kotrain/shared": "*"
+    "@lydell/node-pty": "^1.2.0-beta.14"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
   }
 }

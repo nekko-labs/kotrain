@@ -22,6 +22,7 @@ jobs:
     env:
       MACOS_SIGNING_CERTS_P12: ${{ secrets.MACOS_SIGNING_CERTS_P12 }}
       APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+      WINDOWS_SIGNING_CERTS_P12: ${{ secrets.WINDOWS_SIGNING_CERTS_P12 }}
     steps:
       - uses: actions/checkout@v7
 
@@ -35,6 +36,7 @@ jobs:
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: |
           set -euo pipefail
 
@@ -69,6 +71,26 @@ jobs:
           fi
           echo 'macOS signing fully configured.'
 
+      - name: Validate Windows signing configuration
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WINDOWS_SIGNING_CERTS_P12:-}" ]; then
+            echo 'No Authenticode certificate configured, building unsigned.'
+            if [ -n "${WINDOWS_CERT_PASSWORD:-}" ]; then
+              echo 'Note: WINDOWS_CERT_PASSWORD is set but unused without WINDOWS_SIGNING_CERTS_P12.' >&2
+            fi
+            exit 0
+          fi
+          if [ -z "${WINDOWS_CERT_PASSWORD:-}" ]; then
+            echo 'Windows signing configuration is incomplete. Missing: WINDOWS_CERT_PASSWORD' >&2
+            exit 1
+          fi
+          echo 'Windows signing fully configured.'
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -76,10 +98,11 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # Build installers (Windows: MSI + NSIS, macOS: dmg/zip, Linux:
+      # Build installers (Windows: NSIS, macOS: dmg/zip, Linux:
       # AppImage/deb) and upload them to a draft GitHub Release for this tag.
       #
-      # electron-builder reads CSC_LINK/CSC_KEY_PASSWORD to sign, and
+      # electron-builder reads WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD for Windows
+      # Authenticode and CSC_LINK/CSC_KEY_PASSWORD for macOS, and
       # APPLE_API_KEY (a *path* to the .p8, hence the temp file) with
       # APPLE_API_KEY_ID/APPLE_API_ISSUER to notarize.
       - name: Build and publish installers
@@ -88,12 +111,23 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.MACOS_SIGNING_CERTS_P12 }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          WINDOWS_SIGNING_CERTS_P12: ${{ secrets.WINDOWS_SIGNING_CERTS_P12 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           set -euo pipefail
           EXTRA=""
-          if [ "$RUNNER_OS" = "macOS" ] && [ -n "${CSC_LINK:-}" ]; then
+          if [ "$RUNNER_OS" = "Windows" ] && [ -n "${WINDOWS_SIGNING_CERTS_P12:-}" ]; then
+            export WIN_CSC_LINK="$WINDOWS_SIGNING_CERTS_P12"
+            export WIN_CSC_KEY_PASSWORD="$WINDOWS_CERT_PASSWORD"
+            unset CSC_LINK CSC_KEY_PASSWORD
+            echo 'Windows: signing with Authenticode certificate.'
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            echo 'Windows: building UNSIGNED (no Authenticode certificate configured).'
+          elif [ "$RUNNER_OS" = "macOS" ] && [ -n "${CSC_LINK:-}" ]; then
             key="$RUNNER_TEMP/notary-api-key.p8"
             # Subshell so the restrictive umask applies to the key file only,
             # not to every artifact the build writes afterwards.
@@ -132,3 +166,81 @@ jobs:
           # that wraps it, so this is the artifact to validate.
           xcrun stapler validate "$app"
           spctl --assess --type execute --verbose=4 "$app"
+
+  publish-release:
+    name: Publish GitHub release
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish tagged release with generated notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease=false
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            prerelease=true
+          fi
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME")
+          release_id=$(jq -r '.id' <<<"$release")
+          existing_body=$(jq -r '.body // ""' <<<"$release")
+          generated_body=$(gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f "tag_name=$GITHUB_REF_NAME" \
+            --jq '.body')
+          if [ -n "$existing_body" ]; then
+            body=$(printf '%s\n\n%s' "$existing_body" "$generated_body")
+          else
+            body="$generated_body"
+          fi
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -F draft=false \
+            -F prerelease="$prerelease" \
+            -F body="$body"
+
+  publish-cli:
+    name: Publish CLI package
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Skip npm publish when NPM_TOKEN is absent
+        if: env.NPM_TOKEN == ''
+        run: echo 'NPM_TOKEN is not configured; skipping CLI publish.'
+      - uses: actions/checkout@v7
+        if: env.NPM_TOKEN != ''
+      - uses: actions/setup-node@v7
+        if: env.NPM_TOKEN != ''
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - name: Publish kotrain CLI
+        if: env.NPM_TOKEN != ''
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag $GITHUB_REF_NAME does not contain a valid npm version." >&2
+            exit 1
+          fi
+          npm pkg set "version=$version" --workspace=apps/cli
+          npm install --package-lock-only --ignore-scripts
+          published_version=$(npm view "kotrain@$version" version 2>/dev/null || true)
+          if [ "$published_version" = "$version" ]; then
+            echo "kotrain@$version is already published; skipping."
+            exit 0
+          fi
+          npm ci
+          npm run build:core
+          npm run build -w @kotrain/host
+          npm publish --workspace=apps/cli --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

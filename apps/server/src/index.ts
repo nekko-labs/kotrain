@@ -9,7 +9,7 @@ import websocket from '@fastify/websocket';
 import { createHost, createDispatcher } from '@kotrain/host';
 import { IpcEvents } from '@kotrain/shared';
 import { runRelayAgent } from './relay-agent.js';
-import { runCli } from '@kotrain/cli';
+import { runCli } from 'kotrain/run';
 import { isLoopbackHost, tokenMatches, validateBindSecurity } from './security.js';
 import { createApiSecurityHook } from './request-security.js';
 

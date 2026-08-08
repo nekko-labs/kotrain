@@ -26,9 +26,7 @@ publish:
   repo: kotrain
 win:
   target:
-    - msi
     - nsis
-    - zip
   artifactName: ${productName}-${version}-${arch}.${ext}
 nsis:
   oneClick: false
@@ -73,4 +71,19 @@ linux:
     - AppImage
     - deb
   category: Development
+  syncDesktopName: true
   artifactName: ${productName}-${version}-${arch}.${ext}
+deb:
+  # Replace this GitHub noreply fallback when the project publishes a mailbox.
+  maintainer: Nekko Labs <nekko-labs@users.noreply.github.com>
+  synopsis: Local-first AI coding and cowork assistant
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0

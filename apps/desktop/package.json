@@ -8,6 +8,7 @@
     "email": "support@kotrain.com"
   },
   "homepage": "https://github.com/nekko-labs/kotrain",
+  "desktopName": "Kotrain",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

@@ -44,9 +44,15 @@ started.
 
 ## Download
 
-Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
+Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/kotrain/releases/latest):
+Windows NSIS `.exe`, macOS `.dmg`, or Linux `.AppImage`/`.deb`.
 
-macOS builds are signed with a Nekko Labs Developer ID certificate and notarized by Apple, so the `.dmg` opens and installs normally with no Gatekeeper workaround. Verify it yourself if you like:
+Release macOS builds are signed with a Nekko Labs Developer ID certificate and
+notarized by Apple when the macOS signing secrets are configured, so the `.dmg`
+opens and installs normally with no Gatekeeper workaround. If those secrets are
+absent, the workflow publishes an unsigned fallback build; clear its quarantine
+flag once with `xattr -cr "/Applications/Kotrain.app"`. Verify a signed build
+yourself if you like:
 
 ```bash
 spctl --assess --type execute --verbose=4 "/Applications/Kotrain.app"
@@ -54,7 +60,12 @@ spctl --assess --type execute --verbose=4 "/Applications/Kotrain.app"
 
 That should report `accepted` with `source=Notarized Developer ID`. How this is set up: [docs/signing.md](docs/signing.md).
 
-Windows isn't code-signed yet, so SmartScreen may show an "unknown publisher" prompt: choose **More info → Run anyway**.
+Windows installers are signed when the release signing secrets are configured.
+Unsigned fallback builds show an "unknown publisher" SmartScreen prompt: choose
+**More info → Run anyway**. The NSIS installer receives desktop updates; Linux
+AppImage/deb and macOS DMG releases include their updater metadata. A release
+installed from a manually downloaded artifact may still require the matching
+installer format for updates.
 
 > **Releases before v0.5.1** are unsigned. macOS quarantines them and may say the app is *damaged* or move it to the Trash. The app is fine; clear the quarantine flag once with `xattr -cr "/Applications/Kotrain.app"`, or upgrade to a signed build.
 
@@ -165,7 +176,15 @@ The core engine is Electron-free so it can be tested in isolation and reused.
 External harnesses can drive the same host through the CLI or MCP server:
 
 ```bash
-npm run build -w @kotrain/cli
+npm install --global kotrain
+npx kotrain status --json
+npx kotrain mcp
+```
+
+From a checkout:
+
+```bash
+npm run build --workspace=apps/cli
 node apps/cli/dist/index.js status --json
 node apps/cli/dist/index.js mcp
 ```

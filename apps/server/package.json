@@ -18,7 +18,7 @@
   "dependencies": {
     "@fastify/static": "^10.1.2",
     "@fastify/websocket": "^11.3.0",
-    "@kotrain/cli": "*",
+    "kotrain": "*",
     "@kotrain/host": "*",
     "@kotrain/shared": "*",
     "fastify": "^5.11.2"
