@@ -94,8 +94,10 @@ progress on stderr.
 {"type":"done"}
 ```
 
-Progress and diagnostics go to stderr. Other commands accept `--json`; `watch
---json` emits event objects as NDJSON.
+Progress and diagnostics go to stderr. Other commands accept `--json`;
+`watch --json` emits the same typed event objects as NDJSON and exits cleanly
+when it receives Ctrl-C. Watch events are `text`, `tool_call`, `tool_result`,
+`blocked`, `done`, and `error`; reasoning and usage-only events are omitted.
 
 ## Exit codes
 
@@ -147,6 +149,21 @@ Cursor and generic `mcpServers` configuration:
 unattended training that intentionally permits ask-rules must pass
 `"approve": "yolo"`. The server negotiates MCP protocol versions, echoing a
 supported client version and otherwise selecting its newest supported version.
+`kotrain_task_create` exposes `title`, `prompt`, `kind`, `runAt`, `intervalMs`,
+`workspaceId`, `providerId`, `modelId`, `condition`, and `keepAlive` directly;
+`title`, `prompt`, and `kind` are required. A `kotrain_chat` result presents
+the assistant reply first, followed by a metadata block containing session,
+tool-call, blocked-entry, duration, and usage details.
+
+The MCP tool list mirrors the CLI coverage: `kotrain_chat`,
+`kotrain_list_sessions`, `kotrain_new_session`, `kotrain_get_session`,
+`kotrain_workspace_list`, `kotrain_workspace_add`, `kotrain_workspace_remove`,
+`kotrain_workspace_index`, `kotrain_workspace_search`,
+`kotrain_prompts_list`, `kotrain_tasks_list`, `kotrain_task_create`,
+`kotrain_task_run`, `kotrain_task_delete`, `kotrain_skills_list`,
+`kotrain_skill_install`, `kotrain_tools_list`, `kotrain_models_list`,
+`kotrain_train_start`, `kotrain_train_status`, `kotrain_train_hint`,
+`kotrain_train_stop`, and `kotrain_status`.
 
 ## Recipes
 

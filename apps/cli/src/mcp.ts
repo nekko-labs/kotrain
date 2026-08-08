@@ -82,7 +82,22 @@ const TOOLS = [
   {
     name: 'kotrain_task_create',
     description: 'Create an automation task.',
-    inputSchema: { type: 'object', properties: { task: { type: 'object' } }, required: ['task'] },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Human-readable task name.' },
+        prompt: { type: 'string', description: 'Instruction to run on each task execution.' },
+        kind: { type: 'string', enum: ['scheduled', 'recurring', 'background'], description: 'Task schedule type.' },
+        runAt: { type: 'number', description: 'Scheduled execution time as epoch milliseconds.' },
+        intervalMs: { type: 'number', description: 'Recurring/background interval in milliseconds.' },
+        workspaceId: { type: 'string', description: 'Workspace used by the task.' },
+        providerId: { type: 'string', description: 'Provider override.' },
+        modelId: { type: 'string', description: 'Model override.' },
+        condition: { type: 'string', description: 'Background until-condition.' },
+        keepAlive: { type: 'string', enum: ['forever', 'until'], description: 'Background lifetime policy.' },
+      },
+      required: ['title', 'prompt', 'kind'],
+    },
   },
   {
     name: 'kotrain_task_run',
@@ -218,7 +233,25 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
     case 'kotrain_tasks_list':
       return JSON.stringify(await client.listTasks());
     case 'kotrain_task_create':
-      return JSON.stringify(await client.createTask(args.task));
+      if (
+        typeof args.title !== 'string' ||
+        typeof args.prompt !== 'string' ||
+        !['scheduled', 'recurring', 'background'].includes(args.kind)
+      ) {
+        throw new Error('Task creation requires title, prompt, and kind (scheduled, recurring, or background).');
+      }
+      return JSON.stringify(await client.createTask({
+        title: args.title,
+        prompt: args.prompt,
+        kind: args.kind,
+        runAt: args.runAt,
+        intervalMs: args.intervalMs,
+        workspaceId: args.workspaceId,
+        providerId: args.providerId,
+        modelId: args.modelId,
+        condition: args.condition,
+        keepAlive: args.keepAlive,
+      }));
     case 'kotrain_task_run':
       await client.runTaskNow(String(args.taskId));
       return JSON.stringify({ ok: true });
@@ -356,7 +389,27 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
     } else if (method === 'tools/call') {
       try {
         const text = await callTool(client, params?.name, params?.arguments ?? {});
-        ok(id, { content: [{ type: 'text', text }] });
+        if (params?.name === 'kotrain_chat') {
+          const result = JSON.parse(text) as {
+            text: string;
+            sessionId: string;
+            provider: string;
+            model: string;
+            toolCalls: unknown[];
+            blocked: unknown[];
+            durationMs: number;
+            usage?: unknown;
+          };
+          const { text: reply, ...metadata } = result;
+          ok(id, {
+            content: [
+              { type: 'text', text: reply },
+              { type: 'text', text: JSON.stringify(metadata) },
+            ],
+          });
+        } else {
+          ok(id, { content: [{ type: 'text', text }] });
+        }
       } catch (e) {
         ok(id, { content: [{ type: 'text', text: `Error: ${(e as Error).message}` }], isError: true });
       }

@@ -63,7 +63,11 @@ export interface Client {
   runTaskNow(id: string): Promise<void>;
   deleteTask(id: string): Promise<AutomationTask[]>;
   listInstalledSkills(): Promise<InstalledSkillRecord[]>;
-  installSkill(skillId: string, target: InstallTarget, payload?: MarketplaceSkill): Promise<{ ok: boolean; message?: string; installed: InstalledSkillRecord[] }>;
+  installSkill(
+    skillId: string,
+    target: InstallTarget,
+    payload?: MarketplaceSkill,
+  ): Promise<{ ok: boolean; message?: string; installed: InstalledSkillRecord[] }>;
   listTools(): Promise<Array<{ name: string; description: string }>>;
   usageSummary(): Promise<UsageSummary>;
   remoteStatus(): Promise<RemoteStatus>;
@@ -212,10 +216,7 @@ export function resolveModel(
   return { providerId, modelId };
 }
 
-/**
- * Run one chat turn to completion, auto-approving tool calls. Streams text via
- * onText and resolves with the full assistant message.
- */
+/** Run one chat turn to completion, streaming text and structured events. */
 export async function runChat(
   client: Client,
   args: {
@@ -230,8 +231,16 @@ export async function runChat(
   },
 ): Promise<ChatRunResult> {
   const policy = args.approve ?? approvalPolicy();
+  const session = await client.getSession(args.sessionId);
+  if (!session) throw new Error(`Session ${args.sessionId} not found`);
+  const originalMode = session.mode;
   await client.setSessionOptions(args.sessionId, { mode: policy === 'ask' ? 'ask' : policy });
-  await client.ready();
+  try {
+    await client.ready();
+  } catch (error) {
+    await client.setSessionOptions(args.sessionId, { mode: originalMode });
+    throw error;
+  }
   return new Promise((resolve, reject) => {
     let out = '';
     const toolCalls: ChatToolCall[] = [];
@@ -239,10 +248,32 @@ export async function runChat(
     let usage: { inputTokens: number; outputTokens: number } | undefined;
     const started = Date.now();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = (result: ChatRunResult) => {
+    let settled = false;
+    const restore = async () => {
+      await client.setSessionOptions(args.sessionId, { mode: originalMode });
+    };
+    const finish = async (result: ChatRunResult) => {
+      if (settled) return;
+      settled = true;
       if (timer) clearTimeout(timer);
       off();
-      resolve(result);
+      try {
+        await restore();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    const fail = async (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      off();
+      try {
+        await restore();
+      } finally {
+        reject(error);
+      }
     };
     const off = client.onAgentEvent((e) => {
       if (e.sessionId !== args.sessionId) return;
@@ -264,7 +295,12 @@ export async function runChat(
               if (e.result.isError) call.error = e.result.output;
             }
           }
-          args.onEvent?.({ type: 'tool_result', toolCallId: e.result.toolCallId, ok: !e.result.isError, output: e.result.output });
+          args.onEvent?.({
+            type: 'tool_result',
+            toolCallId: e.result.toolCallId,
+            ok: !e.result.isError,
+            output: e.result.output,
+          });
           break;
         case 'tool_approval_required':
           {
@@ -281,7 +317,9 @@ export async function runChat(
             } else if (policy === 'yolo') {
               void client.approveTool(e.sessionId, e.call.id, true);
             } else {
-              void askApproval(e.call.name, e.call.input).then((approved) => client.approveTool(e.sessionId, e.call.id, approved)).catch(reject);
+              void askApproval(e.call.name, e.call.input)
+                .then((approved) => client.approveTool(e.sessionId, e.call.id, approved))
+                .catch(fail);
             }
           }
           break;
@@ -290,35 +328,43 @@ export async function runChat(
           break;
         case 'done':
           args.onEvent?.({ type: 'done' });
-          finish({ text: out, toolCalls, blocked, durationMs: Date.now() - started, usage });
+          void finish({ text: out, toolCalls, blocked, durationMs: Date.now() - started, usage });
           break;
         case 'error':
           args.onEvent?.({ type: 'error', message: e.message });
-          if (timer) clearTimeout(timer);
-          off();
-          reject(new Error(e.message));
+          void fail(new Error(e.message));
           break;
       }
     });
     client
       .sendChat({ sessionId: args.sessionId, providerId: args.providerId, modelId: args.modelId, text: args.text })
       .catch((err) => {
-        off();
-        reject(err);
+        void fail(err);
       });
-    if (args.timeoutMs) {
+    const timeoutMs = args.timeoutMs;
+    if (timeoutMs) {
       timer = setTimeout(() => {
         void client.abortChat(args.sessionId);
-        off();
-        reject(new Error(`Chat timed out after ${args.timeoutMs} seconds`));
-      }, args.timeoutMs);
+        void fail(new Error(`Chat timed out after ${timeoutMs / 1000} seconds`));
+      }, timeoutMs);
     }
   });
 }
 
 export type ApprovalPolicy = 'guardrails' | 'yolo' | 'ask';
-export type ChatToolCall = { id?: string; name: string; input: Record<string, unknown>; ok?: boolean; error?: string };
-export type BlockedEntry = { ruleLabels: string[]; command?: string; severity: 'low' | 'medium' | 'high'; reason: string };
+export type ChatToolCall = {
+  id?: string;
+  name: string;
+  input: Record<string, unknown>;
+  ok?: boolean;
+  error?: string;
+};
+export type BlockedEntry = {
+  ruleLabels: string[];
+  command?: string;
+  severity: 'low' | 'medium' | 'high';
+  reason: string;
+};
 export type ChatOutputEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool_call'; call: { name: string; input: Record<string, unknown> } }
