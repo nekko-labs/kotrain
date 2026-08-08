@@ -101,7 +101,8 @@ jobs:
       # Build installers (Windows: NSIS, macOS: dmg/zip, Linux:
       # AppImage/deb) and upload them to a draft GitHub Release for this tag.
       #
-      # electron-builder reads CSC_LINK/CSC_KEY_PASSWORD to sign, and
+      # electron-builder reads WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD for Windows
+      # Authenticode and CSC_LINK/CSC_KEY_PASSWORD for macOS, and
       # APPLE_API_KEY (a *path* to the .p8, hence the temp file) with
       # APPLE_API_KEY_ID/APPLE_API_ISSUER to notarize.
       - name: Build and publish installers
@@ -118,11 +119,12 @@ jobs:
           set -euo pipefail
           EXTRA=""
           if [ "$RUNNER_OS" = "Windows" ] && [ -n "${WINDOWS_SIGNING_CERTS_P12:-}" ]; then
-            export CSC_LINK="$WINDOWS_SIGNING_CERTS_P12"
-            export CSC_KEY_PASSWORD="$WINDOWS_CERT_PASSWORD"
+            export WIN_CSC_LINK="$WINDOWS_SIGNING_CERTS_P12"
+            export WIN_CSC_KEY_PASSWORD="$WINDOWS_CERT_PASSWORD"
+            unset CSC_LINK CSC_KEY_PASSWORD
             echo 'Windows: signing with Authenticode certificate.'
           elif [ "$RUNNER_OS" = "Windows" ]; then
-            unset CSC_LINK CSC_KEY_PASSWORD
+            unset CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD
             export CSC_IDENTITY_AUTO_DISCOVERY=false
             echo 'Windows: building UNSIGNED (no Authenticode certificate configured).'
           elif [ "$RUNNER_OS" = "macOS" ] && [ -n "${CSC_LINK:-}" ]; then
@@ -182,16 +184,30 @@ jobs:
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             prerelease=true
           fi
-          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" --jq '.id')
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME")
+          release_id=$(jq -r '.id' <<<"$release")
+          existing_body=$(jq -r '.body // ""' <<<"$release")
+          generated_body=$(gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f "tag_name=$GITHUB_REF_NAME" \
+            --jq '.body')
+          if [ -n "$existing_body" ]; then
+            body=$(printf '%s\n\n%s' "$existing_body" "$generated_body")
+          else
+            body="$generated_body"
+          fi
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
             -F draft=false \
             -F prerelease="$prerelease" \
-            -F generate_release_notes=true
+            -F body="$body"
 
   publish-cli:
     name: Publish CLI package
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:

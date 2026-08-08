@@ -96,11 +96,14 @@ Then delete the export: `rm -P /tmp/nekko-signing.p12`.
 ## Windows
 
 The release workflow passes `WINDOWS_SIGNING_CERTS_P12` and
-`WINDOWS_CERT_PASSWORD` to electron-builder as `CSC_LINK` and
-`CSC_KEY_PASSWORD`. With both secrets present, the NSIS installer is
-Authenticode-signed. If no certificate is configured, the workflow deliberately
-builds an unsigned installer so releases remain available; SmartScreen will
-show an unknown-publisher warning. A certificate without its password is a
+`WINDOWS_CERT_PASSWORD` to electron-builder as `WIN_CSC_LINK` and
+`WIN_CSC_KEY_PASSWORD`. electron-builder 26.15.3 still supports the legacy
+PKCS#12/signtool path through these Windows-specific environment variables;
+Azure Trusted Signing is an alternative, not a requirement for this setup.
+With both secrets present, the NSIS installer is Authenticode-signed. If no
+certificate is configured, the workflow deliberately builds an unsigned
+installer so releases remain available; SmartScreen will show an
+unknown-publisher warning. A certificate without its password is a
 configuration error and fails the Windows job before packaging.
 
 The certificate should contain the private key and be exported as a base64

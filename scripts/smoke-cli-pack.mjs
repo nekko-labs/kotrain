@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,6 +45,11 @@ try {
   if (packageJson.bin?.kotrain !== './dist/index.js' || packageJson.bin?.nekkos !== './dist/index.js') {
     throw new Error('Packed package is missing the kotrain and nekkos bin entries.');
   }
+  const packedDist = readdirSync(join(unpacked, 'dist')).sort();
+  const expectedDist = ['index.d.ts', 'index.js', 'run.d.ts', 'run.js'];
+  if (JSON.stringify(packedDist) !== JSON.stringify(expectedDist)) {
+    throw new Error(`Packed package contains unexpected dist files: ${packedDist.join(', ')}`);
+  }
   statSync(join(unpacked, 'dist/index.js'));
   statSync(runTypes);
   if (packageJson.exports?.['./run']?.types !== './dist/run.d.ts') {
@@ -52,6 +57,14 @@ try {
   }
 
   run('npm', ['install', '--prefix', unpacked, '--ignore-scripts', '--no-package-lock']);
+  symlinkSync('..', join(unpacked, 'node_modules/kotrain'), 'dir');
+  const runImport = run(
+    process.execPath,
+    ['-e', "import('kotrain/run').then((m) => console.log(typeof m.runCli))"],
+    { cwd: unpacked, stdio: ['ignore', 'pipe', 'inherit'] },
+  );
+  if (runImport !== 'function') throw new Error(`kotrain/run import failed: ${runImport}`);
+  console.log(`kotrain/run import: ${runImport}`);
   const nativeDependency = run(
     process.execPath,
     ['-e', "import('@lydell/node-pty').then(() => console.log('native node-pty: resolved'))"],

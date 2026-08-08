@@ -74,7 +74,8 @@ linux:
   syncDesktopName: true
   artifactName: ${productName}-${version}-${arch}.${ext}
 deb:
-  maintainer: Nekko Labs <https://github.com/nekko-labs>
+  # Replace this GitHub noreply fallback when the project publishes a mailbox.
+  maintainer: Nekko Labs <nekko-labs@users.noreply.github.com>
   synopsis: Local-first AI coding and cowork assistant
   depends:
     - libgtk-3-0

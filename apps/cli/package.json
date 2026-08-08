@@ -20,7 +20,10 @@
     "node": ">=22.12.0"
   },
   "files": [
-    "dist/**",
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/run.js",
+    "dist/run.d.ts",
     "README.md",
     "LICENSE"
   ],
