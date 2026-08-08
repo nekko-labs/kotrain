@@ -153,6 +153,7 @@ export const IpcChannels = {
   remoteEnable: 'remote:enable',
   remoteDisable: 'remote:disable',
   remoteStatus: 'remote:status',
+  remotePairing: 'remote:pairing',
   remotePair: 'remote:pair',
   remoteDevices: 'remote:devices',
   remoteRevoke: 'remote:revoke',
@@ -373,6 +374,7 @@ export interface KotrainApi {
   enableRemote(relayUrl: string): Promise<import('./remote.js').RemoteStatus>;
   disableRemote(): Promise<import('./remote.js').RemoteStatus>;
   getRemoteStatus(): Promise<import('./remote.js').RemoteStatus>;
+  getRemotePairing(): Promise<import('./remote.js').RemotePairing | null>;
   /** Mint a short-lived single-use pairing code for enrolling a new device. */
   startRemotePairing(): Promise<import('./remote.js').PairingGrant>;
   listRemoteDevices(): Promise<import('./remote.js').RemoteDevice[]>;

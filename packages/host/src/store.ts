@@ -1,9 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { AppSettings } from '@kotrain/shared';
 import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@kotrain/shared';
 import { DEFAULT_GUARDRAILS } from '@kotrain/core';
 import { dataDir } from './paths.js';
+import { writeJsonAtomic } from './secure-file.js';
 
 export { dataDir } from './paths.js';
 
@@ -67,7 +68,7 @@ export function getSettings(): AppSettings {
 export function saveSettings(patch: Partial<AppSettings>): AppSettings {
   const next = { ...getSettings(), ...patch };
   cache.set(dataDir(), next);
-  writeFileSync(SETTINGS_PATH(), JSON.stringify(next, null, 2), 'utf8');
+  writeJsonAtomic(SETTINGS_PATH(), next);
   return next;
 }
 
@@ -75,6 +76,6 @@ export function saveSettings(patch: Partial<AppSettings>): AppSettings {
 export function resetSettings(): AppSettings {
   const next = defaults();
   cache.set(dataDir(), next);
-  writeFileSync(SETTINGS_PATH(), JSON.stringify(next, null, 2), 'utf8');
+  writeJsonAtomic(SETTINGS_PATH(), next);
   return next;
 }

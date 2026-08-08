@@ -17,8 +17,7 @@ services:
       - kotrain-data:/data
     environment:
       - KOTRAIN_SANDBOX=workspace-jail
-      # Uncomment to require an access token (recommended if exposing beyond localhost):
-      # - KOTRAIN_TOKEN=change-me
+      - KOTRAIN_TOKEN=kotrain-docker-local
     # Lets the container reach a model server (Ollama/LM Studio/vLLM) on the host,
     # e.g. base URL http://host.docker.internal:1234
     extra_hosts:

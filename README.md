@@ -100,10 +100,14 @@ npm install
 npm run web        # builds everything, then serves at http://localhost:1440
 ```
 
-Same app, in your browser, fully offline. It binds to `localhost` by default; set
-`KOTRAIN_TOKEN` to require an access token (append `?token=…` to the URL) before
-exposing it with `KOTRAIN_HOST=0.0.0.0`. Data lives in `~/.kotrain` (override with
-`KOTRAIN_DATA_DIR`).
+Same app, in your browser, fully offline. It binds to `localhost` by default. A
+non-loopback bind refuses to start unless `KOTRAIN_TOKEN` is set; use
+`Authorization: Bearer <token>` for API requests and append `?token=…` only for
+browser WebSocket access. If a trusted reverse proxy provides authentication,
+the explicit escape hatch is `KOTRAIN_ALLOW_UNAUTHENTICATED=1`. Host and Origin
+checks can be extended for a proxy with comma-separated
+`KOTRAIN_ALLOWED_HOSTS` and `KOTRAIN_ALLOWED_ORIGINS`. Data lives in
+`~/.kotrain` (override with `KOTRAIN_DATA_DIR`).
 
 ![Kotrain web edition](docs/screenshots/web-edition.png)
 
@@ -115,8 +119,10 @@ docker compose up        # build + run, then open http://localhost:1440
 
 Mount your codebases into `./workspace` (the sandbox confines file tools there),
 and reach a model server on your host at `http://host.docker.internal:<port>`.
-Settings/sessions persist in the `kotrain-data` volume. Published to the host's
-localhost by default; set `KOTRAIN_TOKEN` before exposing on a network.
+Settings/sessions persist in the `kotrain-data` volume. Compose supplies a local
+development token (`kotrain-docker-local`); replace it before exposing the
+service beyond localhost. Direct container runs generate and print a random
+token when `KOTRAIN_TOKEN` is unset.
 
 Cloud keeps inference and tools **on your machine**, the relay is an
 end-to-end-encrypted pipe to a paired local agent, so using your own model stays

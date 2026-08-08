@@ -92,8 +92,33 @@ function createWindow(): void {
   win.on('move', persist);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
+    const sameApp = rendererUrl
+      ? (() => {
+          try {
+            return new URL(url).origin === new URL(rendererUrl).origin;
+          } catch {
+            return false;
+          }
+        })()
+      : url.startsWith('file://');
+    if (sameApp) return;
+    event.preventDefault();
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+  });
+  win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    if (!/^https?:\/\//i.test(params.src) && params.src !== 'about:blank') {
+      event.preventDefault();
+      return;
+    }
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
   });
 
   if (process.env['ELECTRON_RENDERER_URL']) {

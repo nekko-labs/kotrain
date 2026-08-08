@@ -66,6 +66,7 @@ interface Room {
   keyHash: Buffer | null;
   /** Push tokens registered by paired devices, keyed by deviceId. */
   pushTokens: Map<string, { token: string; platform: 'ios' | 'android' }>;
+  pushOwners: Map<string, string>;
 }
 
 interface Bucket {
@@ -90,6 +91,7 @@ export interface RelayOptions {
    * token, expecting `{ ok: true }`. Clients are unaffected (room-key authed).
    */
   authzUrl?: string;
+  allowUnauthenticated?: boolean;
   pushSender?: PushSender;
 }
 
@@ -97,6 +99,7 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
   const limits: RelayLimits = { ...DEFAULT_LIMITS, ...opts.limits };
   const pushSender = opts.pushSender ?? createPushSender();
   const authzUrl = opts.authzUrl;
+  const allowUnauthenticated = opts.allowUnauthenticated === true;
   const authzCache = new Map<string, { ok: boolean; until: number }>();
 
   const rooms = new Map<string, Room>();
@@ -104,7 +107,7 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
     let r = rooms.get(code);
     if (!r) {
       if (rooms.size >= limits.maxRooms) return null;
-      r = { agent: null, clients: new Map(), keyHash: null, pushTokens: new Map() };
+      r = { agent: null, clients: new Map(), keyHash: null, pushTokens: new Map(), pushOwners: new Map() };
       rooms.set(code, r);
     }
     return r;
@@ -115,7 +118,7 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
   };
 
   const authorizeAgent = async (access: string | undefined): Promise<boolean> => {
-    if (!authzUrl) return true;
+    if (!authzUrl) return allowUnauthenticated;
     if (!access) return false;
     const key = sha256(access).toString('hex');
     const hit = authzCache.get(key);
@@ -247,11 +250,17 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
           const s = data.toString();
           const ctrl = controlFrame(s);
           if (ctrl?.type === 'register-push') {
-            if (typeof ctrl.token === 'string' && ctrl.token) {
-              const deviceId = typeof ctrl.deviceId === 'string' && ctrl.deviceId ? ctrl.deviceId : `token:${ctrl.token}`;
+            const deviceId = typeof ctrl.deviceId === 'string' ? ctrl.deviceId : '';
+            const token = typeof ctrl.token === 'string' ? ctrl.token : '';
+            const platform = ctrl.platform === 'android' ? 'android' : ctrl.platform === 'ios' ? 'ios' : '';
+            const validDevice = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceId);
+            const validToken = /^[A-Za-z0-9_-]{20,}$/.test(token);
+            const owner = r.pushOwners.get(deviceId);
+            if (validDevice && validToken && platform && (!owner || owner === cid)) {
+              r.pushOwners.set(deviceId, cid);
               r.pushTokens.set(deviceId, {
-                token: ctrl.token,
-                platform: ctrl.platform === 'android' ? 'android' : 'ios',
+                token,
+                platform,
               });
             }
             return;
@@ -261,6 +270,9 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
         });
         socket.on('close', () => {
           r.clients.delete(cid);
+          for (const [deviceId, owner] of r.pushOwners) {
+            if (owner === cid) r.pushOwners.delete(deviceId);
+          }
           if (r.agent) safeSend(r.agent, { type: 'client-close', cid });
           cleanup(code);
         });

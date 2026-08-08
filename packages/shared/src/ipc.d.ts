@@ -112,6 +112,7 @@ export declare const IpcChannels: {
     readonly remoteEnable: "remote:enable";
     readonly remoteDisable: "remote:disable";
     readonly remoteStatus: "remote:status";
+    readonly remotePairing: "remote:pairing";
     readonly appInfo: "app:info";
     readonly mcpStatus: "mcp:status";
     readonly mcpKotrain: "mcp:kotrain";
@@ -310,6 +311,7 @@ export interface KotrainApi {
     enableRemote(relayUrl: string): Promise<import('./remote.js').RemoteStatus>;
     disableRemote(): Promise<import('./remote.js').RemoteStatus>;
     getRemoteStatus(): Promise<import('./remote.js').RemoteStatus>;
+    getRemotePairing(): Promise<import('./remote.js').RemotePairing | null>;
     /** Running version + edition. */
     getAppInfo(): Promise<AppInfo>;
     /** Connect configured MCP servers and return their status + tools. */

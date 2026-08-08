@@ -23,6 +23,7 @@ export function RemoteAccess() {
   const [qr, setQr] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
+  const [link, setLink] = useState('');
   const editedUrl = useRef(false);
 
   const refresh = async () => {
@@ -55,12 +56,18 @@ export function RemoteAccess() {
   // Pairing link: on an http origin (web edition) the link opens this same UI;
   // the desktop app has no web origin, so the QR carries the raw pairing params
   // (the Kotrain phone app parses those directly).
-  const link =
-    status.enabled && liveGrant
-      ? `${location.protocol.startsWith('http') ? location.origin + '/' : 'kotrain-pair:'}?relay=${encodeURIComponent(
-          status.relayUrl!,
-        )}&room=${status.room}&key=${status.key}&pair=${liveGrant.code}`
-      : '';
+  useEffect(() => {
+    if (!status.enabled || !liveGrant) {
+      setLink('');
+      return;
+    }
+    void window.kotrain.getRemotePairing().then((p) => {
+      if (!p) return setLink('');
+      setLink(`${location.protocol.startsWith('http') ? location.origin + '/' : 'kotrain-pair:'}?relay=${encodeURIComponent(
+        p.relayUrl,
+      )}&room=${p.room}&key=${p.key}&pair=${liveGrant.code}`);
+    });
+  }, [status.enabled, liveGrant?.code]);
 
   useEffect(() => {
     if (link) QRCode.toDataURL(link, { margin: 1, width: 220 }).then(setQr).catch(() => setQr(''));

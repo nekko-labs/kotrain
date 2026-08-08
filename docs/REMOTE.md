@@ -63,6 +63,7 @@ The relay is a tiny stateless Node service; anything that runs a container can h
 
 ```bash
 docker run -d --name kotrain-relay -p 4400:4400 --restart unless-stopped \
+  -e KOTRAIN_RELAY_ALLOW_UNAUTHENTICATED=1 \
   ghcr.io/nekko-labs/kotrain-relay:latest
 ```
 
@@ -73,6 +74,8 @@ services:
   kotrain-relay:
     image: ghcr.io/nekko-labs/kotrain-relay:latest
     ports: ["4400:4400"]
+    environment:
+      KOTRAIN_RELAY_ALLOW_UNAUTHENTICATED: "1"
     restart: unless-stopped
 ```
 
@@ -96,6 +99,12 @@ Environment knobs:
 | `APNS_KEY_P8` / `APNS_KEY_ID` / `APNS_TEAM_ID` | Enable iOS push |
 | `FCM_SERVICE_ACCOUNT` | Enable Android push (service-account JSON) |
 | `KOTRAIN_RELAY_AUTHZ_URL` | Gate agent enrollment on a Kotrain Cloud account (managed hosting) |
+| `KOTRAIN_RELAY_ALLOW_UNAUTHENTICATED=1` | Explicitly allow unauthenticated agent enrollment for trusted/private deployments; otherwise agent enrollment is disabled when no authz URL is configured |
+
+The relay validates device IDs as UUIDs and push tokens as non-empty platform
+tokens. A connected device cannot replace another connection's push token for
+the same device ID. Keep the relay behind TLS (`wss://`) and do not enable the
+unauthenticated mode on a public endpoint.
 
 ## Headless agents
 

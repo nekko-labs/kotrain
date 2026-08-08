@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
   PAIRING_TTL_MS,
@@ -9,9 +9,11 @@ import {
   type PairingGrant,
   type RemoteDevice,
   type RemoteHelloReply,
+  type RemotePairing,
   type RemoteStatus,
 } from '@kotrain/shared';
 import { dataDir } from './store.js';
+import { writeJsonAtomic } from './secure-file.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
 import type { Host } from './host.js';
 
@@ -35,7 +37,6 @@ interface RemoteConfig {
 
 function file(): string {
   const dir = dataDir();
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   return join(dir, 'remote.json');
 }
 
@@ -49,7 +50,7 @@ function load(): RemoteConfig {
 }
 
 function save(cfg: RemoteConfig): RemoteConfig {
-  writeFileSync(file(), JSON.stringify(cfg, null, 2), 'utf8');
+  writeJsonAtomic(file(), cfg);
   return cfg;
 }
 
@@ -57,6 +58,7 @@ export interface RemoteService {
   enable(relayUrl: string): RemoteStatus;
   disable(): RemoteStatus;
   status(): RemoteStatus;
+  pairing(): RemotePairing | null;
   /** Mint a short-lived, single-use pairing code for enrolling a new device. */
   pair(): PairingGrant;
   devices(): RemoteDevice[];
@@ -104,7 +106,7 @@ export function createRemoteService(host: Host): RemoteService {
           enabled: true,
           relayUrl: cfg.relayUrl,
           room: cfg.room,
-          key: cfg.secret,
+          hasKey: !!cfg.secret,
           devices: cfg.devices,
           connected: handle?.connectedDevices() ?? [],
           online: handle?.isOnline() ?? false,
@@ -136,6 +138,11 @@ export function createRemoteService(host: Host): RemoteService {
       return statusOf(save({ ...load(), enabled: false }));
     },
     status: () => statusOf(load()),
+    pairing: () => {
+      const cfg = load();
+      if (!cfg.enabled || !cfg.relayUrl || !cfg.room || !cfg.secret) return null;
+      return { relayUrl: cfg.relayUrl, room: cfg.room, key: cfg.secret };
+    },
     pair() {
       grant = { code: newPairingCode(), expiresAt: Date.now() + PAIRING_TTL_MS };
       return grant;

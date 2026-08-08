@@ -377,6 +377,7 @@ function makeWebClient(): KotrainApi {
     enableRemote: (relayUrl) => call(IpcChannels.remoteEnable, relayUrl),
     disableRemote: () => call(IpcChannels.remoteDisable),
     getRemoteStatus: () => call(IpcChannels.remoteStatus),
+    getRemotePairing: () => call(IpcChannels.remotePairing),
     startRemotePairing: () => call(IpcChannels.remotePair),
     listRemoteDevices: () => call(IpcChannels.remoteDevices),
     revokeRemoteDevice: (deviceId) => call(IpcChannels.remoteRevoke, deviceId),

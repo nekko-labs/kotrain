@@ -10,6 +10,7 @@ import { createHost, createDispatcher } from '@kotrain/host';
 import { IpcEvents } from '@kotrain/shared';
 import { runRelayAgent } from './relay-agent.js';
 import { runCli } from '@kotrain/cli';
+import { hostAllowed, isLoopbackHost, originAllowed, tokenMatches, validateBindSecurity } from './security.js';
 
 /** Subcommands handled by the embedded CLI (so `npx kotrain mcp|chat|…` works). */
 const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', 'help', 'version']);
@@ -35,12 +36,12 @@ function defaultDataDir(): string {
 
 const PORT = Number(env('PORT') ?? 1440);
 const HOST = env('HOST') ?? '127.0.0.1';
-const isLocal = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
+const isLocal = isLoopbackHost(HOST);
 const DATA_DIR = env('DATA_DIR') ?? defaultDataDir();
-// Auth is required iff a token is configured. (Containers must bind 0.0.0.0 but
-// are typically published only to the host's localhost, so we don't force a
-// token just because of the bind address, set KOTRAIN_TOKEN when truly exposed.)
 const TOKEN = env('TOKEN') ?? '';
+const ALLOW_UNAUTHENTICATED = env('ALLOW_UNAUTHENTICATED') === '1';
+const ALLOWED_HOSTS = (env('ALLOWED_HOSTS') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+const ALLOWED_ORIGINS = (env('ALLOWED_ORIGINS') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 const requireAuth = TOKEN !== '';
 
 // Find the built renderer: explicit override, then the bundled `web/` (published
@@ -83,6 +84,7 @@ async function main() {
     );
     process.exit(1);
   }
+  validateBindSecurity(HOST, TOKEN, ALLOW_UNAUTHENTICATED);
 
   // Report this build's version (for the web edition's refresh-when-updated check).
   if (!process.env.KOTRAIN_VERSION) {
@@ -99,15 +101,22 @@ async function main() {
   const app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
   await app.register(websocket);
 
-  // Auth: only enforced when a token is configured (KOTRAIN_TOKEN).
-  const authorized = (suppliedToken: string | undefined) => !requireAuth || suppliedToken === TOKEN;
+  const authorized = (suppliedToken: string | undefined) => !requireAuth || tokenMatches(TOKEN, suppliedToken);
 
   app.addHook('onRequest', async (req, reply) => {
-    if (!requireAuth || !req.url.startsWith('/api/')) return;
+    if (!req.url.startsWith('/api/')) return;
+    if (!hostAllowed(req.headers.host, HOST, PORT, ALLOWED_HOSTS)) {
+      reply.code(400).send({ error: 'invalid host' });
+      return;
+    }
+    if (!originAllowed(req.headers.origin, req.protocol, req.headers.host, ALLOWED_ORIGINS)) {
+      reply.code(403).send({ error: 'origin not allowed' });
+      return;
+    }
+    if (!requireAuth) return;
     const header = req.headers['authorization'];
     const bearer = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : undefined;
-    const q = (req.query as Record<string, string> | undefined)?.token;
-    if (!authorized(bearer ?? q)) reply.code(401).send({ error: 'unauthorized' });
+    if (!authorized(bearer)) reply.code(401).send({ error: 'unauthorized' });
   });
 
   // One HTTP route fronts the whole KotrainApi via the shared dispatcher.
@@ -123,8 +132,10 @@ async function main() {
   // Stream agent + index events over a WebSocket.
   app.get('/api/events', { websocket: true }, (socket: any, req) => {
     if (requireAuth) {
+      const header = req.headers.authorization;
+      const bearer = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : undefined;
       const q = (req.query as Record<string, string> | undefined)?.token;
-      if (!authorized(q)) {
+      if (!authorized(bearer ?? q)) {
         socket.close();
         return;
       }
@@ -152,9 +163,8 @@ async function main() {
   const url = `http://${isLocal ? 'localhost' : HOST}:${PORT}`;
   console.log(`\n🐾 Kotrain web edition running at ${url}`);
   console.log(`   data dir: ${DATA_DIR}`);
-  if (requireAuth) console.log(`   auth: token required (append ?token=… to the URL)`);
-  else if (!isLocal)
-    console.log(`   ⚠ bound to ${HOST} without a token, set KOTRAIN_TOKEN to require auth before exposing publicly.`);
+  if (requireAuth) console.log(`   auth: token required (use Authorization: Bearer <token>; browser URLs may use ?token=… for WebSocket access)`);
+  else if (!isLocal) console.log(`   ⚠ unauthenticated mode explicitly enabled; ensure an external auth layer protects this service.`);
   console.log(`   (offline-first, only reaches the model servers + connectors you configure)\n`);
 }
 
