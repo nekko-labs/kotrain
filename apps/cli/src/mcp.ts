@@ -1,4 +1,5 @@
-import { getClient, resolveModel, runChat, type Client } from './lib.js';
+import { getClient, resolveModel, runChat, approvalPolicy, type Client } from './lib.js';
+import { VERSION } from './version.js';
 
 /**
  * MCP stdio server exposing Kotrain to other tools (Claude Code, Codex, …).
@@ -8,7 +9,7 @@ import { getClient, resolveModel, runChat, type Client } from './lib.js';
  * status, all driving the local model.
  */
 
-const VERSION = '0.1.5';
+const PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18'];
 
 const TOOLS = [
   {
@@ -23,6 +24,7 @@ const TOOLS = [
         workspaceId: { type: 'string', description: 'Workspace/project to scope a new chat to (optional).' },
         provider: { type: 'string', description: 'Provider id override (optional).' },
         model: { type: 'string', description: 'Model id override (optional).' },
+        approve: { type: 'string', enum: ['guardrails', 'yolo', 'ask'], description: 'Tool approval policy (default guardrails).' },
       },
       required: ['prompt'],
     },
@@ -43,6 +45,76 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: { sessionId: { type: 'string' } }, required: ['sessionId'] },
   },
   {
+    name: 'kotrain_workspace_list',
+    description: 'List configured workspaces.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'kotrain_workspace_add',
+    description: 'Add a workspace by filesystem path.',
+    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+  },
+  {
+    name: 'kotrain_workspace_remove',
+    description: 'Remove a configured workspace.',
+    inputSchema: { type: 'object', properties: { workspaceId: { type: 'string' } }, required: ['workspaceId'] },
+  },
+  {
+    name: 'kotrain_workspace_index',
+    description: 'Index a configured workspace.',
+    inputSchema: { type: 'object', properties: { workspaceId: { type: 'string' } }, required: ['workspaceId'] },
+  },
+  {
+    name: 'kotrain_workspace_search',
+    description: 'Search an indexed workspace.',
+    inputSchema: { type: 'object', properties: { workspaceId: { type: 'string' }, query: { type: 'string' } }, required: ['workspaceId', 'query'] },
+  },
+  {
+    name: 'kotrain_prompts_list',
+    description: 'List saved prompts.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'kotrain_tasks_list',
+    description: 'List automation tasks.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'kotrain_task_create',
+    description: 'Create an automation task.',
+    inputSchema: { type: 'object', properties: { task: { type: 'object' } }, required: ['task'] },
+  },
+  {
+    name: 'kotrain_task_run',
+    description: 'Run an automation task immediately.',
+    inputSchema: { type: 'object', properties: { taskId: { type: 'string' } }, required: ['taskId'] },
+  },
+  {
+    name: 'kotrain_task_delete',
+    description: 'Delete an automation task.',
+    inputSchema: { type: 'object', properties: { taskId: { type: 'string' } }, required: ['taskId'] },
+  },
+  {
+    name: 'kotrain_skills_list',
+    description: 'List installed skills.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'kotrain_skill_install',
+    description: 'Install a skill.',
+    inputSchema: { type: 'object', properties: { skillId: { type: 'string' }, target: { type: 'string', enum: ['kotrain', 'claude', 'codex'] } }, required: ['skillId'] },
+  },
+  {
+    name: 'kotrain_tools_list',
+    description: 'List host tools.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'kotrain_models_list',
+    description: 'List models for a provider.',
+    inputSchema: { type: 'object', properties: { providerId: { type: 'string' } }, required: ['providerId'] },
+  },
+  {
     name: 'kotrain_train_start',
     description:
       "Ask this machine's Kotrain to train a model for a purpose. Creates and starts a training run: a local data-scientist agent works hands-on in the workspace (benchmark candidate models, prepare data, fine-tune, evaluate), reporting each experiment with its score to an experiment tree. Returns the run id; poll kotrain_train_status.",
@@ -60,6 +132,7 @@ const TOOLS = [
         maxExperiments: { type: 'number', description: 'Budget hint: stop after this many experiments.' },
         timeBudgetMin: { type: 'number', description: 'Budget hint: total minutes.' },
         extra: { type: 'string', description: 'Expert notes appended verbatim to the agent brief (exact commands, constraints, search space).' },
+        approve: { type: 'string', enum: ['guardrails', 'yolo', 'ask'], description: 'Approval policy; unattended runs should explicitly use yolo.' },
       },
       required: ['name', 'goal'],
     },
@@ -105,8 +178,14 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
         sessionProvider: session.providerId,
         sessionModel: session.modelId,
       });
-      const reply = await runChat(client, { sessionId, providerId, modelId, text: String(args.prompt ?? '') });
-      return `session: ${sessionId}\n\n${reply}`;
+      const reply = await runChat(client, {
+        sessionId,
+        providerId,
+        modelId,
+        text: String(args.prompt ?? ''),
+        approve: approvalPolicy(args.approve),
+      });
+      return JSON.stringify({ sessionId, provider: providerId, model: modelId, ...reply });
     }
     case 'kotrain_list_sessions':
       return JSON.stringify(
@@ -124,6 +203,35 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
         .map((m) => `## ${m.role}\n${m.content}`)
         .join('\n\n');
     }
+    case 'kotrain_workspace_list':
+      return JSON.stringify(await client.listWorkspaces());
+    case 'kotrain_workspace_add':
+      return JSON.stringify(await client.addWorkspaceByPath(String(args.path)));
+    case 'kotrain_workspace_remove':
+      return JSON.stringify(await client.removeWorkspace(String(args.workspaceId)));
+    case 'kotrain_workspace_index':
+      return JSON.stringify(await client.indexWorkspace(String(args.workspaceId)));
+    case 'kotrain_workspace_search':
+      return JSON.stringify(await client.searchWorkspace(String(args.workspaceId), String(args.query)));
+    case 'kotrain_prompts_list':
+      return JSON.stringify((await client.getSettings()).prompts ?? []);
+    case 'kotrain_tasks_list':
+      return JSON.stringify(await client.listTasks());
+    case 'kotrain_task_create':
+      return JSON.stringify(await client.createTask(args.task));
+    case 'kotrain_task_run':
+      await client.runTaskNow(String(args.taskId));
+      return JSON.stringify({ ok: true });
+    case 'kotrain_task_delete':
+      return JSON.stringify(await client.deleteTask(String(args.taskId)));
+    case 'kotrain_skills_list':
+      return JSON.stringify(await client.listInstalledSkills());
+    case 'kotrain_skill_install':
+      return JSON.stringify(await client.installSkill(String(args.skillId), (args.target ?? 'kotrain') as import('@kotrain/shared').InstallTarget));
+    case 'kotrain_tools_list':
+      return JSON.stringify(await client.listTools());
+    case 'kotrain_models_list':
+      return JSON.stringify(await client.listModels(String(args.providerId)));
     case 'kotrain_train_start': {
       const run = await client.createTrainingRun({
         kind: (args.kind as 'training' | 'goal') ?? 'training',
@@ -140,8 +248,7 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
           extra: args.extra,
         },
       });
-      // Headless run: never block on tool-approval prompts nobody can click.
-      if (run.sessionId) await client.setSessionOptions(run.sessionId, { mode: 'yolo' });
+      if (run.sessionId) await client.setSessionOptions(run.sessionId, { mode: approvalPolicy(args.approve) });
       await client.startTrainingRun(run.id);
       return JSON.stringify({ runId: run.id, sessionId: run.sessionId, status: 'running' }, null, 2);
     }
@@ -237,7 +344,9 @@ export function runMcpServer(opts: { url?: string; token?: string } = {}): void 
   async function handle(msg: any) {
     const { id, method, params } = msg;
     if (method === 'initialize') {
-      ok(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'kotrain', version: VERSION } });
+      const requested = typeof params?.protocolVersion === 'string' ? params.protocolVersion : '';
+      const protocolVersion = PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[PROTOCOL_VERSIONS.length - 1];
+      ok(id, { protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'kotrain', version: VERSION } });
     } else if (method === 'notifications/initialized' || method?.startsWith('notifications/')) {
       /* notifications: no response */
     } else if (method === 'ping') {

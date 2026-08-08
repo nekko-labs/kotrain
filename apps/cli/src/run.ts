@@ -1,10 +1,16 @@
-import { getClient, resolveModel, runChat, dataDir } from './lib.js';
+import { readFileSync } from 'node:fs';
+import { stdin } from 'node:process';
+import { getClient, resolveModel, runChat, approvalPolicy, dataDir, type ChatOutputEvent } from './lib.js';
 import { runMcpServer } from './mcp.js';
-import type { AgentEvent } from '@kotrain/shared';
+import { VERSION } from './version.js';
+import type { AgentEvent, NewTask } from '@kotrain/shared';
 
-const VERSION = '0.1.5';
+export const EXIT_CODES = { success: 0, usage: 2, notConfigured: 3, blocked: 4, providerFailure: 5, timeout: 6, unreachable: 7 } as const;
+export class CliError extends Error {
+  constructor(message: string, readonly exitCode: number = EXIT_CODES.providerFailure) { super(message); }
+}
 
-function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string | boolean> } {
+export function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string | boolean> } {
   const _: string[] = [];
   const flags: Record<string, string | boolean> = {};
   for (let i = 0; i < argv.length; i++) {
@@ -12,10 +18,7 @@ function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string
     if (a.startsWith('--')) {
       const key = a.slice(2);
       const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        flags[key] = next;
-        i++;
-      } else flags[key] = true;
+      if (next && !next.startsWith('--')) { flags[key] = next; i++; } else flags[key] = true;
     } else _.push(a);
   }
   return { _, flags };
@@ -24,122 +27,181 @@ function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string
 const HELP = `Kotrain CLI (kotrain ${VERSION}), drive your local agent from the terminal.
 
 Usage:
-  kotrain status [--json]              Show providers, model, workspaces, sessions
-  kotrain sessions [--json]            List chat sessions
-  kotrain chat "<prompt>" [opts]       Run an agent turn (streams the reply)
-  kotrain watch [--session <id>]       Tail live agent events (best with --url)
-  kotrain mcp                          Start the MCP server (stdio) for other tools
+  kotrain status|sessions|watch [--json]
+  kotrain chat "<prompt>" [--approve guardrails|yolo|ask] [opts]
+  kotrain workspace list|add|remove|index|search [opts]
+  kotrain prompts|tasks|skills|tools|models [opts]
+  kotrain train start|status|hint|stop [opts]
+  kotrain mcp
   kotrain --help | --version
 
-Target (any command):
-  --url <http://host:port>          Talk to a running server (else KOTRAIN_URL,
-                                    else the local data dir)
-  --token <token>                   Bearer token for a secured server (KOTRAIN_TOKEN)
+Target:
+  --url <http://host:port>       Remote server (or KOTRAIN_URL)
+  --token <token>                Bearer token (or KOTRAIN_TOKEN)
 
-chat options:
-  --session <id>     Continue an existing session (default: newest, or new)
-  --new              Force a new session
-  --workspace <id>   Scope a new session to a workspace
-  --provider <id>    Provider override
-  --model <id>       Model override
+chat:
+  --session <id> --new --workspace <id> --provider <id> --model <id>
+  --file <path>                  Read a multi-line prompt from a file
+  --approve <guardrails|yolo|ask> Approval policy (default: guardrails, or KOTRAIN_APPROVE)
+  --json                         One JSON result object
+  --stream ndjson                Typed event per line
+  --timeout <seconds>            Abort after this many seconds
+  --quiet                        Suppress human progress output
 
-Local data dir: ${dataDir()}  (override with KOTRAIN_DATA_DIR)`;
+Exit codes:
+  0 success · 2 usage · 3 nothing configured · 4 guardrail blocked
+  5 provider/model failure · 6 timeout · 7 unreachable/unauthorized remote
 
-/** Run a CLI invocation. Shared by the `kotrain` bin and the bundled `kotrain` package. */
+Local data dir: ${dataDir()} (override with KOTRAIN_DATA_DIR)`;
+
+const value = (flags: Record<string, string | boolean>, name: string) => typeof flags[name] === 'string' ? flags[name] as string : undefined;
+const isMachine = (flags: Record<string, string | boolean>) => flags.json === true || flags.stream === 'ndjson';
+const print = (valueToPrint: unknown, json: boolean) => console.log(json ? JSON.stringify(valueToPrint) : typeof valueToPrint === 'object' ? JSON.stringify(valueToPrint, null, 2) : String(valueToPrint));
+
+async function readStdin(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let text = '';
+    stdin.setEncoding('utf8');
+    stdin.on('data', (chunk) => { text += chunk; });
+    stdin.on('end', () => resolve(text));
+    stdin.on('error', reject);
+  });
+}
+
+async function promptInput(args: string[], flags: Record<string, string | boolean>): Promise<string> {
+  const file = value(flags, 'file');
+  if (file) return readFileSync(file, 'utf8');
+  if (args[1] === '-' || (!args[1] && !stdin.isTTY)) return readStdin();
+  if (args[1]) return args[1];
+  throw new CliError('Usage: kotrain chat "<prompt>" (or provide --file / stdin)', EXIT_CODES.usage);
+}
+
+function taskFrom(flags: Record<string, string | boolean>): NewTask {
+  const title = value(flags, 'title');
+  const prompt = value(flags, 'prompt');
+  const kind = value(flags, 'kind') as NewTask['kind'] | undefined;
+  if (!title || !prompt || !kind) throw new CliError('Task creation requires --title, --kind, and --prompt.', EXIT_CODES.usage);
+  return { title, prompt, kind, workspaceId: value(flags, 'workspace'), providerId: value(flags, 'provider'), modelId: value(flags, 'model'),
+    runAt: value(flags, 'run-at') ? Number(value(flags, 'run-at')) : undefined, intervalMs: value(flags, 'interval-ms') ? Number(value(flags, 'interval-ms')) : undefined,
+    keepAlive: value(flags, 'keep-alive') as NewTask['keepAlive'], condition: value(flags, 'condition') };
+}
+
+function printEvent(event: ChatOutputEvent): void { process.stdout.write(`${JSON.stringify(event)}\n`); }
+
+/** Run one CLI invocation. */
 export async function runCli(argv: string[]): Promise<void> {
   const { _, flags } = parseFlags(argv);
   const cmd = _[0];
-
-  if (flags.version || cmd === 'version') return void console.log(VERSION);
+  if (flags.version || cmd === 'version') return void print(VERSION, !!flags.json);
   if (!cmd || flags.help || cmd === 'help') return void console.log(HELP);
-
-  if (cmd === 'mcp') return runMcpServer({ url: flags.url as string, token: flags.token as string });
-
-  const json = !!flags.json;
-  const client = getClient({ url: flags.url as string, token: flags.token as string });
-
-  if (cmd === 'status') {
-    const [s, sessions, remote] = await Promise.all([client.getSettings(), client.listSessions(), client.remoteStatus()]);
-    if (json) {
-      console.log(JSON.stringify({
-        providers: s.providers.map((p) => ({ id: p.id, label: p.label, kind: p.kind })),
-        defaultModel: s.defaultModelId ?? null,
-        workspaces: s.workspaces.map((w) => ({ id: w.id, name: w.name })),
-        sessions: sessions.length,
-        remote,
-      }, null, 2));
+  if (cmd === 'mcp') return runMcpServer({ url: value(flags, 'url'), token: value(flags, 'token') });
+  const client = getClient({ url: value(flags, 'url'), token: value(flags, 'token') });
+  const json = isMachine(flags);
+  try {
+    if (cmd === 'status') {
+      const [s, sessions, remote] = await Promise.all([client.getSettings(), client.listSessions(), client.remoteStatus()]);
+      if (json) return void print({ providers: s.providers.map((p) => ({ id: p.id, label: p.label, kind: p.kind })), defaultModel: s.defaultModelId ?? null,
+        workspaces: s.workspaces.map((w) => ({ id: w.id, name: w.name, path: w.path })), sessions: sessions.length, remote }, true);
+      console.log(`Kotrain, ${value(flags, 'url') || process.env.KOTRAIN_URL || dataDir()}`);
+      console.log(`Providers: ${s.providers.map((p) => `${p.label} (${p.id})`).join(', ') || 'none'}`);
+      console.log(`Default model: ${s.defaultModelId ?? '-'}`);
+      console.log(`Workspaces: ${s.workspaces.map((w) => w.name).join(', ') || 'none'}`);
+      console.log(`Sessions: ${sessions.length}`);
+      console.log(`Remote relay: ${remote.enabled ? 'enabled' : 'off'}`);
       return;
     }
-    console.log(`Kotrain, ${flags.url || process.env.KOTRAIN_URL || dataDir()}`);
-    console.log(`Providers: ${s.providers.map((p) => `${p.label} (${p.id})`).join(', ') || 'none'}`);
-    console.log(`Default model: ${s.defaultModelId ?? '-'}`);
-    console.log(`Workspaces: ${s.workspaces.map((w) => w.name).join(', ') || 'none'}`);
-    console.log(`Sessions: ${sessions.length}`);
-    console.log(`Remote relay: ${remote.enabled ? 'enabled' : 'off'}`);
-    return;
-  }
-
-  if (cmd === 'sessions') {
-    const list = await client.listSessions();
-    if (json) return void console.log(JSON.stringify(list.map((s) => ({ id: s.id, title: s.title, messages: s.messages.length, updatedAt: s.updatedAt })), null, 2));
-    if (!list.length) return void console.log('No sessions yet.');
-    for (const s of list) {
-      console.log(`${s.id}  ${new Date(s.updatedAt).toISOString().slice(0, 16).replace('T', ' ')}  ${s.messages.length}msg  ${s.title}`);
+    if (cmd === 'sessions') {
+      const list = await client.listSessions();
+      if (json) return void print(list.map((s) => ({ id: s.id, title: s.title, messages: s.messages.length, updatedAt: s.updatedAt })), true);
+      if (!list.length) return void console.log('No sessions yet.');
+      for (const s of list) console.log(`${s.id}  ${new Date(s.updatedAt).toISOString().slice(0, 16).replace('T', ' ')}  ${s.messages.length}msg  ${s.title}`);
+      return;
     }
-    return;
-  }
-
-  if (cmd === 'chat') {
-    const text = _[1];
-    if (!text) throw new Error('Usage: kotrain chat "<prompt>"');
-    let sessionId = flags.session as string | undefined;
-    if (!sessionId && !flags.new) sessionId = (await client.listSessions())[0]?.id;
-    if (!sessionId) sessionId = (await client.createSession(flags.workspace as string | undefined)).id;
-    const session = await client.getSession(sessionId);
-    if (!session) throw new Error(`Session ${sessionId} not found`);
-    const settings = await client.getSettings();
-    const { providerId, modelId } = resolveModel(settings, {
-      provider: flags.provider as string,
-      model: flags.model as string,
-      sessionProvider: session.providerId,
-      sessionModel: session.modelId,
-    });
-    process.stderr.write(`· session ${sessionId} · ${modelId}\n`);
-    await runChat(client, { sessionId, providerId, modelId, text, onText: (t) => process.stdout.write(t) });
-    process.stdout.write('\n');
-    return;
-  }
-
-  if (cmd === 'watch') {
-    const sessionFilter = flags.session as string | undefined;
-    await client.ready();
-    process.stderr.write('Watching agent events… (Ctrl+C to stop)\n');
-    client.onAgentEvent((e: AgentEvent) => {
-      if (sessionFilter && e.sessionId !== sessionFilter) return;
-      const tag = `[${e.sessionId.slice(0, 8)}]`;
-      switch (e.type) {
-        case 'text':
-          process.stdout.write(e.delta);
-          break;
-        case 'tool_call':
-          process.stdout.write(`\n${tag} ⚙ ${e.call.name} ${JSON.stringify(e.call.input).slice(0, 100)}\n`);
-          break;
-        case 'tool_result':
-          process.stdout.write(`\n${tag} ✓ tool done\n`);
-          break;
-        case 'done':
-          process.stdout.write(`\n${tag} ✔ done\n`);
-          break;
-        case 'error':
-          process.stdout.write(`\n${tag} ✗ ${e.message}\n`);
-          break;
+    if (cmd === 'chat') {
+      const text = await promptInput(_, flags);
+      let sessionId = value(flags, 'session');
+      if (!sessionId && !flags.new) sessionId = (await client.listSessions())[0]?.id;
+      if (!sessionId) sessionId = (await client.createSession(value(flags, 'workspace'))).id;
+      const session = await client.getSession(sessionId);
+      if (!session) throw new CliError(`Session ${sessionId} not found`, EXIT_CODES.usage);
+      const settings = await client.getSettings();
+      const { providerId, modelId } = resolveModel(settings, { provider: value(flags, 'provider'), model: value(flags, 'model'), sessionProvider: session.providerId, sessionModel: session.modelId });
+      const policy = approvalPolicy(value(flags, 'approve'));
+      if (!flags.quiet && !json) process.stderr.write(`· session ${sessionId} · ${modelId} · approve=${policy}\n`);
+      const result = await runChat(client, { sessionId, providerId, modelId, text, approve: policy,
+        timeoutMs: value(flags, 'timeout') ? Number(value(flags, 'timeout')) * 1000 : undefined,
+        onText: (t) => { if (!json) process.stdout.write(t); }, onEvent: flags.stream === 'ndjson' ? printEvent : undefined });
+      if (json && flags.stream !== 'ndjson') print({ sessionId, provider: providerId, model: modelId, ...result }, true);
+      else if (!json) process.stdout.write('\n');
+      if (result.blocked.length) throw new CliError(`Guardrails blocked ${result.blocked.length} tool call(s). Use --approve yolo to override.`, EXIT_CODES.blocked);
+      return;
+    }
+    if (cmd === 'watch') {
+      await client.ready();
+      if (!flags.quiet && !json) process.stderr.write('Watching agent events… (Ctrl+C to stop)\n');
+      client.onAgentEvent((e: AgentEvent) => {
+        if (value(flags, 'session') && e.sessionId !== value(flags, 'session')) return;
+        if (json) printEvent(e as unknown as ChatOutputEvent);
+        else if (e.type === 'text') process.stdout.write(e.delta);
+        else process.stdout.write(`\n[${e.sessionId.slice(0, 8)}] ${e.type}\n`);
+      });
+      await new Promise<void>(() => {});
+    }
+    if (cmd === 'workspace') {
+      const sub = _[1];
+      if (sub === 'list') return void print(await client.listWorkspaces(), json);
+      if (sub === 'add') return void print(await client.addWorkspaceByPath(value(flags, 'path') ?? _[2] ?? ''), json);
+      if (sub === 'remove') return void print(await client.removeWorkspace(value(flags, 'id') ?? _[2] ?? ''), json);
+      if (sub === 'index') return void print(await client.indexWorkspace(value(flags, 'id') ?? _[2] ?? ''), json);
+      if (sub === 'search') return void print(await client.searchWorkspace(value(flags, 'id') ?? _[2] ?? '', value(flags, 'query') ?? _[3] ?? ''), json);
+      throw new CliError('Usage: kotrain workspace list|add|remove|index|search', EXIT_CODES.usage);
+    }
+    if (cmd === 'prompts') return void print((await client.getSettings()).prompts ?? [], json);
+    if (cmd === 'tasks') {
+      const sub = _[1];
+      if (sub === 'list') return void print(await client.listTasks(), json);
+      if (sub === 'add' || sub === 'create') return void print(await client.createTask(taskFrom(flags)), json);
+      if (sub === 'run') { await client.runTaskNow(value(flags, 'id') ?? _[2] ?? ''); return void print({ ok: true }, json); }
+      if (sub === 'delete') return void print(await client.deleteTask(value(flags, 'id') ?? _[2] ?? ''), json);
+      throw new CliError('Usage: kotrain tasks list|add|run|delete', EXIT_CODES.usage);
+    }
+    if (cmd === 'skills') {
+      if (_[1] === 'install') {
+        const id = value(flags, 'id') ?? _[2];
+        if (!id) throw new CliError('Usage: kotrain skills install <id> [--target kotrain|claude|codex]', EXIT_CODES.usage);
+        return void print(await client.installSkill(id, (value(flags, 'target') ?? 'kotrain') as import('@kotrain/shared').InstallTarget), json);
       }
-    });
-    await new Promise<void>(() => {}); // run until interrupted
-    return;
+      return void print(await client.listInstalledSkills(), json);
+    }
+    if (cmd === 'tools') return void print(await client.listTools(), json);
+    if (cmd === 'models') {
+      const settings = await client.getSettings();
+      const provider = value(flags, 'provider') ?? _[1] ?? settings.defaultProviderId ?? settings.providers[0]?.id;
+      if (!provider) throw new CliError('No provider configured.', EXIT_CODES.notConfigured);
+      return void print(await client.listModels(provider), json);
+    }
+    if (cmd === 'train') {
+      const sub = _[1];
+      if (sub === 'status') return void print(await client.listTrainingRuns(), json);
+      if (sub === 'hint') { await client.addTrainingHint(value(flags, 'id') ?? _[2] ?? '', value(flags, 'text') ?? _[3] ?? ''); return void print({ ok: true }, json); }
+      if (sub === 'stop') { await client.stopTrainingRun(value(flags, 'id') ?? _[2] ?? ''); return void print({ ok: true }, json); }
+      if (sub === 'start') {
+        const settings = await client.getSettings();
+        const { providerId, modelId } = resolveModel(settings, { provider: value(flags, 'provider'), model: value(flags, 'model') });
+        const run = await client.createTrainingRun({ kind: (value(flags, 'kind') as 'training' | 'goal') ?? 'training', name: value(flags, 'name') ?? _[2] ?? '', goal: value(flags, 'goal') ?? _[3] ?? '',
+          workspaceId: value(flags, 'workspace'), providerId, modelId, config: { metric: value(flags, 'metric'), extra: value(flags, 'extra'), maxExperiments: Number(value(flags, 'max-experiments')) || undefined } });
+        await client.startTrainingRun(run.id);
+        return void print({ runId: run.id, sessionId: run.sessionId, status: 'running' }, json);
+      }
+      throw new CliError('Usage: kotrain train start|status|hint|stop', EXIT_CODES.usage);
+    }
+    throw new CliError(`Unknown command: ${cmd}`, EXIT_CODES.usage);
+  } catch (e) {
+    if (e instanceof CliError) throw e;
+    const message = (e as Error).message;
+    if (/No provider|No model|not configured/i.test(message)) throw new CliError(message, EXIT_CODES.notConfigured);
+    if (/timed out/i.test(message)) throw new CliError(message, EXIT_CODES.timeout);
+    if (/Cannot reach|HTTP 401|HTTP 403|HTTP 404|fetch failed/i.test(message)) throw new CliError(message, EXIT_CODES.unreachable);
+    throw new CliError(message, EXIT_CODES.providerFailure);
   }
-
-  console.error(`Unknown command: ${cmd}\n`);
-  console.log(HELP);
-  process.exitCode = 1;
 }

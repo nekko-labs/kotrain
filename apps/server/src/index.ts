@@ -14,7 +14,10 @@ import { isLoopbackHost, tokenMatches, validateBindSecurity } from './security.j
 import { createApiSecurityHook } from './request-security.js';
 
 /** Subcommands handled by the embedded CLI (so `npx kotrain mcp|chat|…` works). */
-const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', 'help', 'version']);
+const CLI_SUBCOMMANDS = new Set([
+  'mcp', 'chat', 'status', 'sessions', 'watch', 'workspace', 'prompts', 'tasks',
+  'skills', 'tools', 'models', 'train', 'help', 'version',
+]);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

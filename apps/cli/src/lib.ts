@@ -12,6 +12,16 @@ import type {
   RemoteStatus,
   TrainingRun,
   NewTrainingRun,
+  ModelInfo,
+  ProviderConfig,
+  IndexStatus,
+  SearchHit,
+  AutomationTask,
+  NewTask,
+  InstalledSkillRecord,
+  InstallTarget,
+  MarketplaceSkill,
+  UsageSummary,
 } from '@kotrain/shared';
 
 /** The data dir for the in-process (local) client. KOTRAIN_DATA_DIR wins, then
@@ -37,12 +47,28 @@ export function dataDir(): string {
 export interface Client {
   ready(): Promise<void>;
   getSettings(): Promise<AppSettings>;
+  updateSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
+  listProviders(): Promise<ProviderConfig[]>;
+  listModels(providerId: string): Promise<ModelInfo[]>;
   listSessions(): Promise<Session[]>;
   createSession(workspaceId?: string): Promise<Session>;
   getSession(id: string): Promise<Session | null>;
   listWorkspaces(): Promise<WorkspaceFolder[]>;
+  addWorkspaceByPath(path: string): Promise<WorkspaceFolder[]>;
+  removeWorkspace(id: string): Promise<WorkspaceFolder[]>;
+  indexWorkspace(id: string): Promise<IndexStatus>;
+  searchWorkspace(id: string, query: string): Promise<SearchHit[]>;
+  listTasks(): Promise<AutomationTask[]>;
+  createTask(task: NewTask): Promise<AutomationTask[]>;
+  runTaskNow(id: string): Promise<void>;
+  deleteTask(id: string): Promise<AutomationTask[]>;
+  listInstalledSkills(): Promise<InstalledSkillRecord[]>;
+  installSkill(skillId: string, target: InstallTarget, payload?: MarketplaceSkill): Promise<{ ok: boolean; message?: string; installed: InstalledSkillRecord[] }>;
+  listTools(): Promise<Array<{ name: string; description: string }>>;
+  usageSummary(): Promise<UsageSummary>;
   remoteStatus(): Promise<RemoteStatus>;
   sendChat(opts: SendOptions): Promise<void>;
+  abortChat(sessionId: string): Promise<void>;
   approveTool(sessionId: string, callId: string, approved: boolean): Promise<void>;
   onAgentEvent(cb: (e: AgentEvent) => void): () => void;
   setSessionOptions(id: string, patch: Partial<Pick<Session, 'mode' | 'disabledTools' | 'title'>>): Promise<void>;
@@ -59,12 +85,28 @@ function localClient(): Client {
   return {
     ready: async () => {},
     getSettings: async () => host.getSettings(),
+    updateSettings: async (patch) => host.updateSettings(patch),
+    listProviders: async () => host.listProviders(),
+    listModels: async (id) => host.listModels(id),
     listSessions: async () => host.listSessions(),
     createSession: async (w) => host.createSession(w),
     getSession: async (id) => host.getSession(id),
     listWorkspaces: async () => host.listWorkspaces(),
+    addWorkspaceByPath: async (path) => host.addWorkspaceByPath(path),
+    removeWorkspace: async (id) => host.removeWorkspace(id),
+    indexWorkspace: async (id) => host.indexWorkspace(id),
+    searchWorkspace: async (id, query) => host.searchWorkspace(id, query),
+    listTasks: async () => host.listTasks(),
+    createTask: async (task) => host.createTask(task),
+    runTaskNow: async (id) => host.runTaskNow(id),
+    deleteTask: async (id) => host.deleteTask(id),
+    listInstalledSkills: async () => host.listInstalledSkills(),
+    installSkill: async (id, target, payload) => host.installSkill(id, target, payload),
+    listTools: async () => host.listTools(),
+    usageSummary: async () => host.usageSummary(),
     remoteStatus: async () => host.remoteStatus(),
     sendChat: (o) => host.sendChat(o),
+    abortChat: async (id) => host.abortChat(id),
     approveTool: async (s, c, a) => host.approveTool(s, c, a),
     onAgentEvent: (cb) => {
       host.events.on('agentEvent', cb);
@@ -115,12 +157,28 @@ function httpClient(url: string, token?: string): Client {
   return {
     ready: () => connect(),
     getSettings: () => call('settings:get'),
+    updateSettings: (patch) => call('settings:update', patch),
+    listProviders: () => call('providers:list'),
+    listModels: (id) => call('models:list', id),
     listSessions: () => call('sessions:list'),
     createSession: (w) => call('session:create', w),
     getSession: (id) => call('session:get', id),
     listWorkspaces: () => call('workspace:list'),
+    addWorkspaceByPath: (path) => call('workspace:addByPath', path),
+    removeWorkspace: (id) => call('workspace:remove', id),
+    indexWorkspace: (id) => call('workspace:index', id),
+    searchWorkspace: (id, query) => call('workspace:search', id, query),
+    listTasks: () => call('tasks:list'),
+    createTask: (task) => call('task:create', task),
+    runTaskNow: (id) => call('task:runNow', id),
+    deleteTask: (id) => call('task:delete', id),
+    listInstalledSkills: () => call('skills:installed'),
+    installSkill: (id, target, payload) => call('skill:install', id, target, payload),
+    listTools: () => call('tools:list'),
+    usageSummary: () => call('usage:summary'),
     remoteStatus: () => call('remote:status'),
     sendChat: (o) => call('chat:send', o),
+    abortChat: (id) => call('chat:abort', id),
     approveTool: (s, c, a) => call('tool:approve', s, c, a),
     onAgentEvent: (cb) => {
       cbs.add(cb);
@@ -160,26 +218,83 @@ export function resolveModel(
  */
 export async function runChat(
   client: Client,
-  args: { sessionId: string; providerId: string; modelId: string; text: string; onText?: (s: string) => void },
-): Promise<string> {
+  args: {
+    sessionId: string;
+    providerId: string;
+    modelId: string;
+    text: string;
+    approve?: ApprovalPolicy;
+    timeoutMs?: number;
+    onText?: (s: string) => void;
+    onEvent?: (event: ChatOutputEvent) => void;
+  },
+): Promise<ChatRunResult> {
+  const policy = args.approve ?? approvalPolicy();
+  await client.setSessionOptions(args.sessionId, { mode: policy === 'ask' ? 'ask' : policy });
   await client.ready();
   return new Promise((resolve, reject) => {
     let out = '';
+    const toolCalls: ChatToolCall[] = [];
+    const blocked: BlockedEntry[] = [];
+    let usage: { inputTokens: number; outputTokens: number } | undefined;
+    const started = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (result: ChatRunResult) => {
+      if (timer) clearTimeout(timer);
+      off();
+      resolve(result);
+    };
     const off = client.onAgentEvent((e) => {
       if (e.sessionId !== args.sessionId) return;
       switch (e.type) {
         case 'text':
           out += e.delta;
           args.onText?.(e.delta);
+          args.onEvent?.({ type: 'text', delta: e.delta });
+          break;
+        case 'tool_call':
+          toolCalls.push({ id: e.call.id, name: e.call.name, input: e.call.input });
+          args.onEvent?.({ type: 'tool_call', call: { name: e.call.name, input: e.call.input } });
+          break;
+        case 'tool_result':
+          {
+            const call = toolCalls.find((item) => item.id === e.result.toolCallId);
+            if (call) {
+              call.ok = !e.result.isError;
+              if (e.result.isError) call.error = e.result.output;
+            }
+          }
+          args.onEvent?.({ type: 'tool_result', toolCallId: e.result.toolCallId, ok: !e.result.isError, output: e.result.output });
           break;
         case 'tool_approval_required':
-          void client.approveTool(e.sessionId, e.call.id, true);
+          {
+            const entry: BlockedEntry = {
+              ruleLabels: e.reason ? [e.reason] : [],
+              command: typeof e.call.input.command === 'string' ? e.call.input.command : undefined,
+              severity: e.severity,
+              reason: e.reason,
+            };
+            if (policy === 'guardrails') {
+              blocked.push(entry);
+              args.onEvent?.({ type: 'blocked', ...entry });
+              void client.approveTool(e.sessionId, e.call.id, false);
+            } else if (policy === 'yolo') {
+              void client.approveTool(e.sessionId, e.call.id, true);
+            } else {
+              void askApproval(e.call.name, e.call.input).then((approved) => client.approveTool(e.sessionId, e.call.id, approved)).catch(reject);
+            }
+          }
+          break;
+        case 'usage':
+          usage = { inputTokens: e.inputTokens, outputTokens: e.outputTokens };
           break;
         case 'done':
-          off();
-          resolve(out);
+          args.onEvent?.({ type: 'done' });
+          finish({ text: out, toolCalls, blocked, durationMs: Date.now() - started, usage });
           break;
         case 'error':
+          args.onEvent?.({ type: 'error', message: e.message });
+          if (timer) clearTimeout(timer);
           off();
           reject(new Error(e.message));
           break;
@@ -191,5 +306,48 @@ export async function runChat(
         off();
         reject(err);
       });
+    if (args.timeoutMs) {
+      timer = setTimeout(() => {
+        void client.abortChat(args.sessionId);
+        off();
+        reject(new Error(`Chat timed out after ${args.timeoutMs} seconds`));
+      }, args.timeoutMs);
+    }
   });
+}
+
+export type ApprovalPolicy = 'guardrails' | 'yolo' | 'ask';
+export type ChatToolCall = { id?: string; name: string; input: Record<string, unknown>; ok?: boolean; error?: string };
+export type BlockedEntry = { ruleLabels: string[]; command?: string; severity: 'low' | 'medium' | 'high'; reason: string };
+export type ChatOutputEvent =
+  | { type: 'text'; delta: string }
+  | { type: 'tool_call'; call: { name: string; input: Record<string, unknown> } }
+  | { type: 'tool_result'; toolCallId: string; ok: boolean; output: string }
+  | ({ type: 'blocked' } & BlockedEntry)
+  | { type: 'done' }
+  | { type: 'error'; message: string };
+export interface ChatRunResult {
+  text: string;
+  toolCalls: ChatToolCall[];
+  blocked: BlockedEntry[];
+  durationMs: number;
+  usage?: { inputTokens: number; outputTokens: number };
+}
+
+export function approvalPolicy(value = process.env.KOTRAIN_APPROVE): ApprovalPolicy {
+  if (!value) return 'guardrails';
+  if (value === 'guardrails' || value === 'yolo' || value === 'ask') return value;
+  throw new Error(`Invalid approval policy "${value}". Use guardrails, yolo, or ask.`);
+}
+
+async function askApproval(name: string, input: Record<string, unknown>): Promise<boolean> {
+  if (!process.stdin.isTTY) throw new Error('Approval policy "ask" requires an interactive TTY.');
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = await rl.question(`Approve ${name} ${JSON.stringify(input)}? [y/N] `);
+    return /^y(es)?$/i.test(answer.trim());
+  } finally {
+    rl.close();
+  }
 }
