@@ -1,9 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { AppSettings } from '@kotrain/shared';
 import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@kotrain/shared';
 import { DEFAULT_GUARDRAILS } from '@kotrain/core';
 import { dataDir } from './paths.js';
+import { ensurePrivateFile, writeJsonAtomic } from './secure-file.js';
 
 export { dataDir } from './paths.js';
 
@@ -39,6 +40,7 @@ export function getSettings(): AppSettings {
   let settings: AppSettings;
   try {
     if (existsSync(SETTINGS_PATH())) {
+      ensurePrivateFile(SETTINGS_PATH());
       const parsed = JSON.parse(readFileSync(SETTINGS_PATH(), 'utf8'));
       settings = { ...defaults(), ...parsed };
       // Normalize array fields from older or partially-written settings files.
@@ -67,7 +69,7 @@ export function getSettings(): AppSettings {
 export function saveSettings(patch: Partial<AppSettings>): AppSettings {
   const next = { ...getSettings(), ...patch };
   cache.set(dataDir(), next);
-  writeFileSync(SETTINGS_PATH(), JSON.stringify(next, null, 2), 'utf8');
+  writeJsonAtomic(SETTINGS_PATH(), next);
   return next;
 }
 
@@ -75,6 +77,6 @@ export function saveSettings(patch: Partial<AppSettings>): AppSettings {
 export function resetSettings(): AppSettings {
   const next = defaults();
   cache.set(dataDir(), next);
-  writeFileSync(SETTINGS_PATH(), JSON.stringify(next, null, 2), 'utf8');
+  writeJsonAtomic(SETTINGS_PATH(), next);
   return next;
 }

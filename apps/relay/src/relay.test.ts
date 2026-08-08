@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 async function startRelay(opts: Parameters<typeof buildRelay>[0] = {}) {
-  const { app, rooms } = buildRelay(opts);
+  const { app, rooms } = buildRelay({ allowUnauthenticated: true, ...opts });
   await app.listen({ port: 0, host: '127.0.0.1' });
   apps.push(app as any);
   const port = (app.server.address() as AddressInfo).port;
@@ -139,11 +139,20 @@ describe('relay v2 routing', () => {
     const c = await connect(url, { room: 'r5', role: 'client', key: 'k' });
     await c.next();
     await agent.next();
-    c.send({ type: 'register-push', token: 'tok-1', platform: 'ios', deviceId: 'dev-1' });
+    c.send({ type: 'register-push', token: 'abcdefghijklmnopqrstuvwxyz', platform: 'ios', deviceId: '00000000-0000-4000-8000-000000000001' });
     // Re-register replaces, not duplicates.
-    c.send({ type: 'register-push', token: 'tok-2', platform: 'ios', deviceId: 'dev-1' });
+    c.send({ type: 'register-push', token: 'zyxwvutsrqponmlkjihgfedcba', platform: 'ios', deviceId: '00000000-0000-4000-8000-000000000001' });
     await new Promise((r) => setTimeout(r, 50));
-    expect(rooms.get('r5')!.pushTokens.get('dev-1')!.token).toBe('tok-2');
+    expect(rooms.get('r5')!.pushTokens.get('00000000-0000-4000-8000-000000000001')!.token).toBe('zyxwvutsrqponmlkjihgfedcba');
+
+    const other = await connect(url, { room: 'r5', role: 'client', key: 'k' });
+    await other.next();
+    await agent.next();
+    other.send({ type: 'register-push', token: 'aaaaaaaaaaaaaaaaaaaa', platform: 'ios', deviceId: '00000000-0000-4000-8000-000000000001' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(rooms.get('r5')!.pushTokens.get('00000000-0000-4000-8000-000000000001')!.token).toBe('zyxwvutsrqponmlkjihgfedcba');
+    other.ws.close();
+    await agent.next();
 
     // Clients connected → notify does not push.
     agent.send({ type: 'notify', title: 't', body: 'b' });
@@ -154,9 +163,9 @@ describe('relay v2 routing', () => {
     await agent.next(); // client-close
     agent.send({ type: 'notify', title: 't', body: 'b' });
     await new Promise((r) => setTimeout(r, 50));
-    expect(sent).toEqual(['tok-2']);
+    expect(sent).toEqual(['zyxwvutsrqponmlkjihgfedcba']);
 
-    agent.send({ type: 'push-remove', deviceId: 'dev-1' });
+    agent.send({ type: 'push-remove', deviceId: '00000000-0000-4000-8000-000000000001' });
     await new Promise((r) => setTimeout(r, 50));
     expect(rooms.get('r5')!.pushTokens.size).toBe(0);
   });
@@ -172,15 +181,23 @@ describe('relay v2 routing', () => {
     await new Promise<void>((r) => authz.listen(0, '127.0.0.1', r));
     const authzUrl = `http://127.0.0.1:${(authz.address() as AddressInfo).port}/authorize`;
 
-    const { url } = await startRelay({ authzUrl });
+    const { url, rooms } = await startRelay({ authzUrl });
     const denied = await connect(url, { room: 'r6', role: 'agent', key: 'k' });
     expect((await denied.closed).code).toBe(4003);
     const deniedBad = await connect(url, { room: 'r6', role: 'agent', key: 'k', access: 'bad' });
     expect((await deniedBad.closed).code).toBe(4003);
+    expect((await deniedBad.closed).reason).toContain('KOTRAIN_RELAY_AUTHZ_URL');
 
     const agent = await connect(url, { room: 'r6', role: 'agent', key: 'k', access: 'good-token' });
+    while (!rooms.get('r6')?.agent) await new Promise((r) => setTimeout(r, 10));
     const c = await connect(url, { room: 'r6', role: 'client', key: 'k' });
     expect(await c.next()).toEqual({ type: 'agent-online' });
     expect((await agent.next()).type).toBe('client-open');
+  });
+
+  it('explains when unauthenticated enrollment is disabled', async () => {
+    const { url } = await startRelay({ allowUnauthenticated: false });
+    const denied = await connect(url, { room: 'r7', role: 'agent', key: 'k' });
+    expect((await denied.closed).reason).toContain('KOTRAIN_RELAY_ALLOW_UNAUTHENTICATED');
   });
 });

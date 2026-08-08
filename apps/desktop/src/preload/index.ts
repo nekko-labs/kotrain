@@ -167,6 +167,7 @@ const api: KotrainApi = {
   enableRemote: (relayUrl) => inv(IpcChannels.remoteEnable, relayUrl),
   disableRemote: () => inv(IpcChannels.remoteDisable),
   getRemoteStatus: () => inv(IpcChannels.remoteStatus),
+  getRemotePairing: () => inv(IpcChannels.remotePairing),
   startRemotePairing: () => inv(IpcChannels.remotePair),
   listRemoteDevices: () => inv(IpcChannels.remoteDevices),
   revokeRemoteDevice: (deviceId) => inv(IpcChannels.remoteRevoke, deviceId),

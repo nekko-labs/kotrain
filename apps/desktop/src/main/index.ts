@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { join, resolve, sep } from 'path';
 import { existsSync, cpSync } from 'fs';
 import { createHost } from '@kotrain/host';
 import { registerIpc } from './ipc.js';
@@ -92,8 +93,42 @@ function createWindow(): void {
   win.on('move', persist);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
+    const sameApp = rendererUrl
+      ? (() => {
+          try {
+            return new URL(url).origin === new URL(rendererUrl).origin;
+          } catch {
+            return false;
+          }
+        })()
+      : (() => {
+          if (!url.startsWith('file://')) return false;
+          try {
+            const target = resolve(fileURLToPath(url));
+            const rendererDir = resolve(join(__dirname, '../renderer'));
+            return target === rendererDir || target.startsWith(`${rendererDir}${sep}`);
+          } catch {
+            return false;
+          }
+        })();
+    if (sameApp) return;
+    event.preventDefault();
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+  });
+  win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    if (!/^https?:\/\//i.test(params.src) && params.src !== 'about:blank') {
+      event.preventDefault();
+      return;
+    }
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
   });
 
   if (process.env['ELECTRON_RENDERER_URL']) {

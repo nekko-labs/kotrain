@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync } from 'fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
@@ -16,8 +16,8 @@ let _dir = '';
 const scope = new AsyncLocalStorage<string>();
 
 export function setDataDir(dir: string): void {
+  ensureDataDir(dir);
   _dir = dir;
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
 export function dataDir(): string {
@@ -32,6 +32,11 @@ export function dataDir(): string {
  * account's data within a single process; the scope propagates across awaits.
  */
 export function withDataDir<T>(dir: string, fn: () => T): T {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  ensureDataDir(dir);
   return scope.run(dir, fn);
+}
+
+function ensureDataDir(dir: string): void {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
 }

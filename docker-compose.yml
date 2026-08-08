@@ -7,7 +7,8 @@ services:
     # Or use a published image instead of building:
     # image: ghcr.io/nekko-labs/kotrain:latest
     # Published to the host's localhost only. To expose on your LAN, change to
-    # "1440:1440" AND set KOTRAIN_TOKEN below.
+    # "1440:1440" AND set KOTRAIN_TOKEN below (or read the generated token from
+    # `docker compose logs`).
     ports:
       - "127.0.0.1:1440:1440"
     volumes:
@@ -17,8 +18,6 @@ services:
       - kotrain-data:/data
     environment:
       - KOTRAIN_SANDBOX=workspace-jail
-      # Uncomment to require an access token (recommended if exposing beyond localhost):
-      # - KOTRAIN_TOKEN=change-me
     # Lets the container reach a model server (Ollama/LM Studio/vLLM) on the host,
     # e.g. base URL http://host.docker.internal:1234
     extra_hosts:

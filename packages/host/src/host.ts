@@ -290,6 +290,7 @@ export interface Host {
   enableRemote(relayUrl: string): RemoteStatus;
   disableRemote(): RemoteStatus;
   remoteStatus(): RemoteStatus;
+  remotePairing(): import('@kotrain/shared').RemotePairing | null;
   startRemotePairing(): import('@kotrain/shared').PairingGrant;
   listRemoteDevices(): import('@kotrain/shared').RemoteDevice[];
   revokeRemoteDevice(deviceId: string): import('@kotrain/shared').RemoteDevice[];
@@ -551,6 +552,7 @@ export function createHost(opts: { dataDir: string }): Host {
     enableRemote: (relayUrl) => host.remote.enable(relayUrl),
     disableRemote: () => host.remote.disable(),
     remoteStatus: () => host.remote.status(),
+    remotePairing: () => host.remote.pairing(),
     startRemotePairing: () => host.remote.pair(),
     listRemoteDevices: () => host.remote.devices(),
     revokeRemoteDevice: (deviceId) => host.remote.revoke(deviceId),

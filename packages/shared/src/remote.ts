@@ -42,14 +42,20 @@ export interface RemoteStatus {
   enabled: boolean;
   relayUrl?: string;
   room?: string;
-  /** Pairing secret (present only while enabled; needed to build pairing links). */
-  key?: string;
+  hasKey?: boolean;
   /** Registered devices (including revoked ones, so the UI can show history). */
   devices?: RemoteDevice[];
   /** Device ids with a live relay connection right now. */
   connected?: string[];
   /** True when the agent's relay socket is currently open. */
   online?: boolean;
+  error?: string;
+}
+
+export interface RemotePairing {
+  relayUrl: string;
+  room: string;
+  key: string;
 }
 
 /* ------------------------------------------------------------------------- *
