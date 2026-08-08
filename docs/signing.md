@@ -118,6 +118,51 @@ gh secret set WINDOWS_CERT_PASSWORD --org nekko-labs --visibility all
 Certificates expire (Developer ID is 5 years). When it rolls, re-export and
 re-run the two `MACOS_*` commands; nothing in this repo changes.
 
+## npm publishing
+
+The `publish-cli` job uses npm Trusted Publishing as its primary authentication
+path. npm's documented requirements are Node `22.14.0` or newer and npm
+`11.5.1` or newer; the workflow uses Node 24 and installs npm 11.5.1
+explicitly. It prints both versions before publishing and disables
+`setup-node` dependency caching because npm's release guidance says not to use
+package-manager caching in release builds.
+
+Trusted Publishing uses the GitHub Actions OIDC token from
+`id-token: write`. npm automatically generates provenance attestations for
+trusted publishes, so the OIDC path does not need `--provenance`. While
+bootstrapping, `NPM_TOKEN` remains an optional fallback; that path explicitly
+adds `--provenance`. If neither credential works, the workflow prints a
+message directing the maintainer to configure the trusted publisher or add
+`NPM_TOKEN`.
+
+### First publish bootstrap
+
+npm's documented setup is under an existing package's settings, and npm does
+not currently provide a PyPI-style pending publisher for a package name that
+has never been published. Publish `kotrain` once manually with account
+authentication and 2FA:
+
+```bash
+npm login
+npm publish --workspace=apps/cli --access public
+```
+
+Then open the `kotrain` package settings on npmjs.com and add a GitHub Actions
+trusted publisher with:
+
+| Field | Value |
+| --- | --- |
+| Organization or user | `nekko-labs` |
+| Repository | `kotrain` |
+| Workflow filename | `release.yml` |
+| Allowed action | `npm publish` |
+
+The workflow file is `.github/workflows/release.yml`; npm wants only the
+filename in this field. After confirming a tagged publish succeeds through
+OIDC, harden the package's Publishing access settings by requiring 2FA and
+disallowing token-based publishing, then revoke the temporary `NPM_TOKEN`
+secret. The release job will continue using OIDC after the token is removed.
+
 ## Verifying a release
 
 ## Installer and updater targets

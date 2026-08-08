@@ -211,19 +211,19 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - name: Skip npm publish when NPM_TOKEN is absent
-        if: env.NPM_TOKEN == ''
-        run: echo 'NPM_TOKEN is not configured; skipping CLI publish.'
       - uses: actions/checkout@v7
-        if: env.NPM_TOKEN != ''
       - uses: actions/setup-node@v7
-        if: env.NPM_TOKEN != ''
         with:
-          node-version: 22
-          cache: npm
+          node-version: 24
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
+      - name: Install trusted-publishing-compatible npm
+        run: npm install --global npm@11.5.1
+      - name: Show publish tool versions
+        run: |
+          node --version
+          npm --version
       - name: Publish kotrain CLI
-        if: env.NPM_TOKEN != ''
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
@@ -241,6 +241,20 @@ jobs:
           npm ci
           npm run build:core
           npm run build -w @kotrain/host
-          npm publish --workspace=apps/cli --provenance --access public
+          publish_args=(npm publish --workspace=apps/cli --access public)
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            publish_args+=(--provenance)
+            echo 'NPM_TOKEN is present; using token fallback for this publish.'
+          else
+            echo 'NPM_TOKEN is absent; attempting npm Trusted Publishing over OIDC.'
+          fi
+          set +e
+          "${publish_args[@]}" 2>&1 | tee /tmp/kotrain-npm-publish.log
+          publish_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$publish_status" -ne 0 ]; then
+            echo 'npm publish failed. Configure the npm Trusted Publisher for nekko-labs/kotrain/release.yml, or provide NPM_TOKEN during bootstrap.' >&2
+            exit "$publish_status"
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
