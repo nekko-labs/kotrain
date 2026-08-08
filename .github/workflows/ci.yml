@@ -22,4 +22,5 @@ jobs:
       # before `npm test` / typecheck run.
       - run: npm run build:web
       - run: npm test
+      - run: npm run test:cli-package
       - run: npm run typecheck

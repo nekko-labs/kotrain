@@ -74,7 +74,7 @@ linux:
   syncDesktopName: true
   artifactName: ${productName}-${version}-${arch}.${ext}
 deb:
-  maintainer: Nekko Labs <support@kotrain.com>
+  maintainer: Nekko Labs <https://github.com/nekko-labs>
   synopsis: Local-first AI coding and cowork assistant
   depends:
     - libgtk-3-0

@@ -1,6 +1,6 @@
 {
   "name": "kotrain",
-  "version": "0.1.5",
+  "version": "0.5.1",
   "type": "module",
   "description": "Kotrain CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
   "license": "MIT",
@@ -31,6 +31,7 @@
   "main": "./dist/index.js",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./run": {
