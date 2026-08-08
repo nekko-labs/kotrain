@@ -151,10 +151,29 @@ npm-workspaces monorepo:
 | --- | --- |
 | [`packages/shared`](packages/shared) | Types + IPC contracts (pure, no deps) |
 | [`packages/core`](packages/core) | Engine: providers, agent loop, guardrails, context assembler, indexer, memory, connectors. Pure TS, unit-tested. |
+| [`packages/host`](packages/host) | Transport-agnostic host facade and persistence |
 | [`apps/desktop`](apps/desktop) | Electron app (main / preload / React renderer) |
-| [`apps/website`](apps/website) | Static marketing site |
+| [`apps/server`](apps/server) | Self-hosted Fastify web edition |
+| [`apps/relay`](apps/relay) | End-to-end encrypted remote relay |
+| [`apps/cli`](apps/cli) | CLI and MCP stdio subagent surface |
+| [`apps/cloud`](apps/cloud) | Cloud edition |
 
 The core engine is Electron-free so it can be tested in isolation and reused.
+
+## CLI and MCP subagent
+
+External harnesses can drive the same host through the CLI or MCP server:
+
+```bash
+npm run build -w @kotrain/cli
+node apps/cli/dist/index.js status --json
+node apps/cli/dist/index.js mcp
+```
+
+Use `--url http://host:port --token "$KOTRAIN_TOKEN"` for a running web
+edition. Chat defaults to guardrails approval; see the complete command list,
+machine-output schemas, safety model, MCP registration examples, and recipes
+in [docs/CLI.md](docs/CLI.md).
 
 ## Develop
 
@@ -187,7 +206,7 @@ npm run dist         # electron-builder → apps/desktop/release
 ```
 
 Releases are published to GitHub Releases by the [release workflow](.github/workflows/release.yml)
-on `v*` tags. Download links on the [website](apps/website) point there.
+on `v*` tags. Download links point to the [latest GitHub release](https://github.com/nekko-labs/kotrain/releases/latest).
 
 ## License
 
