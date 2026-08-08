@@ -13,7 +13,7 @@ import {
   type RemoteStatus,
 } from '@kotrain/shared';
 import { dataDir } from './store.js';
-import { writeJsonAtomic } from './secure-file.js';
+import { ensurePrivateFile, writeJsonAtomic } from './secure-file.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
 import type { Host } from './host.js';
 
@@ -42,6 +42,7 @@ function file(): string {
 
 function load(): RemoteConfig {
   try {
+    ensurePrivateFile(file());
     const cfg = JSON.parse(readFileSync(file(), 'utf8')) as Partial<RemoteConfig>;
     return { enabled: cfg.enabled ?? false, relayUrl: cfg.relayUrl, room: cfg.room, secret: cfg.secret, devices: cfg.devices ?? [] };
   } catch {
@@ -110,6 +111,7 @@ export function createRemoteService(host: Host): RemoteService {
           devices: cfg.devices,
           connected: handle?.connectedDevices() ?? [],
           online: handle?.isOnline() ?? false,
+          error: handle?.lastError(),
         }
       : { enabled: false, devices: cfg.devices };
 

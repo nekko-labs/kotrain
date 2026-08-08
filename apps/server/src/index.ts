@@ -10,7 +10,8 @@ import { createHost, createDispatcher } from '@kotrain/host';
 import { IpcEvents } from '@kotrain/shared';
 import { runRelayAgent } from './relay-agent.js';
 import { runCli } from '@kotrain/cli';
-import { hostAllowed, isLoopbackHost, originAllowed, tokenMatches, validateBindSecurity } from './security.js';
+import { isLoopbackHost, tokenMatches, validateBindSecurity } from './security.js';
+import { createApiSecurityHook } from './request-security.js';
 
 /** Subcommands handled by the embedded CLI (so `npx kotrain mcp|chat|…` works). */
 const CLI_SUBCOMMANDS = new Set(['mcp', 'chat', 'status', 'sessions', 'watch', 'help', 'version']);
@@ -101,23 +102,13 @@ async function main() {
   const app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
   await app.register(websocket);
 
-  const authorized = (suppliedToken: string | undefined) => !requireAuth || tokenMatches(TOKEN, suppliedToken);
-
-  app.addHook('onRequest', async (req, reply) => {
-    if (!req.url.startsWith('/api/')) return;
-    if (!hostAllowed(req.headers.host, HOST, PORT, ALLOWED_HOSTS)) {
-      reply.code(400).send({ error: 'invalid host' });
-      return;
-    }
-    if (!originAllowed(req.headers.origin, req.protocol, req.headers.host, ALLOWED_ORIGINS)) {
-      reply.code(403).send({ error: 'origin not allowed' });
-      return;
-    }
-    if (!requireAuth) return;
-    const header = req.headers['authorization'];
-    const bearer = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : undefined;
-    if (!authorized(bearer)) reply.code(401).send({ error: 'unauthorized' });
-  });
+  app.addHook('onRequest', createApiSecurityHook({
+    host: HOST,
+    port: PORT,
+    token: TOKEN,
+    allowedHosts: ALLOWED_HOSTS,
+    allowedOrigins: ALLOWED_ORIGINS,
+  }));
 
   // One HTTP route fronts the whole KotrainApi via the shared dispatcher.
   app.post<{ Params: { channel: string }; Body: { args?: unknown[] } }>('/api/:channel', async (req, reply) => {
@@ -135,7 +126,7 @@ async function main() {
       const header = req.headers.authorization;
       const bearer = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : undefined;
       const q = (req.query as Record<string, string> | undefined)?.token;
-      if (!authorized(bearer ?? q)) {
+      if (!tokenMatches(TOKEN, bearer ?? q)) {
         socket.close();
         return;
       }

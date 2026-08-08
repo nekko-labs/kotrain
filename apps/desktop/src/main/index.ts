@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { join, resolve, sep } from 'path';
 import { existsSync, cpSync } from 'fs';
 import { createHost } from '@kotrain/host';
 import { registerIpc } from './ipc.js';
@@ -105,7 +106,16 @@ function createWindow(): void {
             return false;
           }
         })()
-      : url.startsWith('file://');
+      : (() => {
+          if (!url.startsWith('file://')) return false;
+          try {
+            const target = resolve(fileURLToPath(url));
+            const rendererDir = resolve(join(__dirname, '../renderer'));
+            return target === rendererDir || target.startsWith(`${rendererDir}${sep}`);
+          } catch {
+            return false;
+          }
+        })();
     if (sameApp) return;
     event.preventDefault();
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
@@ -127,6 +137,7 @@ function createWindow(): void {
     win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
+
 
 /**
  * Installs from an earlier brand kept their data under the "Nekkos" or

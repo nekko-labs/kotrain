@@ -161,7 +161,12 @@ export function buildRelay(opts: RelayOptions = {}): { app: FastifyInstance; roo
 
       if (role === 'agent') {
         if (!(await authorizeAgent(q.access))) {
-          socket.close(4003, 'relay access denied');
+          socket.close(
+            4003,
+            authzUrl
+              ? 'relay access denied by KOTRAIN_RELAY_AUTHZ_URL'
+              : 'unauthenticated enrollment disabled; set KOTRAIN_RELAY_ALLOW_UNAUTHENTICATED=1 or configure KOTRAIN_RELAY_AUTHZ_URL',
+          );
           cleanup(code);
           return;
         }

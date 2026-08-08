@@ -22,6 +22,7 @@ export interface RelayAgentHandle {
   /** Device ids with a welcomed live connection. */
   connectedDevices(): string[];
   isOnline(): boolean;
+  lastError(): string | undefined;
 }
 
 /**
@@ -45,6 +46,7 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
   let ws: WebSocket | null = null;
   let stopped = false;
   let online = false;
+  let lastError: string | undefined;
   /** Live connections: cid → welcomed device id (set only after a valid HELLO). */
   const conns = new Map<string, { deviceId?: string }>();
 
@@ -133,6 +135,7 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
     ws = new WebSocket(url);
     ws.onopen = () => {
       online = true;
+      lastError = undefined;
     };
     ws.onmessage = async (ev) => {
       let msg: any;
@@ -157,8 +160,9 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
           return;
       }
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       online = false;
+      lastError = event.reason ? String(event.reason) : `relay disconnected (code ${event.code})`;
       conns.clear();
       if (!stopped) setTimeout(connect, 2000);
     };
@@ -191,5 +195,6 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
       return [...new Set([...conns.values()].map((c) => c.deviceId).filter((d): d is string => !!d))];
     },
     isOnline: () => online,
+    lastError: () => lastError,
   };
 }

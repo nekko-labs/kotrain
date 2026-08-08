@@ -49,6 +49,7 @@ export interface RemoteStatus {
   connected?: string[];
   /** True when the agent's relay socket is currently open. */
   online?: boolean;
+  error?: string;
 }
 
 export interface RemotePairing {

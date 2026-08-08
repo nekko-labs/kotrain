@@ -10,3 +10,11 @@ export function writeJsonAtomic(path: string, value: unknown): void {
   renameSync(temp, path);
   chmodSync(path, 0o600);
 }
+
+export function ensurePrivateFile(path: string): void {
+  try {
+    chmodSync(path, 0o600);
+  } catch {
+    /* Permissions are best-effort on Windows and unusual filesystems. */
+  }
+}

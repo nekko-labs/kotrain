@@ -118,7 +118,7 @@ export function RemoteAccess() {
         <h2 className="font-semibold">Remote access</h2>
         {status.enabled && (
           <Badge tone={status.online ? 'success' : 'warning'} variant="solid">
-            {status.online ? 'online' : 'connecting…'}
+            {status.online ? 'online' : status.error ? 'relay error' : 'connecting…'}
           </Badge>
         )}
       </div>
@@ -127,6 +127,9 @@ export function RemoteAccess() {
         machine over an end-to-end encrypted relay (the relay only sees ciphertext); inference and tools
         keep running here, under this machine's guardrails.
       </p>
+      {status.error && !status.online && (
+        <p className="mt-2 rounded border border-line px-2 py-1.5 text-[12px] text-ink-soft">{status.error}</p>
+      )}
 
       {!status.enabled ? (
         <div className="mt-3 space-y-2">

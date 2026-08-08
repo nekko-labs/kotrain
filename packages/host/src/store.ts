@@ -4,7 +4,7 @@ import type { AppSettings } from '@kotrain/shared';
 import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION, DEFAULT_ACCENT, LEGACY_ACCENTS } from '@kotrain/shared';
 import { DEFAULT_GUARDRAILS } from '@kotrain/core';
 import { dataDir } from './paths.js';
-import { writeJsonAtomic } from './secure-file.js';
+import { ensurePrivateFile, writeJsonAtomic } from './secure-file.js';
 
 export { dataDir } from './paths.js';
 
@@ -40,6 +40,7 @@ export function getSettings(): AppSettings {
   let settings: AppSettings;
   try {
     if (existsSync(SETTINGS_PATH())) {
+      ensurePrivateFile(SETTINGS_PATH());
       const parsed = JSON.parse(readFileSync(SETTINGS_PATH(), 'utf8'));
       settings = { ...defaults(), ...parsed };
       // Normalize array fields from older or partially-written settings files.

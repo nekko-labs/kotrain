@@ -186,11 +186,18 @@ describe('relay v2 routing', () => {
     expect((await denied.closed).code).toBe(4003);
     const deniedBad = await connect(url, { room: 'r6', role: 'agent', key: 'k', access: 'bad' });
     expect((await deniedBad.closed).code).toBe(4003);
+    expect((await deniedBad.closed).reason).toContain('KOTRAIN_RELAY_AUTHZ_URL');
 
     const agent = await connect(url, { room: 'r6', role: 'agent', key: 'k', access: 'good-token' });
     while (!rooms.get('r6')?.agent) await new Promise((r) => setTimeout(r, 10));
     const c = await connect(url, { room: 'r6', role: 'client', key: 'k' });
     expect(await c.next()).toEqual({ type: 'agent-online' });
     expect((await agent.next()).type).toBe('client-open');
+  });
+
+  it('explains when unauthenticated enrollment is disabled', async () => {
+    const { url } = await startRelay({ allowUnauthenticated: false });
+    const denied = await connect(url, { room: 'r7', role: 'agent', key: 'k' });
+    expect((await denied.closed).reason).toContain('KOTRAIN_RELAY_ALLOW_UNAUTHENTICATED');
   });
 });
