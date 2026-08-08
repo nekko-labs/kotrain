@@ -138,7 +138,6 @@ function createWindow(): void {
   }
 }
 
-
 /**
  * Installs from an earlier brand kept their data under the "Nekkos" or
  * "Open Paw" userData dir (whatever productName was then). Copy it into the
