@@ -22,7 +22,7 @@ are from the running app.
 
 | Platform | Artifact |
 | --- | --- |
-| Windows | `Kotrain-Paw-<version>-x64.msi` (or the `.exe`) |
+| Windows | `Kotrain-<version>-x64.exe` (NSIS installer) |
 | macOS | `Kotrain-Paw-<version>-arm64.dmg` (Apple Silicon) |
 | Linux | `.AppImage` or `.deb` |
 

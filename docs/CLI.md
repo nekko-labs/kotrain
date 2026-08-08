@@ -6,16 +6,24 @@ web editions.
 
 ## Install and target
 
-This repository's CLI is private and is not published to npm yet:
+Published package:
+
+```bash
+npm install --global kotrain
+npx kotrain status
+```
+
+From a checkout:
 
 ```bash
 npm install
-npm run build -w @kotrain/cli
+npm run build --workspace=apps/cli
 node apps/cli/dist/index.js status
 ```
 
-Use `kotrain` after linking the built package, or invoke the bundled binary
-from `apps/cli/dist/index.js`. Without `--url`, the CLI runs an in-process host
+Use `kotrain` after a global install or linking the built package, or invoke
+the bundled binary from `apps/cli/dist/index.js`. Without `--url`, the CLI runs
+an in-process host
 against `~/.kotrain` (override with `KOTRAIN_DATA_DIR`). To drive a web edition,
 use:
 
