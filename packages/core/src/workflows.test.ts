@@ -42,6 +42,25 @@ describe('slugify + cliCommand', () => {
   it('makes a command-line-safe name', () => {
     expect(slugify('Build, then verify (loops back)')).toBe('build-then-verify-loops-back');
     expect(slugify('!!!')).toBe('workflow');
+    expect(slugify('  padded  ')).toBe('padded');
+    expect(slugify('--dashes--everywhere--')).toBe('dashes-everywhere');
+  });
+
+  it('never leaves a trailing separator, whatever the 48-char cut lands on', () => {
+    // "aaaa-bbbb-…" cut mid-run vs cut exactly on a separator.
+    for (let i = 1; i < 60; i++) {
+      const slug = slugify(Array.from({ length: i }, (_, n) => `word${n}`).join(' '));
+      expect(slug.endsWith('-'), `length ${i}`).toBe(false);
+      expect(slug.length).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it('slugs a pathological name in linear time', () => {
+    // The ReDoS shape: a name that is almost entirely separators. The old
+    // replace-then-trim (/^-+|-+$/) backtracked quadratically on this.
+    const start = Date.now();
+    expect(slugify(`${'-'.repeat(50_000)}x`)).toBe('x');
+    expect(Date.now() - start).toBeLessThan(1_000);
   });
 
   it('falls back to the workflow slug when a CLI trigger names nothing', () => {

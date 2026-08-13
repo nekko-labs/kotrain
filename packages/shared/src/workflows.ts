@@ -275,13 +275,17 @@ export const DEFAULT_WORKFLOW_CATEGORIES = [
 
 export const UNCATEGORIZED = 'Uncategorized';
 
-/** URL/CLI-safe name derived from a workflow's title. */
+/**
+ * URL/CLI-safe name derived from a workflow's title. Split-and-join rather than
+ * replace-then-trim: trimming separators with `/^-+|-+$/` backtracks
+ * quadratically on a name that is mostly punctuation, and a workflow name is
+ * user input.
+ */
 export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'workflow';
+  const slug = name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join('-').slice(0, 48);
+  // The 48-char cut can land on a separator; join never produces two in a row,
+  // so one check is enough (and no regex, which is the point).
+  return (slug.endsWith('-') ? slug.slice(0, -1) : slug) || 'workflow';
 }
 
 /** The CLI name a trigger answers to (explicit, else the workflow's slug). */
