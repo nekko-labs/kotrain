@@ -12,12 +12,28 @@ name: Release on version bump
 # is exactly what they get from a hand-pushed tag.
 
 on:
+  # A human merge fires this immediately.
   push:
     branches: [main]
     paths:
       - 'package.json'
-  # Re-run by hand if a dispatch failed after the tag already landed.
+  # ...but most merges here are not human: auto-merge.yml enables auto-merge with
+  # GITHUB_TOKEN, so the merge is attributed to github-actions[bot], and a push
+  # from that token never starts a workflow run. That is the same recursion guard
+  # that stops a bot-pushed tag from triggering release.yml, and it silently
+  # skipped v0.6.0's release until it was dispatched by hand. So a schedule is
+  # the actual backstop: it notices an untagged version whoever merged it, at the
+  # cost of waiting for the next tick. Everything below is idempotent (it stops
+  # when the tag already exists), so overlapping triggers are harmless.
+  schedule:
+    - cron: '*/15 * * * *'
+  # Cut a pending release right now instead of waiting for the tick.
   workflow_dispatch:
+
+concurrency:
+  # Two ticks (or a tick and a push) must not race to create the same tag.
+  group: version-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
