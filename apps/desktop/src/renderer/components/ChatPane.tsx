@@ -17,6 +17,27 @@ import { PanelIcon, ShieldIcon, DownloadIcon, PlusIcon, CloseIcon, BoltIcon, Tho
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
 const NO_PRS: PrInfo[] = []; // stable empty ref so the store selector doesn't churn
 
+/**
+ * How often streamed deltas are committed to React state. Tokens arrive one
+ * event at a time; setting state per token re-renders the whole transcript per
+ * token, which stutters on a long reply and locks the window on a very fast or
+ * runaway one. Batching to ~20fps is imperceptible while streaming and turns
+ * thousands of renders into a few dozen.
+ */
+const STREAM_FLUSH_MS = 50;
+
+/**
+ * Cap on a live buffer's length. The engine cuts a looping model off (see
+ * runaway.ts), so this is the second line of defence: it keeps the renderer
+ * from ever holding an unbounded string. The tail is kept because that's the
+ * part still being written.
+ */
+const LIVE_STREAM_MAX = 40_000;
+
+function clampLive(s: string): string {
+  return s.length <= LIVE_STREAM_MAX ? s : `…\n${s.slice(-LIVE_STREAM_MAX)}`;
+}
+
 function readImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -253,6 +274,11 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   // long-lived, so reading the state variables there would see stale values.
   const liveToolsRef = useRef<ToolCall[]>([]);
   const liveTextRef = useRef('');
+  // Streamed deltas land here and are committed together on a timer (see
+  // STREAM_FLUSH_MS), so the transcript renders per frame rather than per token.
+  const pendingText = useRef('');
+  const pendingReasoning = useRef('');
+  const flushTimer = useRef<number | null>(null);
   // Whether the reader is at (or near) the bottom of the transcript. Streaming
   // only auto-follows while this is true, so scrolling up to read is possible.
   const pinnedRef = useRef(true);
@@ -316,6 +342,34 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     }).catch(() => setCost(0));
   }, [sessionId, session?.modelId, session?.messages.length]);
 
+  // Commit whatever has streamed in since the last flush.
+  const flushStream = () => {
+    if (flushTimer.current != null) {
+      clearTimeout(flushTimer.current);
+      flushTimer.current = null;
+    }
+    const text = pendingText.current;
+    const reasoning = pendingReasoning.current;
+    pendingText.current = '';
+    pendingReasoning.current = '';
+    if (text) setLiveText((t) => clampLive(t + text));
+    if (reasoning) setLiveReasoning((t) => clampLive(t + reasoning));
+  };
+
+  const scheduleFlush = () => {
+    if (flushTimer.current == null) {
+      flushTimer.current = window.setTimeout(flushStream, STREAM_FLUSH_MS);
+    }
+  };
+
+  // Never leave a pending flush behind on unmount or a session switch.
+  useEffect(() => () => {
+    if (flushTimer.current != null) clearTimeout(flushTimer.current);
+    flushTimer.current = null;
+    pendingText.current = '';
+    pendingReasoning.current = '';
+  }, [sessionId]);
+
   // Stream agent events for this session only.
   useEffect(() => {
     const off = window.kotrain.onAgentEvent((e: AgentEvent) => {
@@ -333,11 +387,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             reasoningStart.current = 0;
           }
           liveTextRef.current += e.delta;
-          setLiveText((t) => t + e.delta);
+          pendingText.current += e.delta;
+          scheduleFlush();
           break;
         case 'reasoning':
           if (!reasoningStart.current) reasoningStart.current = Date.now();
-          setLiveReasoning((t) => t + e.delta);
+          pendingReasoning.current += e.delta;
+          scheduleFlush();
           setThinking(true);
           break;
         case 'usage': {
@@ -383,6 +439,12 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   const endTurn = () => {
     setStreaming(false);
+    // Drop anything still buffered: the persisted message replaces it below, and
+    // a flush landing after the clear would resurrect the reply as a duplicate.
+    if (flushTimer.current != null) clearTimeout(flushTimer.current);
+    flushTimer.current = null;
+    pendingText.current = '';
+    pendingReasoning.current = '';
 
     // Snapshot the reply's telemetry for the idle subtext (refs only, so this is
     // safe inside the long-lived agent-event listener closure).
@@ -527,6 +589,10 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
 
   const beginTurn = () => {
     setStreaming(true);
+    if (flushTimer.current != null) clearTimeout(flushTimer.current);
+    flushTimer.current = null;
+    pendingText.current = '';
+    pendingReasoning.current = '';
     setLiveText('');
     setLiveReasoning('');
     setLiveTools([]);

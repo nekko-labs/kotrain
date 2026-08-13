@@ -3,7 +3,7 @@ import type { AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerSt
 import { useStore } from '../store.js';
 import { Badge } from '../components/primitives/index.js';
 import { UpdateProgress, useUpdater } from '../components/UpdateBanner.js';
-import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps } from '@kotrain/shared';
+import { DEFAULT_SPEC_METHODOLOGY, SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION, DEFAULT_MAX_STEPS, MAX_STEPS_RANGE, clampMaxSteps, MAX_OUTPUT_TOKENS_DEFAULT, MAX_OUTPUT_TOKENS_RANGE, clampMaxOutputTokens } from '@kotrain/shared';
 import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
@@ -227,24 +227,33 @@ export function SettingsView() {
  * keystroke) so a half-typed number never becomes the live setting.
  */
 function AgentLoopSection({ settings, update }: { settings: AppSettings; update: (patch: Partial<AppSettings>) => void }) {
-  const saved = settings.maxSteps ?? DEFAULT_MAX_STEPS;
-  const [draft, setDraft] = useState(String(saved));
-  useEffect(() => { setDraft(String(settings.maxSteps ?? DEFAULT_MAX_STEPS)); }, [settings.maxSteps]);
+  const savedSteps = settings.maxSteps ?? DEFAULT_MAX_STEPS;
+  const [steps, setSteps] = useState(String(savedSteps));
+  useEffect(() => { setSteps(String(settings.maxSteps ?? DEFAULT_MAX_STEPS)); }, [settings.maxSteps]);
 
-  const commit = () => {
-    const n = clampMaxSteps(Number(draft));
-    const next = n ?? DEFAULT_MAX_STEPS;
-    setDraft(String(next));
-    if (next !== saved) update({ maxSteps: next });
+  const commitSteps = () => {
+    const next = clampMaxSteps(Number(steps)) ?? DEFAULT_MAX_STEPS;
+    setSteps(String(next));
+    if (next !== savedSteps) update({ maxSteps: next });
+  };
+
+  const savedOut = clampMaxOutputTokens(settings.maxOutputTokens);
+  const [out, setOut] = useState(String(savedOut));
+  useEffect(() => { setOut(String(clampMaxOutputTokens(settings.maxOutputTokens))); }, [settings.maxOutputTokens]);
+
+  const commitOut = () => {
+    const next = clampMaxOutputTokens(Number(out));
+    setOut(String(next));
+    if (next !== savedOut) update({ maxOutputTokens: next });
   };
 
   return (
     <section className="card mt-5 p-5">
       <div className="flex items-center gap-2"><RobotIcon className="h-4 w-4" /><h2 className="font-semibold">Agent loop</h2></div>
       <p className="mt-1 text-[12px] text-ink-faint">
-        A long task takes many tool steps (read, search, edit, verify). This is the backstop that catches a loop
-        going nowhere, not a work limit: when a reply reaches it, Kotrain stops calling tools and answers with what
-        it found plus the next steps, so nothing is thrown away.
+        A long task takes many tool steps (read, search, edit, verify). These are the backstops that catch a loop
+        going nowhere, not work limits: when a reply reaches one, Kotrain stops and answers with what it found plus
+        the next steps, so nothing is thrown away.
       </p>
       <div className="mt-3 flex min-h-[40px] items-center justify-between gap-3">
         <div className="min-w-0">
@@ -258,10 +267,32 @@ function AgentLoopSection({ settings, update }: { settings: AppSettings; update:
           className="input max-w-[110px] py-1.5 tabular-nums"
           min={MAX_STEPS_RANGE.min}
           max={MAX_STEPS_RANGE.max}
-          value={draft}
+          value={steps}
           aria-label="Tool steps per reply"
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
+          onChange={(e) => setSteps(e.target.value)}
+          onBlur={commitSteps}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        />
+      </div>
+      <div className="mt-3 flex min-h-[40px] items-center justify-between gap-3 border-t border-line pt-3">
+        <div className="min-w-0">
+          <span className="text-[13px]">Output cap per response</span>
+          <p className="text-[11px] text-ink-faint">
+            Tokens one response may generate. Stops a model that gets stuck repeating itself from streaming until
+            its context fills. {MAX_OUTPUT_TOKENS_RANGE.min}–{MAX_OUTPUT_TOKENS_RANGE.max.toLocaleString()}. Default{' '}
+            {MAX_OUTPUT_TOKENS_DEFAULT.toLocaleString()}.
+          </p>
+        </div>
+        <input
+          type="number"
+          className="input max-w-[110px] py-1.5 tabular-nums"
+          min={MAX_OUTPUT_TOKENS_RANGE.min}
+          max={MAX_OUTPUT_TOKENS_RANGE.max}
+          step={256}
+          value={out}
+          aria-label="Output cap per response"
+          onChange={(e) => setOut(e.target.value)}
+          onBlur={commitOut}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         />
       </div>

@@ -97,6 +97,10 @@ export class OpenAICompatProvider implements Provider {
       stream: true,
       stream_options: { include_usage: true },
       temperature: req.temperature ?? 0.7,
+      // Output cap: without it a looping local model streams until its context
+      // window fills. `max_tokens` is honoured by every openai-compat server we
+      // target (newer OpenAI models also accept it as a deprecated alias).
+      ...(req.maxOutputTokens ? { max_tokens: req.maxOutputTokens } : {}),
       messages: this.toOpenAIMessages(req),
       tools: req.tools?.map(toOpenAITool),
       ...(req.think !== undefined && localKind ? { chat_template_kwargs: { enable_thinking: req.think } } : {}),

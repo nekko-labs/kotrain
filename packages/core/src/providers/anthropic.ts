@@ -38,7 +38,7 @@ export class AnthropicProvider implements Provider {
   async *chat(req: ChatRequest): AsyncIterable<ProviderChunk> {
     const body = {
       model: req.model,
-      max_tokens: 4096,
+      max_tokens: req.maxOutputTokens ?? 4096,
       stream: true,
       temperature: req.temperature ?? 0.7,
       system: req.system,

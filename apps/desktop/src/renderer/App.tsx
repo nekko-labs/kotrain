@@ -15,7 +15,7 @@ import { WorkbenchView } from './views/WorkbenchView.js';
 import { DesignBoardView } from './views/DesignBoardView.js';
 import { SkillsView } from './views/SkillsView.js';
 import { TrainingView } from './views/TrainingView.js';
-import { GoalsView } from './views/GoalsView.js';
+import { WorkflowsView } from './views/WorkflowsView.js';
 import { CommandCenterView } from './views/CommandCenterView.js';
 import { ModelsView } from './views/ModelsView.js';
 import { ConnectorsView } from './views/ConnectorsView.js';
@@ -25,7 +25,7 @@ import {
   CommandHudIcon,
   SkillsColorIcon,
   TrainingColorIcon,
-  GoalsColorIcon,
+  WorkflowsColorIcon,
   DesignColorIcon,
   ModelsColorIcon,
   ConnectorsColorIcon,
@@ -41,7 +41,7 @@ const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string 
   { view: 'chat', labelKey: 'nav.chat', Icon: AgentCatIcon },
   { view: 'skills', labelKey: 'nav.skills', Icon: SkillsColorIcon },
   { view: 'training', labelKey: 'nav.training', Icon: TrainingColorIcon },
-  { view: 'goals', labelKey: 'nav.goals', Icon: GoalsColorIcon },
+  { view: 'workflows', labelKey: 'nav.workflows', Icon: WorkflowsColorIcon },
   { view: 'design', labelKey: 'nav.design', Icon: DesignColorIcon },
   { view: 'models', labelKey: 'nav.models', Icon: ModelsColorIcon },
   { view: 'connectors', labelKey: 'nav.connectors', Icon: ConnectorsColorIcon },
@@ -50,7 +50,7 @@ const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string 
 ];
 
 /** Phone bottom-tab destinations (the remote-control essentials). */
-const MOBILE_NAV: View[] = ['command', 'chat', 'training', 'goals', 'settings'];
+const MOBILE_NAV: View[] = ['command', 'chat', 'training', 'workflows', 'settings'];
 
 export function App() {
   const { view, setView, mascotMood, settings, providers, refreshSettings, refreshProviders, refreshSessions, refreshTerminals } = useStore();
@@ -189,7 +189,7 @@ export function App() {
           {view === 'chat' && <WorkbenchView />}
           {view === 'skills' && <SkillsView />}
           {view === 'training' && <TrainingView />}
-          {view === 'goals' && <GoalsView />}
+          {view === 'workflows' && <WorkflowsView />}
           {view === 'design' && <DesignBoardView />}
           {view === 'models' && <ModelsView />}
           {view === 'connectors' && <ConnectorsView />}

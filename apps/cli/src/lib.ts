@@ -12,6 +12,9 @@ import type {
   RemoteStatus,
   TrainingRun,
   NewTrainingRun,
+  WorkflowEvent,
+  WorkflowRun,
+  WorkflowsSnapshot,
   ModelInfo,
   ProviderConfig,
   IndexStatus,
@@ -81,6 +84,9 @@ export interface Client {
   startTrainingRun(id: string): Promise<TrainingRun[]>;
   stopTrainingRun(id: string): Promise<TrainingRun[]>;
   addTrainingHint(id: string, text: string): Promise<TrainingRun[]>;
+  listWorkflows(): Promise<WorkflowsSnapshot>;
+  runWorkflow(id: string): Promise<WorkflowRun | undefined>;
+  dispatchWorkflowEvent(event: WorkflowEvent): Promise<WorkflowRun[]>;
 }
 
 /** In-process client backed by createHost on the data dir. */
@@ -122,6 +128,9 @@ function localClient(): Client {
     startTrainingRun: async (id) => host.startTrainingRun(id),
     stopTrainingRun: async (id) => host.stopTrainingRun(id),
     addTrainingHint: async (id, text) => host.addTrainingHint(id, text),
+    listWorkflows: async () => host.listWorkflows(),
+    runWorkflow: (id) => host.runWorkflow(id),
+    dispatchWorkflowEvent: (event) => host.dispatchWorkflowEvent(event),
   };
 }
 
@@ -195,6 +204,9 @@ function httpClient(url: string, token?: string): Client {
     startTrainingRun: (id) => call('training:start', id),
     stopTrainingRun: (id) => call('training:stop', id),
     addTrainingHint: (id, text) => call('training:hint', id, text),
+    listWorkflows: () => call('workflows:list'),
+    runWorkflow: (id) => call('workflow:run', id),
+    dispatchWorkflowEvent: (event) => call('workflow:event', event),
   };
 }
 
