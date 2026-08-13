@@ -2,6 +2,7 @@ import type { AgentEvent, ChatMessage, ToolCall, ToolResult } from '@kotrain/sha
 import { DEFAULT_MAX_STEPS } from '@kotrain/shared';
 import type { Provider, ToolSpec } from '../providers/types.js';
 import { BUILTIN_TOOLS } from './tools.js';
+import { RUNAWAY_NOTE, createRunawayGuard } from './runaway.js';
 
 export interface RunAgentOptions {
   sessionId: string;
@@ -28,6 +29,8 @@ export interface RunAgentOptions {
    * loops so they don't replay an ever-growing transcript every turn.
    */
   maxHistoryTurns?: number;
+  /** Hard cap on tokens one provider response may generate (see MAX_OUTPUT_TOKENS_DEFAULT). */
+  maxOutputTokens?: number;
 }
 
 let counter = 0;
@@ -65,6 +68,22 @@ interface Turn {
   reasoning: string;
   reasoningSeconds?: number;
   calls: ToolCall[];
+  /** Set when the stream was cut off for degenerate repetition (see runaway.ts). */
+  runaway?: boolean;
+}
+
+/**
+ * How much of a degenerate stream is kept in the transcript. The head is the
+ * part worth keeping (the model usually reasons well, then collapses), so we
+ * keep that and drop the cycle rather than persisting tens of thousands of
+ * characters of the same sentence.
+ */
+const RUNAWAY_KEEP_CHARS = 4_000;
+
+function trimRunaway(s: string): string {
+  return s.length <= RUNAWAY_KEEP_CHARS
+    ? s
+    : `${s.slice(0, RUNAWAY_KEEP_CHARS)}\n\n[…cut off here: the model started repeating itself.]`;
 }
 
 /** A response that produced no text, no reasoning, and no tool calls. Some local
@@ -92,46 +111,75 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
   // withholds them entirely).
   async function* stream(turn: Turn, extraMessages: ChatMessage[] = [], sendTools = tools): AsyncGenerator<AgentEvent> {
     let reasoningStartedAt = 0;
-    for await (const chunk of opts.provider.chat({
-      model: opts.model,
-      messages: [...windowHistory(opts.history, opts.maxHistoryTurns), ...extraMessages],
-      system: opts.system,
-      tools: sendTools,
-      temperature: opts.temperature,
-      think: opts.think,
-      signal: opts.signal,
-    })) {
-      switch (chunk.type) {
-        case 'text':
-          if (reasoningStartedAt && turn.reasoningSeconds == null) {
-            turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
-          }
-          turn.text += chunk.delta;
-          yield { type: 'text', sessionId: opts.sessionId, delta: chunk.delta };
+    // Text and reasoning are watched separately: a model can collapse into a
+    // loop in either channel, and a repeat in one says nothing about the other.
+    const textGuard = createRunawayGuard();
+    const reasoningGuard = createRunawayGuard();
+    // Our own controller so tripping the guard actually closes the connection
+    // instead of leaving the server streaming into a dropped iterator.
+    const ctl = new AbortController();
+    const onAbort = () => ctl.abort();
+    if (opts.signal) {
+      if (opts.signal.aborted) ctl.abort();
+      else opts.signal.addEventListener('abort', onAbort, { once: true });
+    }
+
+    try {
+      for await (const chunk of opts.provider.chat({
+        model: opts.model,
+        messages: [...windowHistory(opts.history, opts.maxHistoryTurns), ...extraMessages],
+        system: opts.system,
+        tools: sendTools,
+        temperature: opts.temperature,
+        think: opts.think,
+        maxOutputTokens: opts.maxOutputTokens,
+        signal: ctl.signal,
+      })) {
+        switch (chunk.type) {
+          case 'text':
+            if (reasoningStartedAt && turn.reasoningSeconds == null) {
+              turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+            }
+            turn.text += chunk.delta;
+            yield { type: 'text', sessionId: opts.sessionId, delta: chunk.delta };
+            if (textGuard.push(chunk.delta)) turn.runaway = true;
+            break;
+          case 'reasoning':
+            if (!reasoningStartedAt) reasoningStartedAt = Date.now();
+            turn.reasoning += chunk.delta;
+            yield { type: 'reasoning', sessionId: opts.sessionId, delta: chunk.delta };
+            if (reasoningGuard.push(chunk.delta)) turn.runaway = true;
+            break;
+          case 'tool_call':
+            if (reasoningStartedAt && turn.reasoningSeconds == null) {
+              turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
+            }
+            turn.calls.push(chunk.call);
+            yield { type: 'tool_call', sessionId: opts.sessionId, call: chunk.call };
+            break;
+          case 'usage':
+            yield {
+              type: 'usage',
+              sessionId: opts.sessionId,
+              inputTokens: chunk.inputTokens,
+              outputTokens: chunk.outputTokens,
+            };
+            break;
+          case 'done':
+            break;
+        }
+        // Cut a degenerate stream off here rather than waiting out the output
+        // cap: it has stopped making progress and will not recover.
+        if (turn.runaway) {
+          ctl.abort();
           break;
-        case 'reasoning':
-          if (!reasoningStartedAt) reasoningStartedAt = Date.now();
-          turn.reasoning += chunk.delta;
-          yield { type: 'reasoning', sessionId: opts.sessionId, delta: chunk.delta };
-          break;
-        case 'tool_call':
-          if (reasoningStartedAt && turn.reasoningSeconds == null) {
-            turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
-          }
-          turn.calls.push(chunk.call);
-          yield { type: 'tool_call', sessionId: opts.sessionId, call: chunk.call };
-          break;
-        case 'usage':
-          yield {
-            type: 'usage',
-            sessionId: opts.sessionId,
-            inputTokens: chunk.inputTokens,
-            outputTokens: chunk.outputTokens,
-          };
-          break;
-        case 'done':
-          break;
+        }
       }
+    } catch (e) {
+      // Our own abort surfaces as an AbortError; that isn't a failure to report.
+      if (!turn.runaway) throw e;
+    } finally {
+      opts.signal?.removeEventListener('abort', onAbort);
     }
     if (reasoningStartedAt && turn.reasoningSeconds == null) {
       turn.reasoningSeconds = Math.round((Date.now() - reasoningStartedAt) / 1000);
@@ -174,16 +222,33 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
       ? '_The model returned an empty response and stopped. It may have run out of steam — try again, or rephrase._'
       : text;
 
-    // Record the assistant message.
-    const assistantMsg: ChatMessage = {
-      id: id('msg'),
-      role: 'assistant',
-      content,
-      ...(reasoning ? { reasoning, reasoningSeconds } : {}),
-      toolCalls: calls.length ? calls : undefined,
-      createdAt: Date.now(),
-    };
+    // Record the assistant message. A stream we cut off for looping keeps its
+    // useful head, is annotated with why it stopped, and drops any tool call it
+    // was mid-way through emitting (the arguments are not trustworthy).
+    const assistantMsg: ChatMessage = turn.runaway
+      ? {
+          id: id('msg'),
+          role: 'assistant',
+          content: [trimRunaway(text).trim(), RUNAWAY_NOTE].filter(Boolean).join('\n\n'),
+          ...(reasoning ? { reasoning: trimRunaway(reasoning), reasoningSeconds } : {}),
+          createdAt: Date.now(),
+        }
+      : {
+          id: id('msg'),
+          role: 'assistant',
+          content,
+          ...(reasoning ? { reasoning, reasoningSeconds } : {}),
+          toolCalls: calls.length ? calls : undefined,
+          createdAt: Date.now(),
+        };
     opts.history.push(assistantMsg);
+
+    // A looping model does not recover by being asked again, so end the reply
+    // here instead of spending the rest of the step budget on the same cycle.
+    if (turn.runaway) {
+      yield { type: 'done', sessionId: opts.sessionId, messageId: assistantMsg.id };
+      return;
+    }
 
     // No tool calls → the turn is complete.
     if (calls.length === 0) {
@@ -229,12 +294,20 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
     return;
   }
 
-  const note = `_Stopped at this reply's ${maxIterations}-step tool limit. Ask me to continue and I'll pick up from here (or raise the limit in Settings → Agent loop)._`;
+  const note = wrapUp.runaway
+    ? RUNAWAY_NOTE
+    : `_Stopped at this reply's ${maxIterations}-step tool limit. Ask me to continue and I'll pick up from here (or raise the limit in Settings → Agent loop)._`;
+  const wrapText = (wrapUp.runaway ? trimRunaway(wrapUp.text) : wrapUp.text).trim();
   const wrapMsg: ChatMessage = {
     id: id('msg'),
     role: 'assistant',
-    content: wrapUp.text.trim() ? `${wrapUp.text.trim()}\n\n${note}` : note,
-    ...(wrapUp.reasoning ? { reasoning: wrapUp.reasoning, reasoningSeconds: wrapUp.reasoningSeconds } : {}),
+    content: wrapText ? `${wrapText}\n\n${note}` : note,
+    ...(wrapUp.reasoning
+      ? {
+          reasoning: wrapUp.runaway ? trimRunaway(wrapUp.reasoning) : wrapUp.reasoning,
+          reasoningSeconds: wrapUp.reasoningSeconds,
+        }
+      : {}),
     createdAt: Date.now(),
   };
   opts.history.push(wrapMsg);

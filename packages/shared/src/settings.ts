@@ -82,6 +82,11 @@ export interface AppSettings {
    */
   maxSteps?: number;
   /**
+   * Tokens one model response may generate before the server cuts it off.
+   * Undefined = MAX_OUTPUT_TOKENS_DEFAULT. See MAX_OUTPUT_TOKENS_RANGE.
+   */
+  maxOutputTokens?: number;
+  /**
    * Which resource monitors run. Anything omitted falls back to
    * DEFAULT_MONITORS; a monitor switched off stops being sampled at all, so no
    * `nvidia-smi` spawn and no CPU sampling happen for it.
@@ -104,6 +109,23 @@ export const MAX_STEPS_RANGE = { min: 5, max: 400 } as const;
 export function clampMaxSteps(n: number | undefined): number | undefined {
   if (n == null || !Number.isFinite(n)) return undefined;
   return Math.min(MAX_STEPS_RANGE.max, Math.max(MAX_STEPS_RANGE.min, Math.round(n)));
+}
+
+/**
+ * Tokens one model response may generate. Generous enough for a long answer or
+ * a big file edit, low enough that a model which collapses into a loop stops on
+ * its own within seconds rather than streaming until its context window fills.
+ * Sent to every provider as its native output cap.
+ */
+export const MAX_OUTPUT_TOKENS_DEFAULT = 8_192;
+
+/** Bounds for the per-response output cap (Settings → Agent loop). */
+export const MAX_OUTPUT_TOKENS_RANGE = { min: 256, max: 200_000 } as const;
+
+/** Clamp a user-entered output cap, falling back to the default. */
+export function clampMaxOutputTokens(n: number | undefined): number {
+  if (n == null || !Number.isFinite(n)) return MAX_OUTPUT_TOKENS_DEFAULT;
+  return Math.min(MAX_OUTPUT_TOKENS_RANGE.max, Math.max(MAX_OUTPUT_TOKENS_RANGE.min, Math.round(n)));
 }
 
 /** One usage event appended to a JSONL log for analytics. */

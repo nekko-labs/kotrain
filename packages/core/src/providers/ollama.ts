@@ -81,7 +81,12 @@ export class OllamaProvider implements Provider {
     const body = {
       model: req.model,
       stream: true,
-      options: { temperature: req.temperature ?? 0.7 },
+      // `num_predict` is Ollama's output cap; without it a looping model runs
+      // until it fills its context window.
+      options: {
+        temperature: req.temperature ?? 0.7,
+        ...(req.maxOutputTokens ? { num_predict: req.maxOutputTokens } : {}),
+      },
       // Ollama's native reasoning toggle (thinking models only). Left off the
       // body when undefined so non-reasoning models are unaffected.
       ...(req.think !== undefined ? { think: req.think } : {}),

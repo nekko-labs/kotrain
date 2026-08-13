@@ -198,6 +198,81 @@ describe('runAgent', () => {
     expect(history.at(-1)?.content).toContain('1-step tool limit');
   });
 
+  it('cuts a reply off when the model collapses into a repeated phrase', async () => {
+    // A model that degenerates and never stops (the observed LM Studio failure).
+    // Without the guard this generator never returns and the reply hangs.
+    let deltas = 0;
+    let aborted = false;
+    const provider: Provider = {
+      config: { id: 'p', kind: 'lmstudio', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        req.signal?.addEventListener('abort', () => { aborted = true; });
+        while (deltas < 100_000) {
+          deltas++;
+          yield { type: 'reasoning', delta: 'Let me start building this feature now.\n\n' } as ProviderChunk;
+        }
+        yield { type: 'done' } as ProviderChunk;
+      },
+    };
+    const history: ChatMessage[] = [{ id: 'u', role: 'user', content: 'build it', createdAt: 0 }];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) {
+      events.push(e);
+    }
+    // It ends, promptly, as a completed reply rather than an error.
+    expect(events.at(-1)?.type).toBe('done');
+    expect(events.some((e) => e.type === 'error')).toBe(false);
+    expect(deltas).toBeLessThan(200);
+    // The stream was actually cancelled, not just abandoned mid-iterator.
+    expect(aborted).toBe(true);
+    // One assistant message, saying why it stopped, with the loop trimmed out.
+    expect(history).toHaveLength(2);
+    expect(history.at(-1)?.content).toContain('repeating itself');
+    expect(history.at(-1)?.reasoning!.length).toBeLessThan(6_000);
+  });
+
+  it('caps the reply and does not keep iterating after a runaway', async () => {
+    // Round 1 loops. If the runaway didn't end the turn, round 2's tool call
+    // would run and the transcript would grow past a single assistant message.
+    const provider = scriptedProvider([
+      Array.from({ length: 400 }, () => ({ type: 'text', delta: 'again and again and again. ' }) as ProviderChunk),
+      [{ type: 'tool_call', call: { id: 'c', name: 'bash', input: {} } }, { type: 'done' }],
+    ]);
+    const history: ChatMessage[] = [{ id: 'u', role: 'user', content: 'go', createdAt: 0 }];
+    const executeTool = vi.fn(async (c: ToolCall): Promise<ToolResult> => ({ toolCallId: c.id, output: '' }));
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, executeTool,
+    })) { /* drain */ }
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(history.map((m) => m.role)).toEqual(['user', 'assistant']);
+  });
+
+  it('passes the output cap through to the provider', async () => {
+    let seen: ChatRequest | null = null;
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        seen = req;
+        yield { type: 'text', delta: 'ok' } as ProviderChunk;
+        yield { type: 'done' } as ProviderChunk;
+      },
+    };
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys',
+      history: [{ id: 'u', role: 'user', content: 'hi', createdAt: 0 }],
+      maxOutputTokens: 2048,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) { /* drain */ }
+    expect(seen!.maxOutputTokens).toBe(2048);
+  });
+
   it('sends only the last N user-turn groups when maxHistoryTurns is set', async () => {
     let seen: ChatMessage[] = [];
     const provider: Provider = {
