@@ -419,7 +419,12 @@ export const useStore = create<UiState>((set, get) => ({
   hypergate: undefined,
   refreshHypergate: async (port) => {
     try {
-      set({ hypergate: await window.kotrain.detectHypergate(port) });
+      const found = await window.kotrain.detectHypergate(port);
+      // Probing is anonymous by design, so a re-probe of the same daemon must
+      // not forget what connecting to it taught us (which agent we are).
+      set((s) => ({
+        hypergate: found && s.hypergate?.port === found.port ? { ...s.hypergate, ...found } : found,
+      }));
     } catch {
       // An older host (or the web edition talking to one) has no such channel;
       // "no daemon" is the honest answer there, not an error worth showing.

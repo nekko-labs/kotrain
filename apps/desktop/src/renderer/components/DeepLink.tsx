@@ -77,8 +77,10 @@ export function DeepLinkListener() {
       <div>
         <h2 id="hypergate-link-title" className="text-[15px] font-semibold">{heading}</h2>
         <p className="mt-2 text-[12.5px] text-ink-soft">
-          Hypergate v{ask.version} on port {ask.port} is asking to connect to Kotrain. Its {ask.servers} managed
-          server{ask.servers === 1 ? '' : 's'} become one entry in your MCP list, and their tools are offered in every chat.
+          Hypergate v{ask.version} on port {ask.port} is asking to connect to Kotrain.{' '}
+          {ask.servers === 1
+            ? 'The one server it manages becomes a single entry in your MCP list, and its tools are offered in every chat.'
+            : `The ${ask.servers} servers it manages become a single entry in your MCP list, and their tools are offered in every chat.`}
         </p>
         <p className="mt-2 text-[11.5px] text-ink-faint">
           Kotrain gets its own scoped token, so you can narrow or revoke it from Hypergate at any time.

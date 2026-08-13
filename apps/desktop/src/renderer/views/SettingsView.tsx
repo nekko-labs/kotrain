@@ -466,7 +466,9 @@ function McpSection({
         <div className="card mt-3 p-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
           <div className="flex items-center gap-2">
             <ShieldIcon className="h-5 w-5 shrink-0 text-accent" />
-            <div>
+            {/* min-w-0 so the prose is what gives way when the card narrows;
+                without it the buttons are squeezed and their labels wrap. */}
+            <div className="min-w-0">
               <p className="text-[12.5px] font-semibold">
                 Hypergate detected{' '}
                 <span className="font-normal text-ink-faint">
@@ -479,7 +481,7 @@ function McpSection({
                   : 'One click registers Kotrain with it, adds the gateway below, and opens Hypergate as a tab in this window.'}
               </p>
             </div>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
               {connected && (
                 <button className="btn btn-outline py-1 text-[12px]" onClick={openHypergatePane}>Open tab</button>
               )}
