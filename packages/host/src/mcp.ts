@@ -1,11 +1,11 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { ToolSpec } from '@kotrain/core';
-import type { McpServerConfig, McpServerStatus, KotrainMcpInfo, ToolResult, ToolCall } from '@kotrain/shared';
+import type { McpServerConfig, McpServerStatus, HypergateInfo, ToolResult, ToolCall } from '@kotrain/shared';
 
 /**
  * Minimal MCP client, hand-rolled so we add no dependency. Two transports:
  *   • stdio — JSON-RPC 2.0 over newline-delimited stdio of a spawned process.
- *   • streamable HTTP — JSON-RPC POSTed to a URL (e.g. a KotrainMCP gateway),
+ *   • streamable HTTP — JSON-RPC POSTed to a URL (e.g. a Hypergate gateway),
  *     used when the config carries `url`; handles JSON and SSE-framed replies
  *     and echoes the server's `mcp-session-id` for stateful servers.
  * One McpServer wraps one server: handshake, list tools, call tools.
@@ -214,23 +214,157 @@ export async function callMcpTool(call: ToolCall): Promise<ToolResult> {
   }
 }
 
+// ── Hypergate (github.com/nekko-labs/hypergate) ─────────────────────────────
+// The companion daemon that runs and supervises local MCP servers and puts
+// them all behind one gateway endpoint. Everything here is host-side so it
+// works in every edition (the browser can't always reach another localhost
+// port) and so a deep link can connect without any view being mounted.
+
+/** The port `hypergated` listens on unless it was told otherwise. */
+export const DEFAULT_HYPERGATE_PORT = 7777;
+
+/** The MCP entry id Hypergate gets in settings. Constant, so re-connecting replaces it. */
+export const HYPERGATE_ENTRY_ID = 'hypergate';
+
 /**
- * Probe for a local KotrainMCP daemon (github.com/nekko-labs/kotrain-mcp) — the
- * companion MCP server runtime/manager. Host-side so it works in every edition
- * (the browser can't always reach another localhost port).
+ * Entry ids earlier versions used for the same gateway, cleared on connect.
+ *
+ * The daemon was called KotrainMCP before the product became Hypergate; an
+ * install that connected back then still has that row, and leaving it would
+ * mean two entries pointed at one gateway, every tool offered twice.
  */
-export async function detectKotrainMcp(
-  base: string = process.env.KOTRAIN_MCP_URL ?? 'http://localhost:7777',
-): Promise<KotrainMcpInfo | null> {
+export const LEGACY_HYPERGATE_ENTRY_IDS = ['kotrain-mcp'];
+
+/** `service` values a Hypergate daemon answers `/health` with (older name included). */
+const HYPERGATE_SERVICES = ['hypergated', 'kotrain-mcpd'];
+
+/**
+ * The daemon's base URL.
+ *
+ * A caller-supplied port wins outright: it comes from a deep link naming a
+ * specific daemon, and an environment default that quietly redirected it
+ * elsewhere would connect to something other than what was clicked. The env
+ * vars are only the answer to "where is Hypergate?" when nobody said.
+ */
+export const hypergateBase = (port?: number): string =>
+  port
+    ? `http://localhost:${port}`
+    : (process.env.HYPERGATE_URL ?? process.env.KOTRAIN_MCP_URL ?? `http://localhost:${DEFAULT_HYPERGATE_PORT}`);
+
+/**
+ * Probe for a running Hypergate daemon.
+ *
+ * Deliberately free of side effects, since it runs whenever Settings mounts and
+ * whenever a link arrives: it reads state and never mints anything.
+ * Connecting (below) is the step that creates something.
+ */
+export async function detectHypergate(port?: number): Promise<HypergateInfo | null> {
+  const base = hypergateBase(port);
   try {
-    const ctl = AbortSignal.timeout(1500);
-    const health = (await (await fetch(`${base}/health`, { signal: ctl })).json()) as { service?: string; version?: string; servers?: number };
-    if (health?.service !== 'kotrain-mcpd') return null;
-    const gw = (await (await fetch(`${base}/api/gateway`, { signal: ctl })).json()) as { url: string; token?: string; uiUrl?: string };
-    return { url: gw.url, token: gw.token, uiUrl: gw.uiUrl, servers: health.servers ?? 0, version: health.version ?? '?' };
+    const signal = AbortSignal.timeout(1500);
+    const health = (await (await fetch(`${base}/health`, { signal })).json()) as
+      { service?: string; version?: string; servers?: number };
+    if (!HYPERGATE_SERVICES.includes(health?.service ?? '')) return null;
+    const gw = (await (await fetch(`${base}/api/gateway`, { signal })).json()) as
+      { url: string; uiUrl?: string };
+    return {
+      url: gw.url,
+      uiUrl: gw.uiUrl ?? `${base}/`,
+      servers: health.servers ?? 0,
+      version: health.version ?? '?',
+      port: portOf(base),
+    };
   } catch {
     return null;
   }
+}
+
+/** The port a base URL points at, for the info we hand back to the UI. */
+function portOf(base: string): number {
+  try {
+    const parsed = new URL(base);
+    return Number(parsed.port) || (parsed.protocol === 'https:' ? 443 : 80);
+  } catch {
+    return DEFAULT_HYPERGATE_PORT;
+  }
+}
+
+/**
+ * The bearer token this Kotrain install should use on the gateway.
+ *
+ * Asks Hypergate for an agent called "Kotrain", creating it on first connect.
+ * A scoped agent token beats the master one for the same reason a login beats
+ * a root password: Hypergate can then show Kotrain in its Agents list, scope
+ * which servers it may reach, attribute tool calls to it, and revoke it on its
+ * own. Daemons predating that endpoint fall back to the gateway token, so an
+ * older Hypergate still connects in one click.
+ */
+async function hypergateToken(base: string): Promise<{ token?: string; agent?: string }> {
+  const signal = AbortSignal.timeout(2500);
+  try {
+    const res = await fetch(`${base}/api/clients/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: 'kotrain', create: true }),
+      signal,
+    });
+    if (res.ok) {
+      const agent = (await res.json()) as { token?: string; name?: string };
+      if (agent?.token) return { token: agent.token, agent: agent.name };
+    }
+  } catch {
+    /* older daemon, or it declined; the gateway token below still works */
+  }
+  try {
+    const gw = (await (await fetch(`${base}/api/gateway`, { signal })).json()) as { token?: string };
+    return { token: gw?.token };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Everything the connect button (and the `kotrain://` deep link) needs: probe
+ * the daemon, then get this install its own credential on it.
+ *
+ * Returns null when nothing is listening, so both callers can say "Hypergate
+ * isn't running" rather than reporting a failure that isn't one.
+ */
+export async function resolveHypergate(port?: number): Promise<HypergateInfo | null> {
+  const found = await detectHypergate(port);
+  if (!found) return null;
+  const { token, agent } = await hypergateToken(hypergateBase(port));
+  return { ...found, token, agent };
+}
+
+/**
+ * The MCP entry for a resolved gateway: one HTTP server whose tools are every
+ * tool Hypergate manages, enabled so connecting actually connects something.
+ */
+export const hypergateEntry = (info: HypergateInfo): McpServerConfig => ({
+  id: HYPERGATE_ENTRY_ID,
+  name: 'Hypergate',
+  command: '',
+  args: [],
+  url: info.url,
+  token: info.token,
+  enabled: true,
+});
+
+/**
+ * Put the gateway into a server list: replace the existing entry if there is
+ * one (a re-connect after a token rotation is the common case), drop the
+ * pre-rename entry, and otherwise append.
+ */
+export function withHypergate(servers: McpServerConfig[], info: HypergateInfo): McpServerConfig[] {
+  const entry = hypergateEntry(info);
+  const rest = servers.filter((s) => !LEGACY_HYPERGATE_ENTRY_IDS.includes(s.id));
+  const existing = rest.find((s) => s.id === HYPERGATE_ENTRY_ID);
+  // Keep the user's own edits to the row (they may have renamed it) and only
+  // overwrite what the daemon is authoritative about.
+  return existing
+    ? rest.map((s) => (s.id === HYPERGATE_ENTRY_ID ? { ...s, ...entry, name: s.name || entry.name } : s))
+    : [...rest, entry];
 }
 
 /** Connection status for the UI. */

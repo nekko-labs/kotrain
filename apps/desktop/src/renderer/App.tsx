@@ -10,6 +10,7 @@ import { Toasts } from './components/Toasts.js';
 import { CommandPalette } from './components/CommandPalette.js';
 import { UpdateBanner } from './components/UpdateBanner.js';
 import { RelayPairing } from './components/RelayPairing.js';
+import { DeepLinkListener } from './components/DeepLink.js';
 import { WorkbenchView } from './views/WorkbenchView.js';
 import { DesignBoardView } from './views/DesignBoardView.js';
 import { SkillsView } from './views/SkillsView.js';
@@ -61,6 +62,9 @@ export function App() {
     refreshSessions();
     refreshTerminals();
     useStore.getState().refreshSkills();
+    // Probe for Hypergate once at startup so the pairing is offered wherever
+    // the user happens to be, not only after they open Settings.
+    useStore.getState().refreshHypergate();
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => useStore.getState().applyTheme();
     mq.addEventListener('change', onChange);
@@ -223,6 +227,7 @@ export function App() {
       <ResourceHud />
       <Mascot mood={mascotMood} enabled={settings?.mascotEnabled ?? true} />
       <CommandPalette />
+      <DeepLinkListener />
       <Toasts />
     </div>
   );

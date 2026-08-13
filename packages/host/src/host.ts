@@ -127,7 +127,7 @@ import { getGpuStats } from './gpu.js';
 import { getSystemStats } from './system.js';
 import { stopLocalServer } from './servers.js';
 import { lmsProbe, lmsLoad, lmsUnload } from './lms.js';
-import { syncMcp, mcpStatus, mcpToolList, detectKotrainMcp } from './mcp.js';
+import { syncMcp, mcpStatus, mcpToolList, detectHypergate, resolveHypergate, withHypergate } from './mcp.js';
 import {
   setTerminalSender,
   listTerminals,
@@ -331,8 +331,14 @@ export interface Host {
   appInfo(): AppInfo;
   /** Connect (or reconnect) configured MCP servers and return their status. */
   mcpStatus(): Promise<McpServerStatus[]>;
-  /** Probe for a local KotrainMCP daemon and return its gateway info. */
-  detectKotrainMcp(): Promise<import('@kotrain/shared').KotrainMcpInfo | null>;
+  /** Probe for a local Hypergate daemon and return its gateway info (no side effects). */
+  detectHypergate(port?: number): Promise<import('@kotrain/shared').HypergateInfo | null>;
+  /**
+   * Connect this install to a local Hypergate daemon in one step: probe it,
+   * claim this install's scoped agent token, save the MCP entry, and bring its
+   * tools online. Null when no daemon is listening on that port.
+   */
+  connectHypergate(port?: number): Promise<import('@kotrain/shared').HypergateInfo | null>;
 }
 
 export function createHost(opts: { dataDir: string }): Host {
@@ -614,7 +620,17 @@ export function createHost(opts: { dataDir: string }): Host {
       await syncMcp(configs);
       return mcpStatus(configs);
     },
-    detectKotrainMcp: () => detectKotrainMcp(),
+    detectHypergate: (port) => detectHypergate(port),
+    connectHypergate: async (port) => {
+      const info = await resolveHypergate(port);
+      if (!info) return null;
+      // Save first, then sync: `syncMcp` reads the list it is given, and a
+      // connect that brought tools online without persisting the entry would
+      // come back disconnected on the next launch.
+      const next = saveSettings({ mcpServers: withHypergate(getSettings().mcpServers ?? [], info) });
+      await syncMcp(next.mcpServers ?? []);
+      return info;
+    },
   };
   // Remote access needs the finished host (it dispatches into it); reconnect if
   // remote access was left enabled when the host last shut down.

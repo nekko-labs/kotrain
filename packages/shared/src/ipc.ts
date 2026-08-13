@@ -178,7 +178,8 @@ export const IpcChannels = {
 
   appInfo: 'app:info',
   mcpStatus: 'mcp:status',
-  mcpKotrain: 'mcp:kotrain',
+  mcpHypergate: 'mcp:hypergate',
+  mcpHypergateConnect: 'mcp:hypergate:connect',
   // Transport-local update controls (desktop = electron-updater, web = refresh).
   updateCheck: 'update:check',
   updateDownload: 'update:download',
@@ -197,6 +198,7 @@ export const IpcEvents = {
   tasksUpdated: 'tasks:updated',
   trainingUpdated: 'training:updated',
   workflowsUpdated: 'workflows:updated',
+  deepLink: 'app:deepLink',
 } as const;
 
 /** The typed API the preload bridge exposes as window.kotrain. */
@@ -419,8 +421,10 @@ export interface KotrainApi {
   getAppInfo(): Promise<AppInfo>;
   /** Connect configured MCP servers and return their status + tools. */
   getMcpStatus(): Promise<import('./mcp.js').McpServerStatus[]>;
-  /** Probe for a local KotrainMCP daemon (kotrain-mcpd) and return its gateway info. */
-  detectKotrainMcp(): Promise<import('./mcp.js').KotrainMcpInfo | null>;
+  /** Probe for a local Hypergate daemon (`hypergated`) and return its gateway info. */
+  detectHypergate(port?: number): Promise<import('./mcp.js').HypergateInfo | null>;
+  /** Connect to a local Hypergate daemon: claim a token, save the entry, bring its tools online. */
+  connectHypergate(port?: number): Promise<import('./mcp.js').HypergateInfo | null>;
   /** Register this device's push token with the relay (mobile/relay only; no-op elsewhere). */
   registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
   /** Check for a newer version (desktop: GitHub feed; web: server version). */
@@ -442,4 +446,10 @@ export interface KotrainApi {
   onTrainingUpdated(cb: (runs: TrainingRun[]) => void): () => void;
   /** Fires when a workflow is edited or any run advances a step. */
   onWorkflowsUpdated(cb: (snapshot: WorkflowsSnapshot) => void): () => void;
+  /**
+   * Fires when another app asks Kotrain to do something through a `kotrain://`
+   * URL: today, Hypergate's "Connect Kotrain" button. Desktop only, since the
+   * web transport has no OS to hand it one.
+   */
+  onDeepLink(cb: (url: string) => void): () => void;
 }

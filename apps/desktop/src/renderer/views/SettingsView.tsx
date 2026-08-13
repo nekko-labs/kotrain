@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, KotrainMcpInfo, SandboxMode, ThemeMode } from '@kotrain/shared';
+import type { AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, SandboxMode, ThemeMode } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { Badge } from '../components/primitives/index.js';
 import { UpdateProgress, useUpdater } from '../components/UpdateBanner.js';
@@ -36,6 +36,9 @@ export function SettingsView() {
     useStore.setState({ settings: next });
     applyTheme();
   };
+
+  /** Re-read settings the host changed on its own (connecting Hypergate writes an MCP entry). */
+  const reload = async () => setSettings(await window.kotrain.getSettings());
 
   const updateGuardrail = async (rule: GuardrailRule) => {
     if (!settings) return;
@@ -198,7 +201,7 @@ export function SettingsView() {
         {/* Spec-driven development */}
 
         {/* MCP servers */}
-        <McpSection settings={settings} update={update} />
+        <McpSection settings={settings} update={update} reload={reload} />
 
         {/* Remote access (relay) */}
         <RemoteAccess />
@@ -418,15 +421,35 @@ function DataSection({ onSettings }: { onSettings: (s: AppSettings) => void }) {
   );
 }
 
-function McpSection({ settings, update }: { settings: AppSettings; update: (patch: Partial<AppSettings>) => void }) {
+function McpSection({
+  settings, update, reload,
+}: {
+  settings: AppSettings;
+  update: (patch: Partial<AppSettings>) => void;
+  reload: () => Promise<void>;
+}) {
   const { pushToast } = useStore();
   const servers = settings.mcpServers ?? [];
   const [status, setStatus] = useState<McpServerStatus[]>([]);
   const [busy, setBusy] = useState(false);
-  // A local KotrainMCP daemon (github.com/nekko-labs/kotrain-mcp), if one is running.
-  // undefined = still probing, null = no daemon found.
-  const [kotrain, setKotrain] = useState<KotrainMcpInfo | null | undefined>(undefined);
-  useEffect(() => { void window.kotrain.detectKotrainMcp().then(setKotrain).catch(() => setKotrain(null)); }, []);
+  const [linking, setLinking] = useState(false);
+  // The local Hypergate daemon, if one is running: undefined while probing,
+  // null when nothing answered. Lives in the store because the pairing is
+  // app-wide (the tab, the palette, and the deep link all read it).
+  const hypergate = useStore((s) => s.hypergate);
+  const refreshHypergate = useStore((s) => s.refreshHypergate);
+  const connectHypergate = useStore((s) => s.connectHypergate);
+  const openHypergatePane = useStore((s) => s.openHypergatePane);
+  useEffect(() => { void refreshHypergate(); }, [refreshHypergate]);
+  // The gateway keeps a fixed id, so "is it connected" is a lookup rather than
+  // something to track. The pre-rename id counts: that row is the same gateway.
+  const connected = servers.some((s) => s.id === 'hypergate' || s.id === 'kotrain-mcp');
+  /** One click: claim a token, save the entry, connect it, open the tab. */
+  const link = async () => {
+    setLinking(true);
+    if (await connectHypergate(hypergate?.port)) await reload();
+    setLinking(false);
+  };
   const setServers = (next: typeof servers) => update({ mcpServers: next });
   const add = () =>
     setServers([
@@ -438,13 +461,6 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       ...servers,
       { id: `m_${Date.now().toString(36)}`, name: 'http server', command: '', args: [], url: 'http://localhost:7777/mcp', token: '', enabled: false },
     ]);
-  const connectKotrain = async () => {
-    if (!kotrain) return;
-    const existing = servers.find((s) => s.id === 'kotrain-mcp');
-    const entry = { id: 'kotrain-mcp', name: 'KotrainMCP gateway', command: '', args: [], url: kotrain.url, token: kotrain.token, enabled: true };
-    setServers(existing ? servers.map((s) => (s.id === 'kotrain-mcp' ? { ...s, ...entry } : s)) : [...servers, entry]);
-    pushToast('success', 'KotrainMCP gateway added — its servers\' tools join every chat.');
-  };
   const edit = (id: string, patch: Partial<(typeof servers)[number]>) =>
     setServers(servers.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const remove = (id: string) => setServers(servers.filter((s) => s.id !== id));
@@ -477,41 +493,48 @@ function McpSection({ settings, update }: { settings: AppSettings; update: (patc
       <p className="mt-1 text-[12px] text-ink-faint">
         Model Context Protocol servers extend the agent with extra tools. Enabled servers' tools are offered in every chat.
       </p>
-      {kotrain && (
+      {hypergate && (
         <div className="card mt-3 p-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
           <div className="flex items-center gap-2">
-            <img src="./icon.svg" alt="Kotrain orbit mark" width="20" height="20" />
-            <div>
-              <p className="text-[12.5px] font-semibold">KotrainMCP detected <span className="font-normal text-ink-faint">· v{kotrain.version} · {kotrain.servers} managed server(s)</span></p>
-              <p className="text-[11.5px] text-ink-faint">Run and supervise MCP servers locally, then reach them all here through one gateway endpoint.</p>
+            <ShieldIcon className="h-5 w-5 shrink-0 text-accent" />
+            {/* min-w-0 so the prose is what gives way when the card narrows;
+                without it the buttons are squeezed and their labels wrap. */}
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold">
+                Hypergate detected{' '}
+                <span className="font-normal text-ink-faint">
+                  · v{hypergate.version} · {hypergate.servers} managed server{hypergate.servers === 1 ? '' : 's'} · port {hypergate.port}
+                </span>
+              </p>
+              <p className="text-[11.5px] text-ink-faint">
+                {connected
+                  ? `Connected${hypergate.agent ? ` as ${hypergate.agent}` : ''}. Every server it manages is one entry here, and its tools are in every chat.`
+                  : 'One click registers Kotrain with it, adds the gateway below, and opens Hypergate as a tab in this window.'}
+              </p>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              {kotrain.uiUrl && (
-                <button
-                  className="btn btn-outline py-1 text-[12px]"
-                  onClick={() => { useStore.getState().openBrowserPane(kotrain.uiUrl); useStore.getState().setView('chat'); }}
-                >
-                  Open manager
-                </button>
+            <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
+              {connected && (
+                <button className="btn btn-outline py-1 text-[12px]" onClick={openHypergatePane}>Open tab</button>
               )}
-              <button className="btn btn-primary py-1 text-[12px]" onClick={() => void connectKotrain()}>
-                {servers.some((s) => s.id === 'kotrain-mcp') ? 'Reconnect gateway' : 'Connect gateway'}
+              <button className="btn btn-primary py-1 text-[12px]" disabled={linking} onClick={() => void link()}>
+                {linking ? 'Connecting…' : connected ? 'Reconnect' : 'Connect Hypergate'}
               </button>
             </div>
           </div>
         </div>
       )}
-      {kotrain === null && !servers.some((s) => s.id === 'kotrain-mcp') && (
+      {hypergate === null && (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-line px-3 py-2">
-          <img src="./icon.svg" alt="Kotrain orbit mark" width="20" height="20" className="opacity-70" />
+          <ShieldIcon className="h-5 w-5 shrink-0 text-ink-faint" />
           <p className="text-[11.5px] text-ink-faint">
-            Optional: <span className="font-medium text-ink-soft">KotrainMCP</span> runs and supervises local MCP servers. Start its daemon and a one-click Connect gateway appears here.
+            Optional: <span className="font-medium text-ink-soft">Hypergate</span> runs and supervises local MCP servers behind one
+            endpoint. Start its daemon and a one-click Connect appears here{connected ? ' (the saved gateway reconnects on its own)' : ''}.
           </p>
           <button
             className="btn btn-ghost ml-auto shrink-0 px-2! py-0.5! text-[11px] text-accent"
-            onClick={() => window.kotrain.openPath('https://github.com/nekko-labs/kotrain-mcp')}
+            onClick={() => window.kotrain.openPath('https://hypergate.app')}
           >
-            Get KotrainMCP ↗
+            Get Hypergate ↗
           </button>
         </div>
       )}

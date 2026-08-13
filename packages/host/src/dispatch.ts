@@ -162,7 +162,8 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
 
     [C.appInfo]: () => host.appInfo(),
     [C.mcpStatus]: () => host.mcpStatus(),
-    [C.mcpKotrain]: () => host.detectKotrainMcp(),
+    [C.mcpHypergate]: ([port]) => host.detectHypergate(port),
+    [C.mcpHypergateConnect]: ([port]) => host.connectHypergate(port),
   };
 
   return (channel, args) => {
