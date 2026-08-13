@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  # Dispatched at a tag by version-release.yml (a tag pushed with GITHUB_TOKEN
+  # can't trigger the push event above), and usable by hand to re-run a release
+  # for an existing tag. Run it with `--ref v1.2.3` so `github.ref_name` is the
+  # tag, which is what every step below reads.
+  workflow_dispatch:
 
 permissions:
   contents: write
