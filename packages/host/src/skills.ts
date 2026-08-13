@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord, MarketplaceSkill } from '@kotrain/shared';
-import { getMarketSkill, skillToMarkdown } from '@kotrain/shared';
+import type { InstallTarget, InstallTargetInfo, InstalledSkillRecord, MarketplaceSkill, SkillDef } from '@kotrain/shared';
+import { getMarketSkill, marketToSkillDef, skillToMarkdown } from '@kotrain/shared';
 import { dataDir } from './store.js';
 
 /**
@@ -43,6 +43,19 @@ export function listInstalledSkills(): InstalledSkillRecord[] {
   const alive = records.filter((r) => !r.path || existsSync(r.path));
   if (alive.length !== records.length) save(alive);
   return alive;
+}
+
+/**
+ * Kotrain-target installs as runnable skills. Non-catalog installs (Vaizer)
+ * carry their own snapshot on the record; catalog ones resolve by id. Used by a
+ * workflow's skill step to find what it should run.
+ */
+export function listInstalledSkillDefs(): SkillDef[] {
+  return listInstalledSkills()
+    .filter((r) => r.target === 'kotrain')
+    .map((r) => r.skill ?? getMarketSkill(r.skillId))
+    .filter((m): m is MarketplaceSkill => !!m)
+    .map(marketToSkillDef);
 }
 
 export function skillTargets(): InstallTargetInfo[] {

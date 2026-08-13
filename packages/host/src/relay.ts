@@ -81,12 +81,14 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
   const onChanges = (e: unknown) => void broadcast({ type: 'event', channel: IpcEvents.changesUpdated, payload: e });
   const onTasks = (t: unknown) => void broadcast({ type: 'event', channel: IpcEvents.tasksUpdated, payload: t });
   const onTraining = (r: unknown) => void broadcast({ type: 'event', channel: IpcEvents.trainingUpdated, payload: r });
+  const onWorkflows = (s: unknown) => void broadcast({ type: 'event', channel: IpcEvents.workflowsUpdated, payload: s });
   host.events.on('agentEvent', onAgent);
   host.events.on('indexProgress', onIndex);
   host.events.on('terminalEvent', onTerminal);
   host.events.on('changesUpdated', onChanges);
   host.events.on('tasksUpdated', onTasks);
   host.events.on('trainingUpdated', onTraining);
+  host.events.on('workflowsUpdated', onWorkflows);
 
   const handleClientFrame = async (cid: string, data: string) => {
     let envelope: { enc?: string };
@@ -179,6 +181,7 @@ export function connectRelayAgent(host: Host, opts: RelayAgentOptions): RelayAge
       host.events.off('changesUpdated', onChanges);
       host.events.off('tasksUpdated', onTasks);
       host.events.off('trainingUpdated', onTraining);
+      host.events.off('workflowsUpdated', onWorkflows);
       try {
         ws?.close();
       } catch {
