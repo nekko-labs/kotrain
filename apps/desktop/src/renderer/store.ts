@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo } from '@kotrain/shared';
+import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo, InstalledSkillRecord, SkillDef, PrInfo, HypergateInfo } from '@kotrain/shared';
 import { getMarketSkill, marketToSkillDef } from '@kotrain/shared';
 import type { MascotMood } from './components/Mascot.js';
 import { syncTitleBarOverlay } from './chrome.js';
@@ -20,13 +20,14 @@ export interface Toast {
   message: string;
 }
 
-/** A single workbench tab, a chat, terminal, file, browser, diff, or PR view. */
+/** A single workbench tab: a chat, terminal, file, browser, diff, PR, or Hypergate view. */
 export interface WbPane {
   id: string;
-  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff' | 'pr';
+  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff' | 'pr' | 'hypergate';
   /**
    * What the pane points at: sessionId (chat/diff), terminalId (terminal),
-   * absolute file path (file), URL (browser), or PR URL (pr).
+   * absolute file path (file), URL (browser), PR URL (pr), or the Hypergate
+   * manager's URL (hypergate).
    */
   refId: string;
 }
@@ -73,6 +74,24 @@ interface UiState {
 
   /** Pending message to hand a chat's composer (set by editor comments / design notes). */
   composerInbox: ComposerInbox | null;
+
+  /**
+   * The Hypergate daemon on this machine: `undefined` while we're still
+   * probing, `null` when nothing is listening.
+   *
+   * Kept in the store rather than in Settings' local state because the pairing
+   * is app-wide: the sidebar offers the tab, the command palette connects, and
+   * a `kotrain://` deep link can arrive with no view mounted at all.
+   */
+  hypergate: HypergateInfo | null | undefined;
+  /** Re-probe for the daemon. Cheap and side-effect free; safe to call on a timer. */
+  refreshHypergate: (port?: number) => Promise<void>;
+  /**
+   * Connect this install to Hypergate and open its tab: one path for the
+   * Settings button, the command palette, and the deep link Hypergate itself
+   * fires. Resolves false when no daemon answered.
+   */
+  connectHypergate: (port?: number) => Promise<boolean>;
 
   /** Live PR state per chat (PRs referenced in its transcript), for cards + badges. */
   prsBySession: Record<string, PrInfo[]>;
@@ -121,6 +140,8 @@ interface UiState {
   openTerminalPane: (terminalId: string) => void;
   openFilePane: (path: string) => void;
   openBrowserPane: (url?: string) => void;
+  /** Open (or focus) the Hypergate manager as a tab in this window. */
+  openHypergatePane: () => void;
   /** Route text to a chat's composer, Add to prompt (run=false) or Run now (run=true). */
   sendToChat: (text: string, run: boolean) => Promise<void>;
   /** Open the diff/approve review for a session's changed files. */
@@ -372,6 +393,66 @@ export const useStore = create<UiState>((set, get) => ({
       }
       return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'browser', refId: ref }), view: 'chat' as View };
     });
+  },
+
+  openHypergatePane: () => {
+    set((s) => {
+      // One manager, so one tab: any existing Hypergate pane is *the* pane,
+      // whatever URL it was opened with (the port can change between runs).
+      const hit = s.groups.flatMap((g) => g.panes.map((p) => ({ g, p }))).find((x) => x.p.kind === 'hypergate');
+      const url = s.hypergate?.uiUrl ?? `http://localhost:${s.hypergate?.port ?? 7777}/`;
+      if (hit) {
+        return {
+          activeGroupId: hit.g.id,
+          view: 'chat' as View,
+          groups: s.groups.map((g) =>
+            g.id === hit.g.id
+              ? { ...g, activeId: hit.p.id, panes: g.panes.map((p) => (p.id === hit.p.id ? { ...p, refId: url } : p)) }
+              : g,
+          ),
+        };
+      }
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'hypergate', refId: url }), view: 'chat' as View };
+    });
+  },
+
+  hypergate: undefined,
+  refreshHypergate: async (port) => {
+    try {
+      const found = await window.kotrain.detectHypergate(port);
+      // Probing is anonymous by design, so a re-probe of the same daemon must
+      // not forget what connecting to it taught us (which agent we are).
+      set((s) => ({
+        hypergate: found && s.hypergate?.port === found.port ? { ...s.hypergate, ...found } : found,
+      }));
+    } catch {
+      // An older host (or the web edition talking to one) has no such channel;
+      // "no daemon" is the honest answer there, not an error worth showing.
+      set({ hypergate: null });
+    }
+  },
+  connectHypergate: async (port) => {
+    try {
+      const info = await window.kotrain.connectHypergate(port);
+      if (!info) {
+        get().pushToast('error', `Hypergate isn't running on port ${port ?? 7777}. Start it, then connect again.`);
+        set({ hypergate: null });
+        return false;
+      }
+      set({ hypergate: info });
+      // The entry now lives in settings; re-read so the MCP list on screen
+      // shows it without a manual refresh.
+      await get().refreshSettings();
+      get().openHypergatePane();
+      get().pushToast(
+        'success',
+        `Hypergate connected: ${info.servers} server${info.servers === 1 ? '' : 's'}, tools now in every chat.`,
+      );
+      return true;
+    } catch (e) {
+      get().pushToast('error', `Could not connect Hypergate: ${(e as Error).message}`);
+      return false;
+    }
   },
 
   sendToChat: async (text, run) => {

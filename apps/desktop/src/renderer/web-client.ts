@@ -388,7 +388,8 @@ function makeWebClient(): KotrainApi {
     // loaded; we just suggest a refresh (no installer to run in the browser).
     getAppInfo: () => call(IpcChannels.appInfo) as Promise<AppInfo>,
     getMcpStatus: () => call(IpcChannels.mcpStatus),
-    detectKotrainMcp: () => call(IpcChannels.mcpKotrain),
+    detectHypergate: (port) => call(IpcChannels.mcpHypergate, port),
+    connectHypergate: (port) => call(IpcChannels.mcpHypergateConnect, port),
     registerPushToken: (token, platform) => registerPush(token, platform),
     checkForUpdates: async () => {
       const info = (await call(IpcChannels.appInfo)) as AppInfo;
@@ -432,6 +433,9 @@ function makeWebClient(): KotrainApi {
       trainingCbs.add(cb);
       return () => trainingCbs.delete(cb);
     },
+    // A browser tab has no OS handing it `kotrain://` URLs, so this is the
+    // honest implementation rather than a missing one.
+    onDeepLink: () => () => {},
     onUpdateEvent: (cb) => {
       // Poll the server version; emit 'available' once it differs from load.
       let stopped = false;

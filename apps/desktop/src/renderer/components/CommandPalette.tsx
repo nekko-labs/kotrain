@@ -13,6 +13,8 @@ interface Command {
 /** Ctrl/Cmd+K command palette for fast navigation and actions. */
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, setView, newChat, newTerminal, toggleContextPanel } = useStore();
+  const hypergate = useStore((s) => s.hypergate);
+  const hypergateConnected = useStore((s) => (s.settings?.mcpServers ?? []).some((m) => m.id === 'hypergate' || m.id === 'kotrain-mcp'));
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,8 +32,22 @@ export function CommandPalette() {
       go('memory', 'Go to Memory'),
       go('settings', 'Go to Settings'),
       { id: 'toggle-context', label: 'Toggle context panel', run: () => toggleContextPanel() },
+      // Only when there is a daemon to reach: an entry that can only fail is
+      // worse than no entry. Connected, it is the way back to the tab.
+      ...(hypergate
+        ? [{
+            id: 'hypergate',
+            label: hypergateConnected ? 'Open Hypergate' : 'Connect Hypergate',
+            hint: `Port ${hypergate.port}`,
+            run: () => {
+              const s = useStore.getState();
+              if (hypergateConnected) s.openHypergatePane();
+              else void s.connectHypergate(hypergate.port);
+            },
+          }]
+        : []),
     ];
-  }, [setView, newChat, newTerminal, toggleContextPanel]);
+  }, [setView, newChat, newTerminal, toggleContextPanel, hypergate, hypergateConnected]);
 
   const filtered = commands.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()));
 
