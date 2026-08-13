@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { join, resolve, sep } from 'path';
 import { existsSync, cpSync } from 'fs';
 import { createHost } from '@kotrain/host';
+import { IpcEvents } from '@kotrain/shared';
 import { registerIpc } from './ipc.js';
 import { checkForUpdates } from './update.js';
 import { loadWindowBounds, saveWindowBounds } from './windowState.js';
@@ -20,6 +21,44 @@ import {
  * the frame or two before the page mounts.
  */
 const DEFAULT_OVERLAY: TitleBarOverlayTheme = { color: '#0c0c11', symbolColor: '#a3a1b0' };
+
+/** The URL scheme other apps use to reach Kotrain (`kotrain://hypergate/connect`). */
+const PROTOCOL = 'kotrain';
+
+/**
+ * A `kotrain://` URL waiting for a window to hand it to.
+ *
+ * A cold launch *from* a link arrives before the renderer exists, so the link
+ * is parked here and replayed once the page says it is listening. Only the
+ * newest is kept: these are commands, and a queue of stale ones fired at once
+ * is not what anybody clicked.
+ */
+let pendingLink: string | null = null;
+
+/** Pick the `kotrain://` URL out of a command line (Windows and Linux pass it as an argument). */
+function linkFromArgv(argv: string[]): string | null {
+  return argv.find((a) => a.startsWith(`${PROTOCOL}://`)) ?? null;
+}
+
+/**
+ * Send a deep link to the window, or hold it until one is ready.
+ *
+ * Also raises the window: the point of the link is that the user clicked
+ * something in *another* app and expects Kotrain to come forward and show them
+ * the result.
+ */
+function deliverLink(url: string): void {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (!win || win.webContents.isLoading()) {
+    pendingLink = url;
+    if (!win) createWindow();
+    return;
+  }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  win.webContents.send(IpcEvents.deepLink, url);
+}
 
 function resolveWindowIcon(): string | undefined {
   const candidates = [
@@ -61,6 +100,15 @@ function createWindow(): void {
   });
 
   win.on('ready-to-show', () => win.show());
+
+  // A link that arrived before the page could listen (a cold launch from
+  // Hypergate's Connect button) is replayed the moment it can.
+  win.webContents.on('did-finish-load', () => {
+    if (!pendingLink) return;
+    const url = pendingLink;
+    pendingLink = null;
+    win.webContents.send(IpcEvents.deepLink, url);
+  });
 
   // Reload and devtools used to hang off the View menu. The menu is gone, the
   // shortcuts people reach for shouldn't be, so bind the two that were worth
@@ -181,7 +229,60 @@ function registerTitleBarOverlaySync(): void {
   });
 }
 
+/**
+ * Register `kotrain://` with the OS and make sure a link reaches the app that
+ * is already open.
+ *
+ * The single-instance lock is what makes that true: without it the OS answers
+ * a link by starting a *second* Kotrain on the same data directory, two hosts
+ * writing one settings file. With it, the second process hands its argument to
+ * the first and exits. Returns false when another instance already holds the
+ * lock, meaning this process should quit immediately.
+ */
+function claimSingleInstance(): boolean {
+  // In development the executable is Electron itself, so the registration has
+  // to name the script too or the OS would launch a bare Electron shell.
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [resolve(process.argv[1])]);
+  } else {
+    app.setAsDefaultProtocolClient(PROTOCOL);
+  }
+
+  if (!app.requestSingleInstanceLock()) return false;
+
+  app.on('second-instance', (_e, argv) => {
+    const link = linkFromArgv(argv);
+    if (link) {
+      deliverLink(link);
+      return;
+    }
+    // Launched again without a link: the user asked for Kotrain, so show the
+    // window they already have rather than doing nothing at all.
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    } else {
+      createWindow();
+    }
+  });
+
+  // macOS delivers links as an event, not as an argument, whether the app was
+  // already running or was launched by the click.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    deliverLink(url);
+  });
+
+  return true;
+}
+
+/** False in a second copy launched by a link; that one hands over and exits. */
+const isPrimary = claimSingleInstance();
+if (!isPrimary) app.quit();
+
 app.whenReady().then(() => {
+  if (!isPrimary) return;
   // No File/Edit/View/Window bar: it cost a whole strip of chrome above the UI
   // to duplicate shortcuts the app already owns. macOS keeps its menu — there
   // it lives in the system bar rather than in the window, and ⌘Q/⌘H/⌘W come
@@ -193,6 +294,9 @@ app.whenReady().then(() => {
   const host = createHost({ dataDir });
   registerIpc(host);
   registerTitleBarOverlaySync();
+  // A link that launched the app is already on this process's command line
+  // (Windows/Linux); park it so the first load replays it.
+  pendingLink = linkFromArgv(process.argv);
   createWindow();
 
   // Auto-check for updates a few seconds after launch, if the user opted in.

@@ -6,10 +6,11 @@ import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
 import { FilePane } from '../components/FilePane.js';
 import { BrowserPane } from '../components/BrowserPane.js';
+import { HypergatePane } from '../components/HypergatePane.js';
 import { DiffPane } from '../components/DiffPane.js';
 import { PrPane, PrBadge } from '../components/PrCard.js';
 import { ContextInspector } from '../components/ContextInspector.js';
-import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon } from '../icons.js';
+import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FileIcon, ExternalIcon, PanelIcon, ShieldIcon } from '../icons.js';
 import { SHORTCUTS } from '../shortcuts.js';
 import { AphelionAvatar } from '../components/Mascot.js';
 
@@ -20,6 +21,7 @@ function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[])
   if (pane.kind === 'browser') {
     try { return new URL(pane.refId).host || 'Browser'; } catch { return 'Browser'; }
   }
+  if (pane.kind === 'hypergate') return 'Hypergate';
   if (pane.kind === 'diff') return 'Changes';
   if (pane.kind === 'pr') {
     const p = parsePrUrl(pane.refId);
@@ -33,6 +35,9 @@ function PaneIcon({ kind }: { kind: WbPane['kind'] }) {
   const cls = 'h-3.5 w-3.5 shrink-0 text-ink-faint';
   if (kind === 'terminal') return <TerminalIcon className={cls} />;
   if (kind === 'browser') return <ExternalIcon className={cls} />;
+  // The one tab that is a product rather than a document, so it keeps the
+  // accent its card in Settings uses instead of the muted tab grey.
+  if (kind === 'hypergate') return <ShieldIcon className="h-3.5 w-3.5 shrink-0 text-accent" />;
   if (kind === 'pr') return <span className="w-3.5 shrink-0 text-center text-[12px] leading-none text-ink-faint">⑂</span>;
   if (kind === 'file' || kind === 'diff') return <FileIcon className={cls} />;
   return <ChatIcon className={cls} />;
@@ -45,6 +50,7 @@ function PaneBody({ pane }: { pane: WbPane }) {
     case 'terminal': return <TerminalPane key={pane.refId} terminalId={pane.refId} />;
     case 'file': return <FilePane key={pane.refId} path={pane.refId} />;
     case 'browser': return <BrowserPane key={pane.refId} url={pane.refId} />;
+    case 'hypergate': return <HypergatePane key={pane.refId} url={pane.refId} />;
     case 'diff': return <DiffPane key={pane.refId} sessionId={pane.refId} />;
     case 'pr': return <PrPane key={pane.refId} url={pane.refId} />;
     default: return null;

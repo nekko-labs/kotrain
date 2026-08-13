@@ -176,7 +176,8 @@ const api: KotrainApi = {
 
   getAppInfo: () => inv(IpcChannels.appInfo),
   getMcpStatus: () => inv(IpcChannels.mcpStatus),
-  detectKotrainMcp: () => inv(IpcChannels.mcpKotrain),
+  detectHypergate: (port?: number) => inv(IpcChannels.mcpHypergate, port),
+  connectHypergate: (port?: number) => inv(IpcChannels.mcpHypergateConnect, port),
   registerPushToken: () => Promise.resolve(), // desktop isn't a relay client
   checkForUpdates: () => inv(IpcChannels.updateCheck),
   downloadUpdate: () => inv(IpcChannels.updateDownload),
@@ -216,6 +217,11 @@ const api: KotrainApi = {
     const listener = (_: unknown, runs: import('@kotrain/shared').TrainingRun[]) => cb(runs);
     ipcRenderer.on(IpcEvents.trainingUpdated, listener);
     return () => ipcRenderer.removeListener(IpcEvents.trainingUpdated, listener);
+  },
+  onDeepLink: (cb: (url: string) => void) => {
+    const listener = (_: unknown, url: string) => cb(url);
+    ipcRenderer.on(IpcEvents.deepLink, listener);
+    return () => ipcRenderer.removeListener(IpcEvents.deepLink, listener);
   },
 };
 

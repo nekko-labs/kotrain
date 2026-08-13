@@ -1,0 +1,95 @@
+import React, { useEffect, useState } from 'react';
+import { useStore } from '../store.js';
+import { hypergateConnectPort } from '../deepLinks.js';
+import { Modal } from './primitives/index.js';
+
+/**
+ * `kotrain://` links from other apps.
+ *
+ * One route today: `kotrain://hypergate/connect?port=7777`, which is what
+ * Hypergate's "Connect Kotrain" button fires. The link is a *request*, never
+ * the action: any program on the machine can open a URL, and connecting a
+ * gateway means trusting whatever tools it offers in every chat from then on.
+ * So the link brings the window forward, names what is asking, and waits for a
+ * click. Everything it shows is read back from the daemon itself rather than
+ * taken from the URL, which carries nothing but a port.
+ */
+
+/** What a link asked for, once we've checked there's really a daemon there. */
+interface Ask {
+  port: number;
+  version: string;
+  servers: number;
+  /** Already in this install's MCP list, so this is a re-connect. */
+  known: boolean;
+}
+
+export function DeepLinkListener() {
+  const [ask, setAsk] = useState<Ask | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const off = window.kotrain.onDeepLink((url) => {
+      const port = hypergateConnectPort(url);
+      const { pushToast, refreshHypergate, settings } = useStore.getState();
+      if (port === null) {
+        pushToast('error', `Kotrain did not understand that link: ${url}`);
+        return;
+      }
+      void (async () => {
+        // Probe before asking: a link pointing at a port with nothing on it
+        // should say so, not open a dialog about a daemon that isn't there.
+        await refreshHypergate(port);
+        const found = useStore.getState().hypergate;
+        if (!found) {
+          pushToast('error', `Nothing is serving Hypergate on port ${port}.`);
+          return;
+        }
+        setAsk({
+          port,
+          version: found.version,
+          servers: found.servers,
+          known: (settings?.mcpServers ?? []).some((s) => s.id === 'hypergate' || s.id === 'kotrain-mcp'),
+        });
+      })();
+    });
+    return off;
+  }, []);
+
+  if (!ask) return null;
+
+  const accept = async () => {
+    setBusy(true);
+    await useStore.getState().connectHypergate(ask.port);
+    setBusy(false);
+    setAsk(null);
+  };
+
+  const heading = ask.known ? 'Reconnect Hypergate?' : 'Connect Hypergate?';
+  return (
+    <Modal
+      title={heading}
+      labelledBy="hypergate-link-title"
+      onClose={() => setAsk(null)}
+      overlayClassName="p-4"
+      className="card w-full max-w-md p-4"
+    >
+      <div>
+        <h2 id="hypergate-link-title" className="text-[15px] font-semibold">{heading}</h2>
+        <p className="mt-2 text-[12.5px] text-ink-soft">
+          Hypergate v{ask.version} on port {ask.port} is asking to connect to Kotrain. Its {ask.servers} managed
+          server{ask.servers === 1 ? '' : 's'} become one entry in your MCP list, and their tools are offered in every chat.
+        </p>
+        <p className="mt-2 text-[11.5px] text-ink-faint">
+          Kotrain gets its own scoped token, so you can narrow or revoke it from Hypergate at any time.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button className="btn btn-outline py-1 text-[12px]" onClick={() => setAsk(null)} disabled={busy}>Not now</button>
+          <button className="btn btn-primary py-1 text-[12px]" onClick={() => void accept()} disabled={busy}>
+            {busy ? 'Connecting…' : ask.known ? 'Reconnect' : 'Connect'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
