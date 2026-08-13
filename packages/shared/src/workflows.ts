@@ -464,6 +464,51 @@ function isBack(from: string, to: string, index: Map<string, number>): boolean {
   return a != null && b != null && b <= a;
 }
 
+/** A node on the step canvas: a step, or a terminal outcome. */
+export interface WorkflowNode {
+  id: string;
+  label: string;
+  /** The step's kind, or 'terminal' for the Done / Failed boxes. */
+  kind: WorkflowStepKind | 'terminal';
+  detail?: string;
+  step?: WorkflowStep;
+}
+
+/**
+ * The step graph, ready to lay out: every step as a node, plus a Done or Failed
+ * terminal where the routing actually reaches one. Terminals are nodes rather
+ * than dangling arrows so the canvas reads like a pipeline with an end.
+ */
+export function workflowGraph(steps: WorkflowStep[]): { nodes: WorkflowNode[]; edges: WorkflowEdge[] } {
+  const edges = workflowEdges(steps);
+  const nodes: WorkflowNode[] = steps.map((s) => ({
+    id: s.id,
+    label: s.name || '(unnamed)',
+    kind: s.kind,
+    detail: stepSummary(s),
+    step: s,
+  }));
+  if (edges.some((e) => e.to === 'end')) nodes.push({ id: 'end', label: 'Done', kind: 'terminal' });
+  if (edges.some((e) => e.to === 'fail')) nodes.push({ id: 'fail', label: 'Failed', kind: 'terminal' });
+  return { nodes, edges };
+}
+
+/** One line describing what a step runs, for a node card or a list row. */
+export function stepSummary(step: WorkflowStep): string {
+  const body = step.run.trim().split('\n')[0] ?? '';
+  const short = body.length > 60 ? `${body.slice(0, 60)}…` : body;
+  switch (step.kind) {
+    case 'shell':
+      return short || 'no command';
+    case 'workflow':
+      return 'runs another workflow';
+    case 'skill':
+      return short ? `/${short.replace(/^\//, '')}` : 'no skill chosen';
+    default:
+      return short || 'no instruction';
+  }
+}
+
 /** Steps no edge reaches (other than the first), so the editor can flag them. */
 export function unreachableSteps(steps: WorkflowStep[]): string[] {
   if (steps.length === 0) return [];
