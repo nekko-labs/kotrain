@@ -189,7 +189,16 @@ jobs:
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             prerelease=true
           fi
-          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME")
+          # Look the release up by listing rather than via /releases/tags/{tag}.
+          # That endpoint only resolves *published* releases and 404s on a
+          # draft, which is exactly what electron-builder just created, so the
+          # job could never publish the thing it was written to publish.
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq "map(select(.tag_name == \"$GITHUB_REF_NAME\")) | first")
+          if [ -z "$release" ] || [ "$release" = "null" ]; then
+            echo "No release found for tag $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
           release_id=$(jq -r '.id' <<<"$release")
           existing_body=$(jq -r '.body // ""' <<<"$release")
           generated_body=$(gh api --method POST \
