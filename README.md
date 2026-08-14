@@ -67,7 +67,7 @@ AppImage/deb and macOS DMG releases include their updater metadata. A release
 installed from a manually downloaded artifact may still require the matching
 installer format for updates.
 
-> **Releases before v0.5.1** are unsigned. macOS quarantines them and may say the app is *damaged* or move it to the Trash. The app is fine; clear the quarantine flag once with `xattr -cr "/Applications/Kotrain.app"`, or upgrade to a signed build.
+> **Releases before v0.6.0** are unsigned. macOS quarantines them and may say the app is *damaged* or move it to the Trash. The app is fine; clear the quarantine flag once with `xattr -cr "/Applications/Kotrain.app"`, or upgrade to a signed build.
 
 ### Uninstalling
 
