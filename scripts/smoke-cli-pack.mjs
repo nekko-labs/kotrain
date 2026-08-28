@@ -42,8 +42,18 @@ try {
   run('tar', ['-xzf', tarball, '-C', temp]);
   const packageJson = JSON.parse(readFileSync(join(unpacked, 'package.json'), 'utf8'));
   const runTypes = join(unpacked, 'dist/run.d.ts');
-  if (packageJson.bin?.kotrain !== './dist/index.js' || packageJson.bin?.nekkos !== './dist/index.js') {
-    throw new Error('Packed package is missing the kotrain and nekkos bin entries.');
+  // Both spellings of a bin path are valid and npm has normalized between them
+  // across versions, so compare what the entry points at rather than how it is
+  // written. Asserting the exact string is what made this check fail on a
+  // package that was correct (see the `./` prefix dropped in #151).
+  const binTarget = (value) => (typeof value === 'string' ? value.replace(/^\.\//, '') : undefined);
+  const bins = Object.fromEntries(
+    Object.entries(packageJson.bin ?? {}).map(([name, value]) => [name, binTarget(value)]),
+  );
+  if (bins.kotrain !== 'dist/index.js' || bins.nekkos !== 'dist/index.js') {
+    throw new Error(
+      `Packed package is missing the kotrain and nekkos bin entries (got ${JSON.stringify(packageJson.bin)}).`,
+    );
   }
   const packedDist = readdirSync(join(unpacked, 'dist')).sort();
   const expectedDist = ['index.d.ts', 'index.js', 'run.d.ts', 'run.js'];
