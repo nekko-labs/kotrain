@@ -49,7 +49,7 @@ jobs:
             state=$(gh pr view "$PR_URL" --json state -q .state 2>/dev/null || echo UNKNOWN)
             case "$state" in
               MERGED)
-                gh workflow run version-release.yml --ref main
+                gh workflow run version-release.yml --repo "$GH_REPO" --ref main
                 echo "Merged. Dispatched version-release for $PR_URL"
                 exit 0
                 ;;
@@ -64,3 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          # This job never checks out the repo, so gh has no git remote to infer
+          # from. `gh pr view` survives that because it is given a full URL;
+          # `gh workflow run` does not, and died with "not a git repository".
+          GH_REPO: ${{ github.repository }}
