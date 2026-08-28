@@ -14,6 +14,7 @@ import {
   REPORT_EXPERIMENT_TOOL,
   REPORT_ARTIFACT_TOOL,
   UPDATE_PLAN_TOOL,
+  repairInterruptedHistory,
 } from '@kotrain/core';
 import { reportExperiment, reportArtifact, updateRunPlan } from './training.js';
 import { getSettings } from './store.js';
@@ -296,7 +297,12 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     orchestrationHint: allowSpawn ? orchestrationPromptHint(orchestration) : '',
   });
 
-  if (opts.regenerate) {
+  if (opts.resume) {
+    // Carrying on from a run that stopped part-way: keep every step already taken
+    // and only make the transcript valid to send again, by answering any tool call
+    // that never got to run. Nothing is appended and nothing is dropped.
+    repairInterruptedHistory(session.messages);
+  } else if (opts.regenerate) {
     // Re-answer the last user turn: drop trailing assistant/tool messages.
     while (session.messages.length && session.messages[session.messages.length - 1].role !== 'user') {
       session.messages.pop();
@@ -383,6 +389,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
       maxOutputTokens: clampMaxOutputTokens(settings.maxOutputTokens),
       think: session.thinking,
       maxHistoryTurns: opts.maxHistoryTurns,
+      resume: opts.resume,
       signal: abort.signal,
     })) {
       if (event.type === 'usage') {
@@ -395,10 +402,19 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
           sessionId: opts.sessionId,
         });
       }
-      send(event);
-      if (event.type === 'done' || event.type === 'error') {
+      // Checkpoint after every completed step, not just at the end. The agent
+      // loop appends each assistant message and tool result to `session.messages`
+      // as it goes, so writing here means a run that is killed mid-flight (a
+      // timeout, a crash, a quit) leaves the steps it finished on disk to resume
+      // from, instead of an hour of tool work existing only in memory.
+      //
+      // Written before the event goes out, so anything that reacts to it by
+      // re-reading the session (the chat pane does exactly that on `done`) is
+      // guaranteed to find the step it was just told about.
+      if (event.type === 'tool_result' || event.type === 'done' || event.type === 'error') {
         persist();
       }
+      send(event);
     }
   } catch (e) {
     send({ type: 'error', sessionId: opts.sessionId, message: (e as Error).message });

@@ -3,6 +3,7 @@ import { DEFAULT_MAX_STEPS } from '@kotrain/shared';
 import type { Provider, ToolSpec } from '../providers/types.js';
 import { BUILTIN_TOOLS } from './tools.js';
 import { RUNAWAY_NOTE, createRunawayGuard } from './runaway.js';
+import { INTERRUPTED_NOTE, RESUME_PROMPT, repairInterruptedHistory } from './resume.js';
 
 export interface RunAgentOptions {
   sessionId: string;
@@ -31,6 +32,12 @@ export interface RunAgentOptions {
   maxHistoryTurns?: number;
   /** Hard cap on tokens one provider response may generate (see MAX_OUTPUT_TOKENS_DEFAULT). */
   maxOutputTokens?: number;
+  /**
+   * Continue a run that stopped part-way rather than starting the turn over.
+   * `history` is repaired first (see resume.ts) and the model is told to build on
+   * what is already there, so the steps it already took are not repeated.
+   */
+  resume?: boolean;
 }
 
 let counter = 0;
@@ -163,6 +170,7 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
               sessionId: opts.sessionId,
               inputTokens: chunk.inputTokens,
               outputTokens: chunk.outputTokens,
+              outputMs: chunk.outputMs,
             };
             break;
           case 'done':
@@ -186,6 +194,45 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
     }
   }
 
+  /**
+   * End a reply whose stream broke. Whatever the model produced up to that point
+   * is kept in the transcript (dropping it is what made a timeout on a long reply
+   * feel like the whole run was thrown away); any tool call it was part-way
+   * through emitting is not, because the arguments may be truncated and it never
+   * ran. The host has already checkpointed the steps before this one.
+   */
+  function* endInterrupted(turn: Turn, error: unknown): Generator<AgentEvent> {
+    const partial = (turn.runaway ? trimRunaway(turn.text) : turn.text).trim();
+    const reasoning = turn.reasoning.trim();
+    if (partial || reasoning) {
+      opts.history.push({
+        id: id('msg'),
+        role: 'assistant',
+        content: [partial, INTERRUPTED_NOTE].filter(Boolean).join('\n\n'),
+        ...(reasoning ? { reasoning, reasoningSeconds: turn.reasoningSeconds } : {}),
+        interrupted: true,
+        createdAt: Date.now(),
+      });
+    }
+    yield {
+      type: 'error',
+      sessionId: opts.sessionId,
+      // A stop the user asked for is not a failure, and shouldn't read as one.
+      message: opts.signal?.aborted ? 'Stopped' : (error as Error).message,
+    };
+  }
+
+  // Resuming: make the interrupted transcript valid to send again, then give the
+  // model one transient turn to push against when the last thing in it is its own
+  // cut-off reply (a transcript ending on a tool result already has its opening).
+  let resumeExtra: ChatMessage[] = [];
+  if (opts.resume) {
+    repairInterruptedHistory(opts.history);
+    if (opts.history[opts.history.length - 1]?.role === 'assistant') {
+      resumeExtra = [{ id: id('nudge'), role: 'user', content: RESUME_PROMPT, createdAt: Date.now() }];
+    }
+  }
+
   // A transient nudge used to recover from an empty response (not persisted).
   const nudge: ChatMessage = {
     id: id('nudge'),
@@ -202,14 +249,14 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
 
     const turn: Turn = { text: '', reasoning: '', calls: [] };
     try {
-      yield* stream(turn);
+      yield* stream(turn, iter === 0 ? resumeExtra : []);
       // Empty response: retry once with a nudge before giving up so the turn
       // doesn't silently stall (common with some local models mid-loop).
       if (isEmptyTurn(turn) && !opts.signal?.aborted) {
         yield* stream(turn, [nudge]);
       }
     } catch (e) {
-      yield { type: 'error', sessionId: opts.sessionId, message: (e as Error).message };
+      yield* endInterrupted(turn, e);
       return;
     }
 
@@ -290,7 +337,7 @@ export async function* runAgent(opts: RunAgentOptions): AsyncGenerator<AgentEven
       [],
     );
   } catch (e) {
-    yield { type: 'error', sessionId: opts.sessionId, message: (e as Error).message };
+    yield* endInterrupted(wrapUp, e);
     return;
   }
 

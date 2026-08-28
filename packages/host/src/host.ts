@@ -175,7 +175,7 @@ export interface Host {
   lmsAvailable(providerId: string): Promise<LmsProbe>;
   /** Stop the local model server backing a provider (kills its listening process). */
   stopServer(providerId: string): Promise<{ ok: boolean; message: string }>;
-  /** GPU/VRAM stats (null when no NVIDIA GPU / nvidia-smi is available). */
+  /** GPU stats from the platform's probe (null when it can't read one). */
   getGpuStats(): Promise<GpuStats | null>;
   /** CPU load + RAM use for the resource monitors. */
   getSystemStats(): Promise<SystemStats | null>;
