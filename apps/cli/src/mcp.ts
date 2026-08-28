@@ -1,4 +1,5 @@
 import { getClient, resolveModel, runChat, approvalPolicy, type Client } from './lib.js';
+import { resolveInstall } from './skills.js';
 import { VERSION } from './version.js';
 
 /**
@@ -259,8 +260,17 @@ async function callTool(client: Client, name: string, args: Record<string, any>)
       return JSON.stringify(await client.deleteTask(String(args.taskId)));
     case 'kotrain_skills_list':
       return JSON.stringify(await client.listInstalledSkills());
-    case 'kotrain_skill_install':
-      return JSON.stringify(await client.installSkill(String(args.skillId), (args.target ?? 'kotrain') as import('@kotrain/shared').InstallTarget));
+    case 'kotrain_skill_install': {
+      // Same payload resolution as the CLI, so Vaizer skills install by slug.
+      const { skillId, payload } = await resolveInstall(client, String(args.skillId));
+      return JSON.stringify(
+        await client.installSkill(
+          skillId,
+          (args.target ?? 'kotrain') as import('@kotrain/shared').InstallTarget,
+          payload,
+        ),
+      );
+    }
     case 'kotrain_tools_list':
       return JSON.stringify(await client.listTools());
     case 'kotrain_models_list':

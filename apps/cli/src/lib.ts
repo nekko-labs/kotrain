@@ -25,6 +25,7 @@ import type {
   InstallTarget,
   MarketplaceSkill,
   UsageSummary,
+  VaizerCatalog,
 } from '@kotrain/shared';
 
 /** The data dir for the in-process (local) client. KOTRAIN_DATA_DIR wins, then
@@ -71,6 +72,8 @@ export interface Client {
     target: InstallTarget,
     payload?: MarketplaceSkill,
   ): Promise<{ ok: boolean; message?: string; installed: InstalledSkillRecord[] }>;
+  vaizerCatalog(refresh?: boolean): Promise<VaizerCatalog>;
+  vaizerSkillMd(slug: string): Promise<string | null>;
   listTools(): Promise<Array<{ name: string; description: string }>>;
   usageSummary(): Promise<UsageSummary>;
   remoteStatus(): Promise<RemoteStatus>;
@@ -112,6 +115,8 @@ function localClient(): Client {
     deleteTask: async (id) => host.deleteTask(id),
     listInstalledSkills: async () => host.listInstalledSkills(),
     installSkill: async (id, target, payload) => host.installSkill(id, target, payload),
+    vaizerCatalog: async (refresh) => host.vaizerCatalog(refresh),
+    vaizerSkillMd: async (slug) => host.vaizerSkillMd(slug),
     listTools: async () => host.listTools(),
     usageSummary: async () => host.usageSummary(),
     remoteStatus: async () => host.remoteStatus(),
@@ -187,6 +192,8 @@ function httpClient(url: string, token?: string): Client {
     deleteTask: (id) => call('task:delete', id),
     listInstalledSkills: () => call('skills:installed'),
     installSkill: (id, target, payload) => call('skill:install', id, target, payload),
+    vaizerCatalog: (refresh) => call('vaizer:catalog', refresh),
+    vaizerSkillMd: (slug) => call('vaizer:skillMd', slug),
     listTools: () => call('tools:list'),
     usageSummary: () => call('usage:summary'),
     remoteStatus: () => call('remote:status'),

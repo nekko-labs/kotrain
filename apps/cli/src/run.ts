@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { stdin } from 'node:process';
 import { getClient, resolveModel, runChat, approvalPolicy, dataDir, type ChatOutputEvent } from './lib.js';
 import { runMcpServer } from './mcp.js';
+import { resolveInstall } from './skills.js';
 import { VERSION } from './version.js';
 import { cliCommand, triggerLabel } from '@kotrain/shared';
 import type { AgentEvent, NewTask } from '@kotrain/shared';
@@ -380,10 +381,14 @@ export async function runCli(argv: string[]): Promise<void> {
             EXIT_CODES.usage,
           );
         }
+        // Vaizer skills only install with a payload snapshot; resolve it here
+        // so the slug vaizer.app publishes (`nyaa`) works, not just built-ins.
+        const { skillId, payload } = await resolveInstall(client, id);
         return void print(
           await client.installSkill(
-            id,
+            skillId,
             (value(flags, 'target') ?? 'kotrain') as import('@kotrain/shared').InstallTarget,
+            payload,
           ),
           json,
         );
