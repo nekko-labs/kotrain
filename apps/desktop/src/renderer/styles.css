@@ -1036,6 +1036,15 @@
 .aphelion-zs { animation: aphelion-zs-k 2.8s ease-out infinite; }
 .aphelion-attentive { filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--accent) 20%, transparent)); }
 .aphelion-paused, .aphelion-paused * { animation-play-state: paused !important; }
+/* The outline mascot's line boil lives in CSS (not a filter attribute) so a
+   hidden document and the OS reduce-motion setting can switch it off. The
+   SMIL seed animation keeps ticking, but with no filter applied it costs
+   nothing to render. */
+.aphelion-boil { filter: url(#aphelion-boil); }
+.aphelion-paused .aphelion-boil { filter: none; }
+@media (prefers-reduced-motion: reduce) {
+  .aphelion-boil { filter: none; }
+}
 @keyframes dots {
   0% { content: ''; }
   25% { content: '.'; }
