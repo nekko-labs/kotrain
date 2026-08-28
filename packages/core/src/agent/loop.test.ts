@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runAgent, windowHistory } from './loop.js';
+import { INTERRUPTED_NOTE, INTERRUPTED_TOOL_OUTPUT, RESUME_PROMPT } from './resume.js';
 import type { ChatRequest, Provider, ProviderChunk } from '../providers/types.js';
 import type { ChatMessage, ToolCall, ToolResult } from '@kotrain/shared';
 
@@ -300,6 +301,196 @@ describe('runAgent', () => {
     // appended to the FULL history, which still holds all four turns.
     expect(seen.map((m) => m.content)).toEqual(['u3', 'a3', 'u4']);
     expect(history.map((m) => m.role)).toEqual(['user', 'assistant', 'user', 'assistant', 'user', 'assistant', 'user', 'assistant']);
+  });
+});
+
+describe('runAgent, interrupted runs', () => {
+  /** A provider whose stream breaks part-way through the reply. */
+  function breakingProvider(before: ProviderChunk[], error = new Error('terminated')): Provider {
+    return {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat() {
+        for (const c of before) yield c;
+        throw error;
+      },
+    };
+  }
+
+  it('keeps what the model wrote before the stream broke', async () => {
+    // The reported bug: a timeout part-way through a long reply threw the reply
+    // away and reported only a failure.
+    const provider = breakingProvider([
+      { type: 'text', delta: 'I found three problems. ' },
+      { type: 'text', delta: 'The first is a race in the queue' },
+    ]);
+    const history: ChatMessage[] = [msg('user', 'review this')];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) {
+      events.push(e);
+    }
+    expect(events.at(-1)).toMatchObject({ type: 'error', message: 'terminated' });
+    const kept = history.at(-1)!;
+    expect(kept.role).toBe('assistant');
+    expect(kept.interrupted).toBe(true);
+    expect(kept.content).toContain('The first is a race in the queue');
+    expect(kept.content).toContain(INTERRUPTED_NOTE);
+  });
+
+  it('keeps every step that completed before the break', async () => {
+    const call: ToolCall = { id: 'c1', name: 'bash', input: { command: 'npm test' } };
+    let round = 0;
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat() {
+        if (round++ === 0) {
+          yield { type: 'tool_call', call };
+          yield { type: 'done' };
+          return;
+        }
+        yield { type: 'text', delta: 'Reading the failure' };
+        throw new Error('terminated');
+      },
+    };
+    const history: ChatMessage[] = [msg('user', 'run the tests')];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'c1', output: '3 tests failed' }),
+    })) { /* drain */ }
+    // user, assistant(tool call), tool(result), assistant(interrupted partial).
+    expect(history.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
+    expect(history[2].toolResult?.output).toBe('3 tests failed');
+    expect(history.at(-1)?.interrupted).toBe(true);
+  });
+
+  it('drops a tool call the model was still emitting when the stream broke', async () => {
+    // It never ran and its arguments may be truncated, so it is not progress.
+    const call: ToolCall = { id: 'c1', name: 'bash', input: { command: 'rm -r' } };
+    const provider = breakingProvider([{ type: 'text', delta: 'Cleaning up' }, { type: 'tool_call', call }]);
+    const history: ChatMessage[] = [msg('user', 'go')];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'c1', output: 'ran' }),
+    })) { /* drain */ }
+    expect(history.at(-1)?.toolCalls).toBeUndefined();
+  });
+
+  it('adds nothing when the break came before the model said anything', async () => {
+    const provider = breakingProvider([]);
+    const history: ChatMessage[] = [msg('user', 'go')];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) { /* drain */ }
+    expect(history.map((m) => m.role)).toEqual(['user']);
+  });
+
+  it('reports a stop the user asked for as stopped, not as a failure', async () => {
+    const ctl = new AbortController();
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat() {
+        yield { type: 'text', delta: 'Working on it' };
+        ctl.abort();
+        throw new Error('The operation was aborted');
+      },
+    };
+    const history: ChatMessage[] = [msg('user', 'go')];
+    const events = [];
+    for await (const e of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, signal: ctl.signal,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) {
+      events.push(e);
+    }
+    expect(events.at(-1)).toMatchObject({ type: 'error', message: 'Stopped' });
+    // Stopping keeps the partial reply too, so resuming has something to build on.
+    expect(history.at(-1)?.content).toContain('Working on it');
+  });
+});
+
+describe('runAgent, resuming', () => {
+  it('continues the transcript instead of replaying the user turn', async () => {
+    let sent: ChatMessage[] = [];
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        sent = req.messages;
+        yield { type: 'text', delta: 'and the second is a leak.' };
+        yield { type: 'done' };
+      },
+    };
+    const history: ChatMessage[] = [
+      msg('user', 'review this'),
+      { id: 'a1', role: 'assistant', content: 'I found three problems.', interrupted: true, createdAt: 2 },
+    ];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, resume: true,
+      executeTool: async () => ({ toolCallId: 'x', output: '' }),
+    })) { /* drain */ }
+
+    // The model is told to carry on, and the nudge is transient: it never lands
+    // in the transcript the user reads.
+    expect(sent.at(-1)?.content).toBe(RESUME_PROMPT);
+    expect(history.some((m) => m.content === RESUME_PROMPT)).toBe(false);
+    expect(history.map((m) => m.role)).toEqual(['user', 'assistant', 'assistant']);
+    expect(history.at(-1)?.content).toBe('and the second is a leak.');
+  });
+
+  it('answers a tool call that never ran, so the transcript can be sent again', async () => {
+    const call: ToolCall = { id: 'c1', name: 'bash', input: { command: 'npm test' } };
+    let sent: ChatMessage[] = [];
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        sent = req.messages;
+        yield { type: 'text', delta: 'ok' };
+        yield { type: 'done' };
+      },
+    };
+    const history: ChatMessage[] = [msg('user', 'go'), { id: 'a1', role: 'assistant', content: '', toolCalls: [call], createdAt: 2 }];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, resume: true,
+      executeTool: async () => ({ toolCallId: 'c1', output: 'ran' }),
+    })) { /* drain */ }
+    expect(sent.find((m) => m.toolResult?.toolCallId === 'c1')?.toolResult?.output).toBe(INTERRUPTED_TOOL_OUTPUT);
+  });
+
+  it('does not nudge when the transcript already ends on a tool result', async () => {
+    const call: ToolCall = { id: 'c1', name: 'bash', input: {} };
+    let sent: ChatMessage[] = [];
+    const provider: Provider = {
+      config: { id: 'p', kind: 'openai-compat', label: 'x', baseUrl: 'x', enabled: true },
+      listModels: async () => [],
+      test: async () => ({ ok: true, message: '' }),
+      async *chat(req: ChatRequest) {
+        sent = req.messages;
+        yield { type: 'text', delta: 'ok' };
+        yield { type: 'done' };
+      },
+    };
+    const history: ChatMessage[] = [
+      msg('user', 'go'),
+      { id: 'a1', role: 'assistant', content: '', toolCalls: [call], createdAt: 2 },
+      { id: 't1', role: 'tool', content: '', toolResult: { toolCallId: 'c1', output: 'ran' }, createdAt: 3 },
+    ];
+    for await (const _ of runAgent({
+      sessionId: 's', provider, model: 'm', system: 'sys', history, resume: true,
+      executeTool: async () => ({ toolCallId: 'c1', output: 'ran' }),
+    })) { /* drain */ }
+    expect(sent.some((m) => m.content === RESUME_PROMPT)).toBe(false);
   });
 });
 

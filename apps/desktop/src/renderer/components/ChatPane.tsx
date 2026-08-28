@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgentEvent, AutoQuality, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo, SkillDef, PrInfo } from '@kotrain/shared';
-import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls, detectSessionWorkspace } from '@kotrain/shared';
+import { estimateCostUSD, pickAutoModel, AUTO_MODEL_ID, AUTO_QUALITIES, AUTO_QUALITY_META, matchSkills, estimateTokens, modelSupportsThinking, getSessionWorkspaceIds, extractPrUrls, collectSessionPrUrls, detectSessionWorkspace, decodeRate, formatRate, hasResumableProgress } from '@kotrain/shared';
 import { useStore } from '../store.js';
 import { clearDraft, loadDraft, saveDraft } from '../composerDrafts.js';
 import { Markdown } from './Markdown.js';
@@ -268,6 +268,11 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const attachButtonRef = useRef<HTMLButtonElement>(null);
   const turnStart = useRef(0);
+  // Milliseconds the model actually spent generating this turn's tokens, summed
+  // over the reply's steps. Separate from `turnStart`, which is wall clock and
+  // also covers prompt processing, tool runs, and approval waits, so dividing
+  // tokens by it under-reports throughput (badly, on a tool-heavy turn).
+  const turnDecodeMsRef = useRef(0);
   const reasoningStart = useRef(0);
   const turnOutRef = useRef(0);
   // Ref mirrors of the live buffers: the agent-event listener closure is
@@ -397,12 +402,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
           setThinking(true);
           break;
         case 'usage': {
-          // Accumulate output tokens across the reply's steps for the live
-          // subtext; base tps on the running total over elapsed time.
+          // Accumulate output tokens and decode time across the reply's steps, so
+          // the rate is tokens over the time spent generating them: the same
+          // figure the runtime reports, rather than tokens over the whole wait.
           turnOutRef.current += e.outputTokens;
+          turnDecodeMsRef.current += e.outputMs ?? 0;
           setTurnOut(turnOutRef.current);
-          const secs = (Date.now() - turnStart.current) / 1000;
-          if (secs > 0 && turnOutRef.current > 0) setTps(Math.round(turnOutRef.current / secs));
+          setTps(decodeRate(turnOutRef.current, turnDecodeMsRef.current));
           break;
         }
         case 'tool_call':
@@ -450,9 +456,10 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     // safe inside the long-lived agent-event listener closure).
     const secs = turnStart.current ? Math.round((Date.now() - turnStart.current) / 1000) : 0;
     if (turnOutRef.current > 0) {
-      setLastTurn({ out: turnOutRef.current, tps: secs > 0 ? Math.round(turnOutRef.current / secs) : 0, secs });
+      setLastTurn({ out: turnOutRef.current, tps: decodeRate(turnOutRef.current, turnDecodeMsRef.current), secs });
     }
     turnOutRef.current = 0;
+    turnDecodeMsRef.current = 0;
 
     // Build a short completion summary from the tools used in this reply (refs, not
     // state — see the ref mirrors above).
@@ -603,6 +610,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     reasoningStart.current = 0;
     turnStart.current = Date.now();
     turnOutRef.current = 0;
+    turnDecodeMsRef.current = 0;
     liveToolsRef.current = [];
     liveTextRef.current = '';
     setTurnOut(0);
@@ -788,8 +796,29 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     await window.kotrain.sendChat({ sessionId, providerId: brain.providerId, modelId: brain.modelId, text: newText });
   };
 
-  // Re-run the last user message after a failed turn.
-  const retryLast = () => {
+  // Carry on from a reply that stopped part-way. The transcript is left exactly
+  // as it is: every step already taken, and every tool result it produced, stays
+  // and is not run again. This is the non-destructive counterpart to startOver.
+  const resumeRun = async () => {
+    // Resolve the model against the prompt this run is still working on, so Auto
+    // mode picks the same tier it picked when the run started.
+    const lastUser = [...(session?.messages ?? [])].reverse().find((m) => m.role === 'user');
+    const brain = requireBrain(lastUser?.content ?? '');
+    if (!brain) return;
+    setErrorNotice(null);
+    beginTurn();
+    await window.kotrain.sendChat({
+      sessionId,
+      providerId: brain.providerId,
+      modelId: brain.modelId,
+      text: '',
+      resume: true,
+    });
+  };
+
+  // Re-run the last user message from scratch, discarding what the failed turn
+  // produced. Destructive, so it's the secondary action next to Resume.
+  const startOver = () => {
     const lastUser = [...(session?.messages ?? [])].reverse().find((m) => m.role === 'user');
     if (!lastUser) return;
     setErrorNotice(null);
@@ -1099,25 +1128,55 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               })()}
               {liveActivity.length > 0 && <ActivityGroup items={liveActivity} streaming />}
               {liveText && <MessageBubble message={{ id: 'live', role: 'assistant', content: liveText, createdAt: 0 }} onImageClick={setLightbox} chronological />}
-              {errorNotice && !streaming && (
+              {errorNotice && !streaming && (() => {
+                // A stop the user asked for is not a failure, so it doesn't wear
+                // the failure colour. Either way the run is resumable whenever it
+                // left something behind: the steps it finished are on disk, so
+                // Resume carries on rather than starting the work again.
+                const stopped = errorNotice === 'Stopped';
+                const canResume = hasResumableProgress(session?.messages ?? []);
+                const tone = stopped ? 'var(--warning)' : 'var(--danger)';
+                return (
                 <div
                   className="fade-in flex items-center gap-2.5 rounded-xl border px-3 py-2 text-[12px]"
                   style={{
-                    borderColor: 'color-mix(in srgb, var(--danger) 35%, transparent)',
-                    background: 'color-mix(in srgb, var(--danger) 7%, transparent)',
+                    borderColor: `color-mix(in srgb, ${tone} 35%, transparent)`,
+                    background: `color-mix(in srgb, ${tone} 7%, transparent)`,
                   }}
                   role="alert"
                 >
-                  <span className="shrink-0 font-medium" style={{ color: 'var(--danger)' }}>Reply failed</span>
-                  <span className="min-w-0 flex-1 text-ink-soft">{errorNotice}</span>
+                  <span className="shrink-0 font-medium" style={{ color: tone }}>
+                    {stopped ? 'Reply stopped' : 'Reply failed'}
+                  </span>
+                  <span className="min-w-0 flex-1 text-ink-soft">
+                    {stopped
+                      ? canResume ? 'The work so far is saved.' : 'Nothing had started yet.'
+                      : errorNotice}
+                  </span>
+                  {canResume && (
+                    <button
+                      className="btn btn-primary shrink-0 px-2.5 py-0.5 text-[11px]"
+                      title="Carry on from here, keeping every step already done"
+                      onClick={() => void resumeRun()}
+                    >
+                      Resume
+                    </button>
+                  )}
                   {session?.messages.some((m) => m.role === 'user') && (
-                    <button className="btn btn-outline shrink-0 px-2.5 py-0.5 text-[11px]" onClick={retryLast}>Retry</button>
+                    <button
+                      className="btn btn-outline shrink-0 px-2.5 py-0.5 text-[11px]"
+                      title="Discard this reply and answer the prompt again from scratch"
+                      onClick={startOver}
+                    >
+                      Start over
+                    </button>
                   )}
                   <button className="shrink-0 rounded-sm p-0.5 text-ink-faint hover:text-ink" title="Dismiss" onClick={() => setErrorNotice(null)}>
                     <CloseIcon className="h-3 w-3" />
                   </button>
                 </div>
-              )}
+                );
+              })()}
               <ReplyStatus
                 streaming={streaming}
                 waiting={streaming && !liveText && liveActivity.length === 0}
@@ -1997,6 +2056,9 @@ function ActivityGroup({ items, streaming = false }: { items: Activity[]; stream
 function ReplyStatus({
   streaming, waiting, elapsed, tps, out, last, done,
 }: {
+  // `elapsed` is how long the reply has been running; `tps` is the model's decode
+  // rate over the time it spent generating, so the two deliberately don't divide
+  // into each other (a turn spends much of its wall clock running tools).
   streaming: boolean; waiting: boolean; elapsed: number; tps: number; out: number;
   last: { out: number; tps: number; secs: number } | null;
   done?: string | null;
@@ -2006,7 +2068,7 @@ function ReplyStatus({
       <div className="fade-in flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1 text-[12px] text-ink-faint">
         <span className="flex items-center gap-2 text-ink-soft"><MiniAphelion size={16} /> {waiting ? 'Aphelion is working' : 'Streaming'}<span className="dots" /></span>
         {elapsed > 0 && <span>· {elapsed}s</span>}
-        {tps > 0 && <span>· {tps} tok/s</span>}
+        {tps > 0 && <span title="Output tokens per second while the model was generating">· {formatRate(tps)} tok/s</span>}
         {out > 0 && <span>· {fmtTok(out)} tokens</span>}
       </div>
     );
@@ -2023,7 +2085,7 @@ function ReplyStatus({
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[11px] text-ink-faint/80">
         <span>Last reply</span>
         <span>· {fmtTok(last.out)} tokens</span>
-        {last.tps > 0 && <span>· {last.tps} tok/s</span>}
+        {last.tps > 0 && <span title="Output tokens per second while the model was generating">· {formatRate(last.tps)} tok/s</span>}
         {last.secs > 0 && <span>· {last.secs}s</span>}
       </div>
     );

@@ -89,7 +89,7 @@ export interface AppSettings {
   /**
    * Which resource monitors run. Anything omitted falls back to
    * DEFAULT_MONITORS; a monitor switched off stops being sampled at all, so no
-   * `nvidia-smi` spawn and no CPU sampling happen for it.
+   * GPU-probe spawn and no CPU sampling happen for it.
    */
   monitors?: Partial<Record<import('./monitor.js').MonitorKind, boolean>>;
 }
