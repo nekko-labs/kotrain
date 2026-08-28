@@ -1,6 +1,6 @@
 {
   "name": "kotrain-workspace",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "Local-first AI coding & cowork desktop app with first-class local model support.",
   "license": "MIT",
