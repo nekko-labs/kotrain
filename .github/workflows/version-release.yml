@@ -17,14 +17,19 @@ on:
     branches: [main]
     paths:
       - 'package.json'
-  # ...but most merges here are not human: auto-merge.yml enables auto-merge with
+  # ...but almost no merge here is human: auto-merge.yml enables auto-merge with
   # GITHUB_TOKEN, so the merge is attributed to github-actions[bot], and a push
   # from that token never starts a workflow run. That is the same recursion guard
-  # that stops a bot-pushed tag from triggering release.yml, and it silently
-  # skipped v0.6.0's release until it was dispatched by hand. So a schedule is
-  # the actual backstop: it notices an untagged version whoever merged it, at the
-  # cost of waiting for the next tick. Everything below is idempotent (it stops
-  # when the tag already exists), so overlapping triggers are harmless.
+  # that stops a bot-pushed tag from triggering release.yml. The push trigger
+  # above has in fact never fired: every run in this repo's history is `schedule`
+  # or `workflow_dispatch`. It silently skipped v0.6.0's release, and left
+  # v0.6.1 sitting unreleased until it was dispatched by hand.
+  #
+  # So the primary path is now a dispatch from auto-merge.yml, which waits for
+  # the PR to actually merge and then calls this workflow. The schedule below
+  # stays as the backstop for anything that path misses (a merge from the web
+  # UI, a direct push, a timed-out wait). Everything here is idempotent (it
+  # stops when the tag already exists), so overlapping triggers are harmless.
   schedule:
     - cron: '*/15 * * * *'
   # Cut a pending release right now instead of waiting for the tick.
