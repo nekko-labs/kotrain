@@ -1,6 +1,6 @@
 {
   "name": "kotrain",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "description": "Kotrain CLI + MCP server, drive your local agent from the terminal or other tools (Claude Code, Codex, …).",
   "license": "MIT",
